@@ -1,0 +1,2 @@
+-keep class androidx.multidex.MultiDexApplication
+-keep class androidx.multidex.MultiDex

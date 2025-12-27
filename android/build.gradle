@@ -1,0 +1,50 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.0'
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.23'
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    //    // Fix for facebook_audience_network namespace issue
+    afterEvaluate { project ->
+        if (project.plugins.hasPlugin('com.android.library')) {
+            project.android {
+                if (namespace == null) {
+                    namespace 'com.facebook.ads'
+                }
+            }
+        }
+    }
+}
+
+rootProject.buildDir = '../build'
+
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.evaluationDependsOn(':app')
+    
+//    // Fix for facebook_audience_network namespace issue
+//    afterEvaluate { project ->
+//        if (project.plugins.hasPlugin('com.android.library')) {
+//            project.android {
+//                if (namespace == null) {
+//                    namespace 'com.facebook.ads'
+//                }
+//            }
+//        }
+//    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.layout.buildDirectory
+}

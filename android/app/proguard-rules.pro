@@ -1,0 +1,8 @@
+-keep class com.facebook.ads.** { *; }
+-keep class com.razorpay.** { *; }
+-keep class com.razorpay.flutter.** { *; }
+-keepattributes InnerClasses
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class io.flutter.plugins.firebase.auth.** { *; }
+-keep class io.flutter.plugins.firebase.core.** { *; }
