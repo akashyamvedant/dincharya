@@ -386,14 +386,63 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
+            colorScheme: AppTheme.lightTheme.colorScheme.copyWith(
+              primary: AppTheme.lightTheme.colorScheme.primary,
+              onPrimary: Colors.white,
+              surface: AppTheme.lightTheme.colorScheme.surface,
+              onSurface: AppTheme.lightTheme.colorScheme.onSurface,
+            ),
             timePickerTheme: TimePickerThemeData(
               backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-              hourMinuteTextColor: AppTheme.lightTheme.colorScheme.onSurface,
-              dayPeriodTextColor: AppTheme.lightTheme.colorScheme.onSurface,
+              hourMinuteShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              hourMinuteColor: WidgetStateColor.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppTheme.lightTheme.colorScheme.primary;
+                }
+                return AppTheme.lightTheme.colorScheme.surfaceContainerHighest;
+              }),
+              hourMinuteTextColor: WidgetStateColor.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return AppTheme.lightTheme.colorScheme.onSurface;
+              }),
+              dayPeriodShape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              dayPeriodColor: WidgetStateColor.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.2);
+                }
+                return Colors.transparent;
+              }),
+              dayPeriodTextColor: WidgetStateColor.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppTheme.lightTheme.colorScheme.primary;
+                }
+                return AppTheme.lightTheme.colorScheme.onSurfaceVariant;
+              }),
               dialHandColor: AppTheme.lightTheme.colorScheme.primary,
-              dialBackgroundColor: AppTheme
-                  .lightTheme.colorScheme.primaryContainer
-                  .withValues(alpha: 0.1),
+              dialBackgroundColor: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              dialTextColor: WidgetStateColor.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.white;
+                }
+                return AppTheme.lightTheme.colorScheme.onSurface;
+              }),
+              entryModeIconColor: AppTheme.lightTheme.colorScheme.primary,
+              helpTextStyle: TextStyle(
+                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: AppTheme.lightTheme.colorScheme.primary,
+              ),
             ),
           ),
           child: child!,
@@ -401,7 +450,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       },
     );
 
-    if (picked != null && picked != _selectedTime) {
+    if (picked != null) {
+      debugPrint('📅 Time picked: ${picked.format(context)}');
       setState(() {
         _selectedTime = picked;
       });
@@ -433,11 +483,16 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       (type) => type["type"] == _selectedType,
     );
 
+    // Format time for storage (use 'time' key for consistency with task loading)
+    final formattedTime = _selectedTime.format(context);
+    debugPrint('📅 Adding task with time: $formattedTime');
+
     final newTask = {
       "title": _titleController.text.trim(),
       "type": _selectedType,
       "duration": _durationController.text.trim(),
-      "scheduledTime": _selectedTime.format(context),
+      "time": formattedTime,  // Primary time field used by dashboard
+      "scheduledTime": formattedTime,  // Keep for backward compatibility
       "icon": selectedTaskType["icon"],
       "description": _descriptionController.text.trim().isNotEmpty
           ? _descriptionController.text.trim()

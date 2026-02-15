@@ -3,11 +3,56 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 
+/// XP Level definitions for the gamification system
+class UserLevel {
+  final String name;
+  final String nameHindi;
+  final String icon;
+  final int minXP;
+  final int maxXP;
+  final Color color;
+
+  const UserLevel({
+    required this.name,
+    required this.nameHindi,
+    required this.icon,
+    required this.minXP,
+    required this.maxXP,
+    required this.color,
+  });
+
+  static const List<UserLevel> levels = [
+    UserLevel(name: 'Beginner', nameHindi: 'शुरुआत', icon: '🌱', minXP: 0, maxXP: 100, color: Color(0xFF8BC34A)),
+    UserLevel(name: 'Seeker', nameHindi: 'साधक', icon: '🔍', minXP: 100, maxXP: 300, color: Color(0xFF03A9F4)),
+    UserLevel(name: 'Practitioner', nameHindi: 'अभ्यासी', icon: '🧘', minXP: 300, maxXP: 700, color: Color(0xFFCD853F)),
+    UserLevel(name: 'Disciplined', nameHindi: 'अनुशासित', icon: '⚡', minXP: 700, maxXP: 1500, color: Color(0xFFFF9800)),
+    UserLevel(name: 'Yogi', nameHindi: 'योगी', icon: '🕉️', minXP: 1500, maxXP: 3000, color: Color(0xFFE91E63)),
+    UserLevel(name: 'Guru', nameHindi: 'गुरु', icon: '👑', minXP: 3000, maxXP: 6000, color: Color(0xFFFFD700)),
+    UserLevel(name: 'Maharishi', nameHindi: 'महर्षि', icon: '✨', minXP: 6000, maxXP: 99999, color: Color(0xFFFF6F00)),
+  ];
+
+  static UserLevel fromXP(int totalXP) {
+    for (int i = levels.length - 1; i >= 0; i--) {
+      if (totalXP >= levels[i].minXP) return levels[i];
+    }
+    return levels[0];
+  }
+
+  double progressInLevel(int totalXP) {
+    if (maxXP <= minXP) return 1.0;
+    return ((totalXP - minXP) / (maxXP - minXP)).clamp(0.0, 1.0);
+  }
+}
+
 class RoutineHeaderWidget extends StatelessWidget {
   final String selectedProfile;
   final List<String> routineProfiles;
   final Function(String?) onProfileChanged;
   final int streakCount;
+  final int totalXP;
+  final double weeklyCompletion; // 0.0 - 1.0
+  final List<bool> weeklyDays; // Mon-Sun completion status
+  final VoidCallback? onProfileTap;
 
   const RoutineHeaderWidget({
     super.key,
@@ -15,6 +60,10 @@ class RoutineHeaderWidget extends StatelessWidget {
     required this.routineProfiles,
     required this.onProfileChanged,
     required this.streakCount,
+    this.totalXP = 0,
+    this.weeklyCompletion = 0.0,
+    this.weeklyDays = const [false, false, false, false, false, false, false],
+    this.onProfileTap,
   });
 
   @override
@@ -22,10 +71,11 @@ class RoutineHeaderWidget extends StatelessWidget {
     final DateTime now = DateTime.now();
     final String formattedDate =
         "${_getDayName(now.weekday)}, ${now.day} ${_getMonthName(now.month)}";
+    final level = UserLevel.fromXP(totalXP);
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
       decoration: BoxDecoration(
         color: AppTheme.lightTheme.colorScheme.surface,
         boxShadow: [
@@ -38,109 +88,300 @@ class RoutineHeaderWidget extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Date and Streak Row
+          // Row 1: Date + Profile
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                formattedDate,
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w500,
+              // Date Text
+              Flexible(
+                child: Text(
+                  formattedDate,
+                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    color: AppTheme.lightTheme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.tertiary
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CustomIconWidget(
-                      iconName: 'local_fire_department',
-                      color: AppTheme.lightTheme.colorScheme.tertiary,
-                      size: 18,
-                    ),
-                    SizedBox(width: 1.w),
-                    Text(
-                      '$streakCount',
-                      style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.tertiary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 1.5.h),
-
-          // Profile Selector
-          Row(
-            children: [
-              Text(
-                'Today\'s Routine:',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+              
               SizedBox(width: 2.w),
-              Expanded(
+              
+              // Compact Profile Button
+              GestureDetector(
+                onTap: onProfileTap ?? () {},
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.colorScheme.primaryContainer
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                        AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: AppTheme.lightTheme.colorScheme.outline
-                          .withValues(alpha: 0.3),
+                      color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
                     ),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedProfile,
-                      isExpanded: true,
-                      icon: CustomIconWidget(
-                        iconName: 'keyboard_arrow_down',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CustomIconWidget(
+                        iconName: _getProfileIcon(selectedProfile),
                         color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 20,
+                        size: 18,
                       ),
-                      style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      items: routineProfiles.map((String profile) {
-                        return DropdownMenuItem<String>(
-                          value: profile,
-                          child: Row(
-                            children: [
-                              CustomIconWidget(
-                                iconName: _getProfileIcon(profile),
-                                color: AppTheme.lightTheme.colorScheme.primary,
-                                size: 18,
-                              ),
-                              SizedBox(width: 2.w),
-                              Text(profile),
-                            ],
+                      SizedBox(width: 1.5.w),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: 25.w),
+                        child: Text(
+                          _getProfileDisplayName(selectedProfile),
+                          style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                            color: AppTheme.lightTheme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
                           ),
-                        );
-                      }).toList(),
-                      onChanged: onProfileChanged,
-                    ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      SizedBox(width: 1.w),
+                      Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                        size: 16,
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
+          
+          SizedBox(height: 1.h),
+          
+          // Row 2: Streak + XP Level + Weekly %
+          Row(
+            children: [
+              // Streak Badge
+              _buildStreakBadge(),
+              SizedBox(width: 3.w),
+              // XP Level Badge
+              _buildXPBadge(level),
+              SizedBox(width: 3.w),
+              // Weekly completion
+              _buildWeeklyBadge(),
+            ],
+          ),
+          
+          SizedBox(height: 1.h),
+          
+          // Row 3: Weekly Dots (Mon-Sun)
+          _buildWeeklyDots(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStreakBadge() {
+    final bool hasStreak = streakCount > 0;
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+        decoration: BoxDecoration(
+          gradient: hasStreak
+              ? const LinearGradient(
+                  colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+                )
+              : null,
+          color: hasStreak ? null : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: hasStreak ? const Color(0xFFFF8F00).withOpacity(0.3) : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              hasStreak ? '🔥' : '💤',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+            SizedBox(width: 1.w),
+            Flexible(
+              child: Text(
+                hasStreak ? '$streakCount day${streakCount > 1 ? 's' : ''}' : 'No streak',
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: hasStreak ? const Color(0xFFE65100) : Colors.grey,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildXPBadge(UserLevel level) {
+    final progress = level.progressInLevel(totalXP);
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              level.color.withOpacity(0.1),
+              level.color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: level.color.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(level.icon, style: TextStyle(fontSize: 15.sp)),
+                SizedBox(width: 1.w),
+                Flexible(
+                  child: Text(
+                    level.name,
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.bold,
+                      color: level.color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 0.3.h),
+            // XP Progress bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: AlwaysStoppedAnimation(level.color),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyBadge() {
+    final pct = (weeklyCompletion * 100).toInt();
+    final isGood = pct >= 70;
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              (isGood ? Colors.green : Colors.orange).withOpacity(0.1),
+              (isGood ? Colors.green : Colors.orange).withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: (isGood ? Colors.green : Colors.orange).withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              isGood ? '📊' : '📈',
+              style: TextStyle(fontSize: 16.sp),
+            ),
+            SizedBox(width: 1.w),
+            Flexible(
+              child: Text(
+                '$pct% week',
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.bold,
+                  color: isGood ? Colors.green.shade700 : Colors.orange.shade700,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWeeklyDots() {
+    final now = DateTime.now();
+    final todayWeekday = now.weekday; // 1 = Monday
+    final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(7, (i) {
+          final isToday = i + 1 == todayWeekday;
+          final isCompleted = i < weeklyDays.length && weeklyDays[i];
+          final isPast = i + 1 < todayWeekday;
+
+          return Column(
+            children: [
+              Text(
+                dayLabels[i],
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
+                  color: isToday ? const Color(0xFF8B4513) : Colors.grey,
+                ),
+              ),
+              SizedBox(height: 0.3.h),
+              Container(
+                width: 7.w,
+                height: 7.w,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isCompleted
+                      ? Colors.green
+                      : (isPast ? Colors.red.shade100 : Colors.grey.shade200),
+                  border: isToday
+                      ? Border.all(color: const Color(0xFF8B4513), width: 2)
+                      : null,
+                  boxShadow: isToday
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF8B4513).withOpacity(0.3),
+                            blurRadius: 4,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: isCompleted
+                      ? Icon(Icons.check, size: 3.w, color: Colors.white)
+                      : (isPast
+                          ? Icon(Icons.close, size: 3.w, color: Colors.red.shade300)
+                          : null),
+                ),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
@@ -177,15 +418,40 @@ class RoutineHeaderWidget extends StatelessWidget {
   }
 
   String _getProfileIcon(String profile) {
-    switch (profile) {
-      case 'Village Life':
-        return 'nature';
-      case 'City Life':
-        return 'location_city';
-      case 'Student Life':
+    switch (profile.toLowerCase()) {
+      case 'yogic':
+        return 'self_improvement';
+      case 'student':
         return 'school';
+      case 'professional':
+        return 'work';
+      case 'homemaker':
+        return 'home';
+      case 'custom':
+        return 'edit';
+      case 'village life':
+        return 'nature';
+      case 'city life':
+        return 'location_city';
       default:
         return 'person';
+    }
+  }
+
+  String _getProfileDisplayName(String profile) {
+    switch (profile.toLowerCase()) {
+      case 'yogic':
+        return 'Yogic Lifestyle';
+      case 'student':
+        return 'Student Life';
+      case 'professional':
+        return 'Working Professional';
+      case 'homemaker':
+        return 'Homemaker';
+      case 'custom':
+        return 'Custom Routine';
+      default:
+        return profile;
     }
   }
 }

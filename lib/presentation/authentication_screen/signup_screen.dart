@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../services/auth_service.dart';
+import '../../core/utils/validators.dart';
 import './widgets/auth_footer_widget.dart';
 import './widgets/auth_header_widget.dart';
 
@@ -70,12 +71,8 @@ class _SignUpScreenState extends State<SignUpScreen>
         _passwordController.text.isNotEmpty &&
         _confirmPasswordController.text.isNotEmpty &&
         _agreeToTerms &&
-        _isValidEmail(_emailController.text) &&
+        Validators.isValidEmail(_emailController.text) &&
         _passwordController.text == _confirmPasswordController.text;
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
   Future<void> _handleSignUp() async {
@@ -108,14 +105,13 @@ class _SignUpScreenState extends State<SignUpScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  'Account created successfully! Please check your email to verify your account.'),
+              content: Text('Welcome to DinCharya! Let\'s get started.'),
               backgroundColor: AppTheme.lightTheme.colorScheme.primary,
             ),
           );
 
-          // Navigate back to sign in
-          Navigator.pop(context);
+          // Navigate to dashboard (user is auto-logged in)
+          Navigator.pushReplacementNamed(context, '/routine-dashboard');
         }
       } else {
         setState(() {
@@ -255,8 +251,8 @@ class _SignUpScreenState extends State<SignUpScreen>
               if (value == null || value.isEmpty) {
                 return 'Please enter your full name';
               }
-              if (value.length < 2) {
-                return 'Name must be at least 2 characters';
+              if (!Validators.isValidName(value)) {
+                return 'Please enter a valid name (letters only)';
               }
               return null;
             },
@@ -275,7 +271,7 @@ class _SignUpScreenState extends State<SignUpScreen>
               if (value == null || value.isEmpty) {
                 return 'Please enter your email address';
               }
-              if (!_isValidEmail(value)) {
+              if (!Validators.isValidEmail(value)) {
                 return 'Please enter a valid email address';
               }
               return null;
@@ -301,17 +297,8 @@ class _SignUpScreenState extends State<SignUpScreen>
               if (value == null || value.trim().isEmpty) {
                 return 'Please enter a password';
               }
-              if (value.length < 8) {
-                return 'Password must be at least 8 characters';
-              }
-              // Strong password validation
-              final hasUppercase = value.contains(RegExp(r'[A-Z]'));
-              final hasLowercase = value.contains(RegExp(r'[a-z]'));
-              final hasDigit = value.contains(RegExp(r'[0-9]'));
-              final hasSpecialChar = value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
-              
-              if (!hasUppercase || !hasLowercase || !hasDigit || !hasSpecialChar) {
-                return 'Password must contain uppercase, lowercase, number & special character';
+              if (!Validators.isValidPassword(value)) {
+                return 'Password must meet complexity requirements';
               }
               return null;
             },

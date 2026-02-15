@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../core/utils/validators.dart';
 
 class AuthFormWidget extends StatelessWidget {
   final GlobalKey<FormState> formKey;
@@ -119,8 +120,7 @@ class AuthFormWidget extends StatelessWidget {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your email address';
                 }
-                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                    .hasMatch(value)) {
+                if (!Validators.isValidEmail(value)) {
                   return 'Please enter a valid email address';
                 }
                 return null;
@@ -215,8 +215,8 @@ class AuthFormWidget extends StatelessWidget {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your password';
                 }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
+                if (!Validators.isValidPassword(value)) {
+                  return 'Password must meet complexity requirements';
                 }
                 return null;
               },

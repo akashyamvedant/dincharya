@@ -1,9 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
-
-// lib/presentation/payment/payment_plans_screen.dart
+import '../../models/payment_models.dart';
 
 class PaymentPlansScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -17,711 +19,918 @@ class PaymentPlansScreen extends StatefulWidget {
   State<PaymentPlansScreen> createState() => _PaymentPlansScreenState();
 }
 
-class _PaymentPlansScreenState extends State<PaymentPlansScreen> {
+class _PaymentPlansScreenState extends State<PaymentPlansScreen>
+    with TickerProviderStateMixin {
   final PaymentService _paymentService = PaymentService();
+  late List<PaymentPlan> _plans;
+  late PricingTier _currentTier;
+  late LocalizedPrice _pricing;
+  int _selectedPlanIndex = 1; // Default yearly (best value)
   bool _isProcessing = false;
-  bool _razorpayConfigured = false;
+  late AnimationController _pulseController;
+
+  // Coupon state
+  final TextEditingController _couponController = TextEditingController();
+  String? _appliedCoupon;
+  bool _isCouponApplied = false;
 
   @override
   void initState() {
     super.initState();
-    _checkRazorpayConfiguration();
-  }
+    _paymentService.initialize();
+    
+    // Detect geo-tier and get localized plans
+    _currentTier = GeoPricing.detectTier();
+    _pricing = GeoPricing.getPricing(_currentTier);
+    _plans = PaymentPlan.getLocalizedPlans();
 
-  void _checkRazorpayConfiguration() {
-    try {
-      _paymentService.initialize();
-      setState(() {
-        _razorpayConfigured = true;
-      });
-    } catch (e) {
-      setState(() {
-        _razorpayConfigured = false;
-      });
-      _showRazorpayConfigurationDialog();
-    }
-  }
-
-  void _showRazorpayConfigurationDialog() {
-    showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-                title: Row(children: [
-                  CustomIconWidget(
-                      iconName: 'settings',
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      size: 24),
-                  SizedBox(width: 2.w),
-                  Text('Razorpay Setup Required',
-                      style: AppTheme.lightTheme.textTheme.titleMedium),
-                ]),
-                content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          'To process payments, please provide your Razorpay credentials:',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium),
-                      SizedBox(height: 2.h),
-                      Container(
-                          padding: EdgeInsets.all(3.w),
-                          decoration: BoxDecoration(
-                              color: AppTheme.lightTheme.colorScheme.primary
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Required Razorpay Credentials:',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.lightTheme
-                                                .colorScheme.primary)),
-                                SizedBox(height: 1.h),
-                                Text(
-                                    '• Razorpay Key ID (rzp_live_xxxxx or rzp_test_xxxxx)',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall),
-                                Text('• Razorpay Key Secret',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall),
-                                Text('• Webhook Secret (optional)',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall),
-                                SizedBox(height: 1.h),
-                                Text(
-                                    'Get these from: https://dashboard.razorpay.com/',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall
-                                        ?.copyWith(
-                                            color: AppTheme
-                                                .lightTheme.colorScheme.primary,
-                                            fontStyle: FontStyle.italic)),
-                              ])),
-                    ]),
-                actions: [
-                  TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Cancel')),
-                  ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _showRazorpayInstructions();
-                      },
-                      child: const Text('Setup Instructions')),
-                ]));
-  }
-
-  void _showRazorpayInstructions() {
-    showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: Text('Razorpay Setup Instructions',
-                    style: AppTheme.lightTheme.textTheme.titleMedium),
-                content: SingleChildScrollView(
-                    child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('Follow these steps to configure Razorpay:',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
-                      SizedBox(height: 2.h),
-                      _buildInstructionStep(
-                          '1.', 'Go to https://dashboard.razorpay.com/'),
-                      _buildInstructionStep('2.',
-                          'Login to your Razorpay account or create a new one'),
-                      _buildInstructionStep(
-                          '3.', 'Navigate to Settings → API Keys'),
-                      _buildInstructionStep(
-                          '4.', 'Copy your Key ID and Key Secret'),
-                      _buildInstructionStep('5.',
-                          'Update the credentials in lib/services/payment_service.dart'),
-                      SizedBox(height: 2.h),
-                      Container(
-                          padding: EdgeInsets.all(3.w),
-                          decoration: BoxDecoration(
-                              color: Colors.orange.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Row(children: [
-                            CustomIconWidget(
-                                iconName: 'warning',
-                                color: Colors.orange,
-                                size: 20),
-                            SizedBox(width: 2.w),
-                            Expanded(
-                                child: Text(
-                                    'Use test credentials for development and live credentials for production',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall)),
-                          ])),
-                    ])),
-                actions: [
-                  ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Got it')),
-                ]));
-  }
-
-  Widget _buildInstructionStep(String number, String instruction) {
-    return Padding(
-        padding: EdgeInsets.only(bottom: 1.h),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(
-              width: 6.w,
-              child: Text(number,
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.lightTheme.colorScheme.primary))),
-          Expanded(
-              child: Text(instruction,
-                  style: AppTheme.lightTheme.textTheme.bodyMedium)),
-        ]));
+    _pulseController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    if (_razorpayConfigured) {
-      _paymentService.dispose();
-    }
+    _pulseController.dispose();
+    _couponController.dispose();
+    _paymentService.dispose();
     super.dispose();
   }
 
-  void _selectPlan(PaymentPlan plan) {
-    if (_isProcessing) return;
+  void _selectPlan(int index) {
+    HapticFeedback.selectionClick();
+    setState(() => _selectedPlanIndex = index);
+  }
 
-    if (!_razorpayConfigured) {
-      _showRazorpayConfigurationDialog();
+  void _applyCoupon() {
+    final code = _couponController.text.trim().toUpperCase();
+    if (code.isEmpty) {
+      _showErrorSnackbar('Please enter a coupon code');
       return;
     }
 
-    showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: Text('Confirm Purchase',
-                    style: AppTheme.lightTheme.textTheme.titleMedium),
-                content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Plan: ${plan.name}',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
-                      SizedBox(height: 1.h),
-                      Text('Price: ₹${plan.price.toStringAsFixed(0)}',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
-                              ?.copyWith(
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.primary,
-                                  fontWeight: FontWeight.w600)),
-                      SizedBox(height: 1.h),
-                      Text('Duration: 1 ${plan.duration}',
-                          style: AppTheme.lightTheme.textTheme.bodySmall),
-                      SizedBox(height: 1.h),
-                      Container(
-                          padding: EdgeInsets.all(2.w),
-                          decoration: BoxDecoration(
-                              color: AppTheme.lightTheme.colorScheme.primary
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Row(children: [
-                            CustomIconWidget(
-                                iconName: 'account_balance_wallet',
-                                color: AppTheme.lightTheme.colorScheme.primary,
-                                size: 16),
-                            SizedBox(width: 2.w),
-                            Text('Payment via Razorpay',
-                                style: AppTheme.lightTheme.textTheme.bodySmall
-                                    ?.copyWith(
-                                        color: AppTheme
-                                            .lightTheme.colorScheme.primary,
-                                        fontWeight: FontWeight.w600)),
-                          ])),
-                      SizedBox(height: 2.h),
-                      Text('Features included:',
-                          style: AppTheme.lightTheme.textTheme.bodySmall
-                              ?.copyWith(fontWeight: FontWeight.w600)),
-                      SizedBox(height: 0.5.h),
-                      ...plan.features.take(3).map((feature) => Padding(
-                          padding: EdgeInsets.only(bottom: 0.5.h),
-                          child: Row(children: [
-                            CustomIconWidget(
-                                iconName: 'check_circle',
-                                color: AppTheme.lightTheme.colorScheme.primary,
-                                size: 16),
-                            SizedBox(width: 2.w),
-                            Expanded(
-                                child: Text(feature,
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall)),
-                          ]))),
-                      if (plan.features.length > 3) ...[
-                        Text('+ ${plan.features.length - 3} more features',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
-                                ?.copyWith(
-                                    color:
-                                        AppTheme.lightTheme.colorScheme.primary,
-                                    fontStyle: FontStyle.italic)),
-                      ],
-                    ]),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel')),
-                  ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _processPurchase(plan);
-                      },
-                      child: const Text('Pay with Razorpay')),
-                ]));
-  }
-
-  void _processPurchase(PaymentPlan plan) async {
+    HapticFeedback.lightImpact();
     setState(() {
-      _isProcessing = true;
+      _appliedCoupon = code;
+      _isCouponApplied = true;
     });
 
-    try {
-      await _paymentService.initiatePayment(
-          plan: plan,
-          userEmail: widget.userData['email'] ?? 'user@example.com',
-          userPhone: widget.userData['phone'] ?? '9999999999',
-          userName: widget.userData['name'] ?? 'User',
-          onResult: (result) {
-            setState(() {
-              _isProcessing = false;
-            });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Coupon "$code" will be applied at checkout'),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
 
-            if (result.success) {
-              _showSuccessDialog(plan, result);
-            } else {
-              _showErrorDialog(
-                  result.errorMessage ?? 'Razorpay payment failed');
-            }
-          });
+  void _removeCoupon() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _appliedCoupon = null;
+      _isCouponApplied = false;
+      _couponController.clear();
+    });
+  }
+
+  Future<void> _processPurchase() async {
+    final plan = _plans[_selectedPlanIndex];
+
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+
+    try {
+      // Get user data from Supabase auth (not widget.userData which may be incomplete)
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final email = currentUser?.email ?? widget.userData['email'] ?? '';
+      final phone = currentUser?.phone ?? widget.userData['phone'] ?? '';
+      
+      // Try to get name from user metadata, then userData
+      String userName = '';
+      final metadata = currentUser?.userMetadata;
+      if (metadata != null) {
+        userName = metadata['full_name'] as String? ?? 
+                   metadata['name'] as String? ?? '';
+      }
+      if (userName.isEmpty) {
+        userName = widget.userData['full_name'] ?? widget.userData['name'] ?? 'User';
+      }
+
+      debugPrint('💳 Payment: email=$email, phone=$phone, name=$userName');
+
+      if (email.isEmpty) {
+        setState(() => _isProcessing = false);
+        _showErrorSnackbar('Please log in again to continue with payment.');
+        return;
+      }
+
+      _paymentService.initiatePayment(
+        plan: plan,
+        userEmail: email,
+        userPhone: phone.isNotEmpty ? phone : '9999999999',
+        userName: userName,
+        couponCode: _appliedCoupon,
+        onResult: (result) {
+          if (!mounted) return;
+          setState(() => _isProcessing = false);
+          if (result.success) {
+            _showSuccessSheet(plan);
+          } else {
+            _showErrorSnackbar(result.errorMessage ?? 'Payment failed');
+          }
+        },
+      );
+
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     } catch (e) {
-      setState(() {
-        _isProcessing = false;
-      });
-      _showErrorDialog('Failed to process Razorpay payment: ${e.toString()}');
+      setState(() => _isProcessing = false);
+      _showErrorSnackbar('Unable to process payment: ${e.toString()}');
     }
   }
 
-  void _showSuccessDialog(PaymentPlan plan, PaymentResult result) {
-    showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-                title: Row(children: [
-                  CustomIconWidget(
-                      iconName: 'check_circle', color: Colors.green, size: 24),
-                  SizedBox(width: 2.w),
-                  Text('Payment Successful!',
-                      style: AppTheme.lightTheme.textTheme.titleMedium),
-                ]),
-                content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          'Welcome to ${plan.name}! Your subscription is now active and you can enjoy all premium features.',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium),
-                      SizedBox(height: 2.h),
-                      Container(
-                          padding: EdgeInsets.all(3.w),
-                          decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Razorpay Transaction Details:',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w600)),
-                                SizedBox(height: 1.h),
-                                if (result.paymentId != null)
-                                  Text('Payment ID: ${result.paymentId}',
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodySmall),
-                                if (result.orderId != null)
-                                  Text('Order ID: ${result.orderId}',
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodySmall),
-                              ])),
-                    ]),
-                actions: [
-                  ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context)
-                            .pop(true); // Return success to previous screen
-                      },
-                      child: const Text('Continue')),
-                ]));
+  void _showSuccessSheet(PaymentPlan plan) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildSuccessSheet(plan),
+    );
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: Row(children: [
-                  CustomIconWidget(
-                      iconName: 'error', color: Colors.red, size: 24),
-                  SizedBox(width: 2.w),
-                  Text('Razorpay Payment Failed',
-                      style: AppTheme.lightTheme.textTheme.titleMedium),
-                ]),
-                content: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text(message,
-                      style: AppTheme.lightTheme.textTheme.bodyMedium),
-                  SizedBox(height: 2.h),
-                  Container(
-                      padding: EdgeInsets.all(3.w),
-                      decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Row(children: [
-                        CustomIconWidget(
-                            iconName: 'info', color: Colors.blue, size: 20),
-                        SizedBox(width: 2.w),
-                        Expanded(
-                            child: Text(
-                                'If you continue to face issues, please check your Razorpay configuration or contact support.',
-                                style:
-                                    AppTheme.lightTheme.textTheme.bodySmall)),
-                      ])),
-                ]),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Close')),
-                  if (!_razorpayConfigured)
-                    ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _showRazorpayConfigurationDialog();
-                        },
-                        child: const Text('Setup Razorpay')),
-                ]));
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.white),
+            SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-        appBar: AppBar(
-            backgroundColor: AppTheme.lightTheme.appBarTheme.backgroundColor,
-            elevation: 0,
-            leading: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: CustomIconWidget(
-                    iconName: 'arrow_back',
-                    color: AppTheme.lightTheme.colorScheme.onSurface,
-                    size: 24)),
-            title: Text('Choose Your Plan',
-                style: AppTheme.lightTheme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            centerTitle: true),
-        body: SafeArea(
-            child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 2.h),
+      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.close,
+              color: AppTheme.lightTheme.colorScheme.onSurface),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Premium Plans',
+          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.lightTheme.colorScheme.primary,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Restore',
+              style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+                color: AppTheme.lightTheme.colorScheme.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(horizontal: 4.w),
+        child: Column(
+          children: [
+            SizedBox(height: 2.h),
 
-                      // Header section
-                      Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4.w),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                CustomIconWidget(
-                                    iconName: 'workspace_premium',
-                                    color:
-                                        AppTheme.lightTheme.colorScheme.primary,
-                                    size: 48),
-                                SizedBox(height: 2.h),
-                                Text('Unlock Premium Features',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.headlineSmall
-                                        ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: AppTheme.lightTheme
-                                                .colorScheme.onSurface),
-                                    textAlign: TextAlign.center),
-                                SizedBox(height: 1.h),
-                                Text(
-                                    'Choose the plan that works best for you and start your premium journey today.',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodyMedium
-                                        ?.copyWith(
-                                            color: AppTheme.lightTheme
-                                                .colorScheme.onSurface
-                                                .withValues(alpha: 0.7)),
-                                    textAlign: TextAlign.center),
-                              ])),
+            // Premium icon
+            _buildPremiumIcon(),
+            SizedBox(height: 3.h),
 
-                      SizedBox(height: 4.h),
+            // Title
+            Text(
+              'Unlock Premium',
+              style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.lightTheme.colorScheme.onSurface,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              'Get unlimited access to all features',
+              style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withOpacity(0.7),
+              ),
+            ),
+            SizedBox(height: 4.h),
 
-                      // Razorpay configuration status
-                      if (!_razorpayConfigured)
-                        Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 4.w),
-                            child: Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.all(3.w),
-                                decoration: BoxDecoration(
-                                    color: Colors.orange.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                        color: Colors.orange
-                                            .withValues(alpha: 0.3))),
-                                child: Column(children: [
-                                  Row(children: [
-                                    CustomIconWidget(
-                                        iconName: 'warning',
-                                        color: Colors.orange,
-                                        size: 20),
-                                    SizedBox(width: 3.w),
-                                    Expanded(
-                                        child: Text(
-                                            'Razorpay Configuration Required',
-                                            style: AppTheme
-                                                .lightTheme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color:
-                                                        Colors.orange[800]))),
-                                  ]),
-                                  SizedBox(height: 1.h),
-                                  Text(
-                                      'Please configure your Razorpay credentials to enable payments.',
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodySmall
-                                          ?.copyWith(
-                                              color: Colors.orange[700])),
-                                  SizedBox(height: 1.h),
-                                  SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                          onPressed:
-                                              _showRazorpayConfigurationDialog,
-                                          style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.orange,
-                                              foregroundColor: Colors.white),
-                                          child: const Text('Setup Razorpay'))),
-                                ]))),
+            // Plan cards (supports 2 or 3 plans dynamically)
+            ...List.generate(_plans.length, (index) =>
+              _buildPlanCard(_plans[index], index),
+            ),
+            SizedBox(height: 2.h),
 
-                      if (!_razorpayConfigured) SizedBox(height: 2.h),
+            // Coupon code section
+            _buildCouponSection(),
+            SizedBox(height: 3.h),
 
-                      // Plans list
-                      ...PaymentPlan.availablePlans
-                          .map((plan) => _buildPlanCard(plan)),
+            // Features list
+            _buildFeaturesList(),
+            SizedBox(height: 3.h),
 
-                      SizedBox(height: 4.h),
+            // Trust badges
+            _buildTrustBadges(),
 
-                      // Footer
-                      Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4.w),
-                          child: Column(children: [
-                            Container(
-                                padding: EdgeInsets.all(3.w),
-                                decoration: BoxDecoration(
-                                    color: AppTheme
-                                        .lightTheme.colorScheme.primary
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12)),
-                                child: Row(children: [
-                                  CustomIconWidget(
-                                      iconName: 'security',
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.primary,
-                                      size: 20),
-                                  SizedBox(width: 3.w),
-                                  Expanded(
-                                      child: Text(
-                                          'Secure payments powered by Razorpay. Cancel anytime.',
-                                          style: AppTheme
-                                              .lightTheme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                  color: AppTheme.lightTheme
-                                                      .colorScheme.primary))),
-                                ])),
-                          ])),
+            // Geo-pricing note
+            _buildGeoPricingNote(),
+            SizedBox(height: 12.h),
+          ],
+        ),
+      ),
 
-                      SizedBox(height: 2.h),
-                    ]))));
+      // Bottom purchase button
+      bottomNavigationBar: _buildPurchaseButton(_plans[_selectedPlanIndex]),
+    );
   }
 
-  Widget _buildPlanCard(PaymentPlan plan) {
+  Widget _buildGeoPricingNote() {
+    if (_currentTier == PricingTier.india) return SizedBox.shrink();
+
     return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-        child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-                gradient: plan.isPopular
-                    ? LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                            AppTheme.lightTheme.colorScheme.primary
-                                .withValues(alpha: 0.1),
-                            AppTheme.lightTheme.colorScheme.tertiary
-                                .withValues(alpha: 0.1),
-                          ])
-                    : null,
-                color: plan.isPopular
-                    ? null
-                    : AppTheme.lightTheme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: plan.isPopular
-                        ? AppTheme.lightTheme.colorScheme.primary
-                        : AppTheme.lightTheme.colorScheme.outline
-                            .withValues(alpha: 0.2),
-                    width: plan.isPopular ? 2 : 1),
-                boxShadow: [
+      padding: EdgeInsets.only(top: 2.h),
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.withOpacity(0.15)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.public, color: Colors.blue, size: 18),
+            SizedBox(width: 2.w),
+            Expanded(
+              child: Text(
+                'Prices shown in ${_pricing.currencyCode} for your region.',
+                style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCouponSection() {
+    return Container(
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _isCouponApplied
+              ? Colors.green.withOpacity(0.5)
+              : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.2),
+          width: _isCouponApplied ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isCouponApplied
+                    ? Icons.local_offer
+                    : Icons.discount_outlined,
+                color: _isCouponApplied
+                    ? Colors.green
+                    : AppTheme.lightTheme.colorScheme.primary,
+                size: 20,
+              ),
+              SizedBox(width: 2.w),
+              Text(
+                _isCouponApplied ? 'Coupon Applied!' : 'Have a coupon code?',
+                style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: _isCouponApplied
+                      ? Colors.green
+                      : AppTheme.lightTheme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 1.5.h),
+          if (_isCouponApplied)
+            Container(
+              padding:
+                  EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  SizedBox(width: 2.w),
+                  Expanded(
+                    child: Text(
+                      '"$_appliedCoupon" will be validated at checkout',
+                      style:
+                          AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _removeCoupon,
+                    icon: Icon(Icons.close,
+                        color: Colors.red.shade400, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                  ),
+                ],
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _couponController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      hintText: 'Enter coupon code',
+                      hintStyle: AppTheme.lightTheme.textTheme.bodyMedium
+                          ?.copyWith(
+                        color: AppTheme.lightTheme.colorScheme.onSurface
+                            .withOpacity(0.4),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(
+                          horizontal: 4.w, vertical: 1.5.h),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.lightTheme.colorScheme.outline
+                              .withOpacity(0.3),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.lightTheme.colorScheme.outline
+                              .withOpacity(0.3),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppTheme.lightTheme.colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 3.w),
+                ElevatedButton(
+                  onPressed: _applyCoupon,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        AppTheme.lightTheme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 4.w, vertical: 1.5.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text('Apply'),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPremiumIcon() {
+    return Container(
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.lightTheme.colorScheme.primary,
+            AppTheme.lightTheme.colorScheme.tertiary,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color:
+                AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child:
+          Icon(Icons.workspace_premium, color: Colors.white, size: 48),
+    );
+  }
+
+  Widget _buildPlanCard(PaymentPlan plan, int index) {
+    final isSelected = index == _selectedPlanIndex;
+    final isYearly = plan.duration == 'year';
+    final isLifetime = plan.duration == 'lifetime';
+    final currencySymbol = _pricing.currencySymbol;
+
+    // Monthly equivalent display
+    String monthlyEquiv = '';
+    if (isYearly) {
+      final monthlyPrice = (plan.price / 12).round();
+      monthlyEquiv = '$currencySymbol$monthlyPrice/month';
+    }
+
+    // Plan-specific tag
+    String? tagText;
+    Color tagColor = Colors.green;
+    if (isYearly && plan.isPopular) {
+      tagText = 'BEST VALUE';
+      tagColor = Colors.green;
+    } else if (isLifetime) {
+      tagText = 'ONE TIME';
+      tagColor = Colors.deepPurple;
+    }
+
+    return GestureDetector(
+      onTap: () => _selectPlan(index),
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 300),
+        margin: EdgeInsets.only(bottom: 2.h),
+        padding: EdgeInsets.all(4.w),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1)
+              : AppTheme.lightTheme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? AppTheme.lightTheme.colorScheme.primary
+                : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.3),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
                   BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow
-                          .withValues(alpha: 0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4)),
-                ]),
-            child: Stack(children: [
-              Padding(
-                  padding: EdgeInsets.all(4.w),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    color: AppTheme.lightTheme.colorScheme.primary
+                        .withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Row(
+          children: [
+            // Radio button
+            AnimatedContainer(
+              duration: Duration(milliseconds: 200),
+              width: 7.w,
+              height: 7.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? AppTheme.lightTheme.colorScheme.primary
+                      : AppTheme.lightTheme.colorScheme.outline,
+                  width: 2,
+                ),
+                color: isSelected
+                    ? AppTheme.lightTheme.colorScheme.primary
+                    : Colors.transparent,
+              ),
+              child: isSelected
+                  ? Icon(Icons.check, color: Colors.white, size: 18)
+                  : null,
+            ),
+            SizedBox(width: 4.w),
+
+            // Plan info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          plan.name,
+                          style: AppTheme.lightTheme.textTheme.titleMedium
+                              ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                AppTheme.lightTheme.colorScheme.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (tagText != null) ...[
+                        SizedBox(width: 1.5.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 1.5.w, vertical: 0.3.h),
+                          decoration: BoxDecoration(
+                            color: tagColor,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            tagText,
+                            style: AppTheme
+                                .lightTheme.textTheme.labelSmall
+                                ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  SizedBox(height: 0.5.h),
+                  Text(
+                    isLifetime
+                        ? 'Pay once, yours forever'
+                        : isYearly
+                            ? 'Best value for committed users'
+                            : 'Perfect for trying out',
+                    style:
+                        AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.lightTheme.colorScheme.onSurface
+                          .withOpacity(0.6),
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(width: 2.w),
+
+            // Price — constrained to prevent overflow
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 25.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$currencySymbol${plan.price.toInt()}',
+                      style: AppTheme.lightTheme.textTheme.headlineSmall
+                          ?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.lightTheme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    isLifetime
+                        ? 'one-time'
+                        : isYearly
+                            ? monthlyEquiv
+                            : '/month',
+                    style:
+                        AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                      color: AppTheme.lightTheme.colorScheme.onSurface
+                          .withOpacity(0.5),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturesList() {
+    final features = [
+      {'icon': Icons.block, 'text': 'Ad-free experience'},
+      {'icon': Icons.smart_toy, 'text': 'Unlimited AI Guide conversations'},
+      {'icon': Icons.self_improvement, 'text': 'Premium guided sessions'},
+      {'icon': Icons.analytics, 'text': 'Advanced analytics & insights'},
+      {'icon': Icons.download, 'text': 'Offline content access'},
+      {'icon': Icons.support_agent, 'text': 'Priority customer support'},
+    ];
+
+    return Container(
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              AppTheme.lightTheme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'What you get',
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.lightTheme.colorScheme.onSurface,
+            ),
+          ),
+          SizedBox(height: 2.h),
+          ...features.map((feature) => Padding(
+                padding: EdgeInsets.only(bottom: 1.5.h),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightTheme.colorScheme.primary
+                            .withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        feature['icon'] as IconData,
+                        color:
+                            AppTheme.lightTheme.colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    SizedBox(width: 3.w),
+                    Expanded(
+                      child: Text(
+                        feature['text'] as String,
+                        style: AppTheme.lightTheme.textTheme.bodyLarge
+                            ?.copyWith(
+                          color: AppTheme
+                              .lightTheme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrustBadges() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildTrustBadge(Icons.lock, 'Secure\nPayment'),
+        _buildTrustBadge(Icons.replay, 'Cancel\nAnytime'),
+        _buildTrustBadge(Icons.verified_user, 'Trusted\nby 10K+'),
+      ],
+    );
+  }
+
+  Widget _buildTrustBadge(IconData icon, String label) {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(3.w),
+          decoration: BoxDecoration(
+            color: AppTheme.lightTheme.colorScheme.tertiary
+                .withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon,
+              color: AppTheme.lightTheme.colorScheme.tertiary,
+              size: 24),
+        ),
+        SizedBox(height: 1.h),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+            color: AppTheme.lightTheme.colorScheme.onSurface
+                .withOpacity(0.7),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPurchaseButton(PaymentPlan plan) {
+    final currencySymbol = _pricing.currencySymbol;
+    final isLifetime = plan.duration == 'lifetime';
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Purchase button
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: 1.0 + (_pulseController.value * 0.02),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed:
+                        _isProcessing ? null : _processPurchase,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          AppTheme.lightTheme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 2.h),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 4,
+                    ),
+                    child: _isProcessing
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.center,
                             children: [
-                              Expanded(
-                                  child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                    Text(plan.name,
-                                        style: AppTheme
-                                            .lightTheme.textTheme.titleLarge
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                color: plan.isPopular
-                                                    ? AppTheme.lightTheme
-                                                        .colorScheme.primary
-                                                    : AppTheme
-                                                        .lightTheme
-                                                        .colorScheme
-                                                        .onSurface)),
-                                    SizedBox(height: 0.5.h),
-                                    Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                              '₹${plan.price.toStringAsFixed(0)}',
-                                              style: AppTheme.lightTheme
-                                                  .textTheme.headlineMedium
-                                                  ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color: AppTheme
-                                                          .lightTheme
-                                                          .colorScheme
-                                                          .primary)),
-                                          SizedBox(width: 1.w),
-                                          Text('/${plan.duration}',
-                                              style: AppTheme.lightTheme
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: AppTheme.lightTheme
-                                                          .colorScheme.onSurface
-                                                          .withValues(
-                                                              alpha: 0.7))),
-                                        ]),
-                                  ])),
-                              if (plan.isPopular)
-                                Container(
-                                    padding: EdgeInsets.symmetric(
-                                        horizontal: 3.w, vertical: 1.h),
-                                    decoration: BoxDecoration(
-                                        color: AppTheme
-                                            .lightTheme.colorScheme.primary,
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    child: Text('POPULAR',
-                                        style: AppTheme
-                                            .lightTheme.textTheme.labelSmall
-                                            ?.copyWith(
-                                                color: AppTheme.lightTheme
-                                                    .colorScheme.onPrimary,
-                                                fontWeight: FontWeight.w600,
-                                                fontSize: 10.sp))),
-                            ]),
+                              Icon(Icons.lock_open, size: 22),
+                              SizedBox(width: 2.w),
+                              Text(
+                                isLifetime
+                                    ? 'Get Lifetime Access • $currencySymbol${plan.price.toInt()}'
+                                    : 'Start Premium • $currencySymbol${plan.price.toInt()}/${plan.duration}',
+                                style: AppTheme
+                                    .lightTheme.textTheme.titleMedium
+                                    ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: 1.5.h),
 
-                        SizedBox(height: 2.h),
+          // Terms
+          Text(
+            isLifetime
+                ? 'One-time payment • Secure via Razorpay'
+                : 'Cancel anytime • Secure payment via Razorpay',
+            style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+              color: AppTheme.lightTheme.colorScheme.onSurface
+                  .withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        // Features
-                        ...plan.features.map((feature) => Padding(
-                            padding: EdgeInsets.only(bottom: 1.h),
-                            child: Row(children: [
-                              CustomIconWidget(
-                                  iconName: 'check_circle',
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.primary,
-                                  size: 18),
-                              SizedBox(width: 3.w),
-                              Expanded(
-                                  child: Text(feature,
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                              color: AppTheme.lightTheme
-                                                  .colorScheme.onSurface
-                                                  .withValues(alpha: 0.8)))),
-                            ]))),
+  Widget _buildSuccessSheet(PaymentPlan plan) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.lightTheme.colorScheme.surface,
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 3.h),
 
-                        SizedBox(height: 2.h),
+          // Success icon
+          Container(
+            padding: EdgeInsets.all(5.w),
+            decoration: BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+            child:
+                Icon(Icons.check, color: Colors.white, size: 48),
+          ),
+          SizedBox(height: 2.h),
 
-                        // Select button
-                        SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                                onPressed: (_isProcessing || !_razorpayConfigured)
-                                    ? null
-                                    : () => _selectPlan(plan),
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: plan.isPopular
-                                        ? AppTheme
-                                            .lightTheme.colorScheme.primary
-                                        : AppTheme
-                                            .lightTheme.colorScheme.surface,
-                                    foregroundColor: plan.isPopular
-                                        ? AppTheme
-                                            .lightTheme.colorScheme.onPrimary
-                                        : AppTheme
-                                            .lightTheme.colorScheme.primary,
-                                    side: plan.isPopular
-                                        ? null
-                                        : BorderSide(
-                                            color: AppTheme.lightTheme
-                                                .colorScheme.primary),
-                                    padding:
-                                        EdgeInsets.symmetric(vertical: 1.8.h),
-                                    shape:
-                                        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                                child: _isProcessing ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(plan.isPopular ? AppTheme.lightTheme.colorScheme.onPrimary : AppTheme.lightTheme.colorScheme.primary))) : Text(!_razorpayConfigured ? 'Setup Razorpay First' : 'Pay with Razorpay', style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)))),
-                      ])),
-            ])));
+          Text(
+            'Welcome to Premium! 🎉',
+            style: AppTheme.lightTheme.textTheme.headlineSmall
+                ?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 1.h),
+
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.w),
+            child: Text(
+              plan.duration == 'lifetime'
+                  ? 'Your Lifetime Access is now active. Enjoy all premium features forever!'
+                  : 'Your ${plan.name} subscription is now active. Enjoy all premium features!',
+              textAlign: TextAlign.center,
+              style:
+                  AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                color: AppTheme.lightTheme.colorScheme.onSurface
+                    .withOpacity(0.7),
+              ),
+            ),
+          ),
+          SizedBox(height: 3.h),
+
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close sheet
+                  Navigator.pop(context, true); // Return success
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      AppTheme.lightTheme.colorScheme.primary,
+                  padding: EdgeInsets.symmetric(vertical: 2.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Start Exploring',
+                  style: AppTheme.lightTheme.textTheme.titleMedium
+                      ?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: 4.h),
+        ],
+      ),
+    );
   }
 }

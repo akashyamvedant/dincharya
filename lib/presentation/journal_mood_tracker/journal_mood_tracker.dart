@@ -1,9 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
-import 'package:uuid/uuid.dart'; // For generating unique IDs
+import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../core/app_export.dart';
+import '../../core/constants/ad_constants.dart';
+import '../../services/ads_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 import './widgets/bottom_action_widget.dart';
 import './widgets/calendar_widget.dart';
 import './widgets/journal_entry_widget.dart';
@@ -26,12 +33,47 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
   int _wordCount = 0;
   DateTime? _writingStartTime;
 
-  Map<String, Map<String, dynamic>> _journalEntries =
-      {}; // Changed to mutable map
+  Map<String, Map<String, dynamic>> _journalEntries = {};
   final SupabaseService _supabaseService = SupabaseService();
-  final Uuid _uuid = Uuid(); // Initialize Uuid
+  final Uuid _uuid = Uuid();
+  final ImagePicker _imagePicker = ImagePicker();
+
+  // Attachment state - for new attachments being added
+  List<Uint8List> _selectedImages = [];
+  List<String> _selectedImageNames = [];
+  Uint8List? _selectedAudio;
+  String? _selectedAudioName;
+  bool _isUploading = false;
+  
+  // Saved attachment URLs - from loaded entries
+  List<String> _savedImageUrls = [];
+  String? _savedAudioUrl;
 
   final List<String> _moodOptions = ['😔', '😐', '😊', '😄', '😍'];
+
+  // Convert emoji to mood rating (1-5)
+  int _moodToRating(String mood) {
+    switch (mood) {
+      case '😔': return 1;
+      case '😐': return 2;
+      case '😊': return 3;
+      case '😄': return 4;
+      case '😍': return 5;
+      default: return 3;
+    }
+  }
+
+  // Convert mood rating to emoji
+  String _ratingToMood(int rating) {
+    switch (rating) {
+      case 1: return '😔';
+      case 2: return '😐';
+      case 3: return '😊';
+      case 4: return '😄';
+      case 5: return '😍';
+      default: return '😊';
+    }
+  }
 
   @override
   void initState() {
@@ -56,12 +98,26 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
     try {
       final entries = await _supabaseService.getJournalEntries(userId);
       setState(() {
-        _journalEntries = {
-          for (var entry in entries)
-            _formatDateKey(DateTime.parse(entry['date'])):
-                Map<String, dynamic>.from(entry)
-        };
+        _journalEntries = {};
+        for (var entry in entries) {
+          // Handle date field - could be 'date' or parse from 'created_at'
+          DateTime? entryDate;
+          if (entry['date'] != null) {
+            // Try parsing date field (could be 'YYYY-MM-DD' or full ISO string)
+            final dateStr = entry['date'].toString();
+            entryDate = DateTime.tryParse(dateStr);
+          }
+          if (entryDate == null && entry['created_at'] != null) {
+            entryDate = DateTime.tryParse(entry['created_at'].toString());
+          }
+          
+          if (entryDate != null) {
+            final dateKey = _formatDateKey(entryDate);
+            _journalEntries[dateKey] = Map<String, dynamic>.from(entry);
+          }
+        }
       });
+      debugPrint('📚 Loaded ${_journalEntries.length} journal entries');
     } catch (e) {
       debugPrint('Error loading journal entries: $e');
       if (mounted) {
@@ -125,15 +181,39 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
 
     if (entry != null) {
       setState(() {
-        _selectedMood = entry['mood'] as String;
-        _journalController.text = entry['entry'] as String;
-        _wordCount = entry['wordCount'] as int;
+        // Convert mood_rating (int) to emoji
+        final moodRating = entry['mood_rating'] as int? ?? 3;
+        _selectedMood = _ratingToMood(moodRating);
+        _journalController.text = (entry['content'] ?? entry['entry'] ?? '') as String;
+        _wordCount = (entry['word_count'] ?? 0) as int;
+        
+        // Load saved attachment URLs
+        final imageUrls = entry['image_urls'];
+        if (imageUrls != null && imageUrls is List) {
+          _savedImageUrls = imageUrls.map((e) => e.toString()).toList();
+        } else {
+          _savedImageUrls = [];
+        }
+        _savedAudioUrl = entry['audio_url']?.toString();
+        if (_savedAudioUrl?.isEmpty == true) _savedAudioUrl = null;
+        
+        // Clear new attachments when loading saved entry
+        _selectedImages.clear();
+        _selectedImageNames.clear();
+        _selectedAudio = null;
+        _selectedAudioName = null;
       });
     } else {
       setState(() {
         _selectedMood = '😊';
         _journalController.clear();
         _wordCount = 0;
+        _savedImageUrls = [];
+        _savedAudioUrl = null;
+        _selectedImages.clear();
+        _selectedImageNames.clear();
+        _selectedAudio = null;
+        _selectedAudioName = null;
       });
     }
     _writingStartTime = null;
@@ -142,6 +222,119 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
   void _onMoodSelected(String mood) {
     setState(() {
       _selectedMood = mood;
+    });
+  }
+
+  // Pick photo from gallery or camera
+  Future<void> _pickPhoto() async {
+    try {
+      // Show dialog to choose source
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Select Photo'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.photo_library, color: Colors.blue),
+                title: Text('Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt, color: Colors.green),
+                title: Text('Camera'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (source == null) return;
+
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImages.add(bytes);
+          _selectedImageNames.add(image.name);
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Photo added: ${image.name}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking photo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick photo: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Pick audio file
+  Future<void> _pickAudio() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        if (file.bytes != null) {
+          setState(() {
+            _selectedAudio = file.bytes;
+            _selectedAudioName = file.name;
+          });
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Audio added: ${file.name}'),
+                backgroundColor: Colors.blue,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking audio: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick audio: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Clear all attachments
+  void _clearAttachments() {
+    setState(() {
+      _selectedImages.clear();
+      _selectedImageNames.clear();
+      _selectedAudio = null;
+      _selectedAudioName = null;
     });
   }
 
@@ -159,32 +352,76 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
       return;
     }
 
-    final dateKey = _formatDateKey(_selectedDate);
-    final writingTime = _writingStartTime != null
-        ? DateTime.now().difference(_writingStartTime!).inMinutes
-        : 0;
-
-    final entryData = {
-      "id": _journalEntries[dateKey]?['id'] ??
-          _uuid.v4(), // Use existing ID or generate new
-      "user_id": userId,
-      'date': dateKey,
-      'mood': _selectedMood,
-      'entry': _journalController.text,
-      'word_count': _wordCount, // Changed to match Supabase schema
-      'writing_time': writingTime, // Changed to match Supabase schema
-      'has_photo': false,
-      'updated_at': DateTime.now().toIso8601String(),
-    };
+    setState(() => _isUploading = true);
 
     try {
-      await _supabaseService
-          .createJournalEntry(entryData); // create handles update if ID exists
-      await _loadJournalEntries(); // Reload all entries
+      final dateKey = _formatDateKey(_selectedDate);
+      final writingTime = _writingStartTime != null
+          ? DateTime.now().difference(_writingStartTime!).inMinutes
+          : 0;
+
+      // Upload images if any
+      List<String> imageUrls = [];
+      for (int i = 0; i < _selectedImages.length; i++) {
+        final fileName = 'journal_${userId}_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+        try {
+          final url = await _supabaseService.uploadFile(
+            'journal_images',
+            fileName,
+            _selectedImages[i].toList(),
+          );
+          imageUrls.add(url);
+          debugPrint('📸 Image uploaded: $url');
+        } catch (e) {
+          debugPrint('❌ Image upload failed: $e');
+        }
+      }
+
+      // Upload audio if any
+      String? audioUrl;
+      if (_selectedAudio != null && _selectedAudioName != null) {
+        final ext = _selectedAudioName!.split('.').last;
+        final fileName = 'journal_${userId}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+        try {
+          audioUrl = await _supabaseService.uploadFile(
+            'journal_audio',
+            fileName,
+            _selectedAudio!.toList(),
+          );
+          debugPrint('🎵 Audio uploaded: $audioUrl');
+        } catch (e) {
+          debugPrint('❌ Audio upload failed: $e');
+        }
+      }
+
+      final entryData = {
+        "id": _journalEntries[dateKey]?['id'] ?? _uuid.v4(),
+        "user_id": userId,
+        'title': 'Journal - ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+        'content': _journalController.text,
+        'date': dateKey,
+        'mood_rating': _moodToRating(_selectedMood),
+        'word_count': _wordCount,
+        'writing_time': writingTime,
+        'image_urls': imageUrls.isNotEmpty ? imageUrls : null,
+        'audio_url': audioUrl,
+        'has_photo': imageUrls.isNotEmpty,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await _supabaseService.createJournalEntry(entryData);
+      await _loadJournalEntries();
+      
+      // Clear attachments after successful save
+      _clearAttachments();
+      
+      // Show interstitial ad with frequency capping (natural stopping point)
+      AdsService().showInterstitialAdWithCapping(InterstitialPlacement.journalSaved);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Entry saved successfully!'),
+            content: Text('Entry saved! ${imageUrls.length} photos, ${audioUrl != null ? "1 audio" : "0 audio"}'),
             backgroundColor: AppTheme.lightTheme.primaryColor,
           ),
         );
@@ -199,10 +436,42 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
   void _showInsights() {
+    // Calculate real stats from entries
+    final now = DateTime.now();
+    final weekAgo = now.subtract(Duration(days: 7));
+    
+    // Count moods for this week
+    Map<int, int> moodCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    int totalWords = 0;
+    int entriesThisWeek = 0;
+    
+    _journalEntries.forEach((dateKey, entry) {
+      final entryDate = DateTime.tryParse(dateKey);
+      if (entryDate != null && entryDate.isAfter(weekAgo)) {
+        entriesThisWeek++;
+        final moodRating = entry['mood_rating'] as int? ?? 3;
+        moodCounts[moodRating] = (moodCounts[moodRating] ?? 0) + 1;
+        totalWords += (entry['word_count'] as int? ?? 0);
+      }
+    });
+    
+    final avgWords = entriesThisWeek > 0 ? (totalWords / entriesThisWeek).round() : 0;
+    final totalEntries = _journalEntries.length;
+    
+    // Calculate streak
+    int streak = 0;
+    DateTime checkDate = DateTime(now.year, now.month, now.day);
+    while (_journalEntries.containsKey(_formatDateKey(checkDate))) {
+      streak++;
+      checkDate = checkDate.subtract(Duration(days: 1));
+    }
+
     showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -246,11 +515,11 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceAround,
                                       children: [
-                                        _buildMoodStat('😍', '2'),
-                                        _buildMoodStat('😄', '3'),
-                                        _buildMoodStat('😊', '1'),
-                                        _buildMoodStat('😐', '1'),
-                                        _buildMoodStat('😔', '0'),
+                                        _buildMoodStat('😍', '${moodCounts[5]}'),
+                                        _buildMoodStat('😄', '${moodCounts[4]}'),
+                                        _buildMoodStat('😊', '${moodCounts[3]}'),
+                                        _buildMoodStat('😐', '${moodCounts[2]}'),
+                                        _buildMoodStat('😔', '${moodCounts[1]}'),
                                       ]),
                                 ])),
                         SizedBox(height: 2.h),
@@ -271,9 +540,9 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        _buildStatItem('Total Entries', '15'),
-                                        _buildStatItem('Avg Words', '12'),
-                                        _buildStatItem('Streak', '7 days'),
+                                        _buildStatItem('Total Entries', '$totalEntries'),
+                                        _buildStatItem('Avg Words', '$avgWords'),
+                                        _buildStatItem('Streak', '$streak days'),
                                       ]),
                                 ])),
                       ]))),
@@ -300,17 +569,244 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
     ]);
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  void _showMoodInsights() {
+    // Calculate insights from journal entries
+    final entries = _journalEntries.values.toList();
+    final entryCount = entries.length;
+    
+    // Calculate average mood
+    double avgMood = 3.0;
+    if (entries.isNotEmpty) {
+      final moodSum = entries.fold<int>(0, (sum, e) => sum + ((e['mood_rating'] as int?) ?? 3));
+      avgMood = moodSum / entries.length;
+    }
+    
+    // Calculate total words
+    final totalWords = entries.fold<int>(0, (sum, e) => sum + ((e['word_count'] as int?) ?? 0));
+    
+    // Get mood emoji for average
+    final avgMoodEmoji = avgMood <= 1.5 ? '😔' : avgMood <= 2.5 ? '😐' : avgMood <= 3.5 ? '😊' : avgMood <= 4.5 ? '😄' : '😍';
+    
+    // Get most common mood
+    final moodCounts = <int, int>{};
+    for (final e in entries) {
+      final mood = (e['mood_rating'] as int?) ?? 3;
+      moodCounts[mood] = (moodCounts[mood] ?? 0) + 1;
+    }
+    int mostCommonMood = 3;
+    int maxCount = 0;
+    moodCounts.forEach((mood, count) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonMood = mood;
+      }
+    });
+    final mostCommonEmoji = {1: '😔', 2: '😐', 3: '😊', 4: '😄', 5: '😍'}[mostCommonMood] ?? '😊';
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              width: 12.w,
+              height: 0.5.h,
+              margin: EdgeInsets.symmetric(vertical: 2.h),
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.all(4.w),
+              child: Column(
+                children: [
+                  Text(
+                    '📊 Your Mood Insights',
+                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF8B4513),
+                    ),
+                  ),
+                  SizedBox(height: 3.h),
+                  // Stats row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildInsightCard('Total Entries', '$entryCount', Icons.book),
+                      _buildInsightCard('Total Words', '$totalWords', Icons.text_fields),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildInsightCard('Avg Mood', '${avgMood.toStringAsFixed(1)} $avgMoodEmoji', Icons.mood),
+                      _buildInsightCard('Top Mood', mostCommonEmoji, Icons.star),
+                    ],
+                  ),
+                  SizedBox(height: 3.h),
+                  // Encouragement message
+                  Container(
+                    padding: EdgeInsets.all(3.w),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF8B4513).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Text('💪', style: TextStyle(fontSize: 24)),
+                        SizedBox(width: 2.w),
+                        Expanded(
+                          child: Text(
+                            entryCount > 7 
+                                ? 'Great job! You\'re building a strong journaling habit!'
+                                : entryCount > 0 
+                                    ? 'Keep writing! Consistency builds a powerful habit.'
+                                    : 'Start journaling today to track your mood journey!',
+                            style: AppTheme.lightTheme.textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsightCard(String title, String value, IconData icon) {
+    return Container(
+      width: 40.w,
+      padding: EdgeInsets.all(3.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Color(0xFF8B4513), size: 24),
+          SizedBox(height: 1.h),
+          Text(
+            value,
+            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
+            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    const warmBrown = Color(0xFF8B4513);
+    const warmAmber = Color(0xFFD4A574);
+    const warmCream = Color(0xFFFFF8F0);
+    
     return Scaffold(
-        appBar: AppBar(title: Text('Journal & Mood'), actions: [
-          IconButton(
-              onPressed: _showInsights,
-              icon: CustomIconWidget(
-                  iconName: 'insights',
-                  color: Theme.of(context).colorScheme.onSurface,
-                  size: 24)),
-        ]),
+        backgroundColor: warmCream,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(2.w),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [warmBrown.withOpacity(0.12), warmAmber.withOpacity(0.08)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: warmBrown.withOpacity(0.1)),
+                ),
+                child: CustomIconWidget(
+                  iconName: 'book',
+                  color: warmBrown,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 2.w),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Journal',
+                    style: TextStyle(
+                      color: warmBrown,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15.sp,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  Text(
+                    'Your daily reflection',
+                    style: TextStyle(
+                      color: warmBrown.withOpacity(0.5),
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(right: 2.w),
+              child: GestureDetector(
+                onTap: _showInsights,
+                child: Container(
+                  padding: EdgeInsets.all(2.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [warmBrown.withOpacity(0.12), warmAmber.withOpacity(0.08)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: warmBrown.withOpacity(0.1)),
+                  ),
+                  child: CustomIconWidget(
+                    iconName: 'insights',
+                    color: warmBrown,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         body: Column(children: [
           // Calendar Header
           CalendarWidget(
@@ -325,23 +821,111 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Today's Entry Header
-                        Text(
-                            _selectedDate.day == DateTime.now().day &&
-                                    _selectedDate.month ==
-                                        DateTime.now().month &&
-                                    _selectedDate.year == DateTime.now().year
-                                ? "Today's Entry"
-                                : "Entry for ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}",
-                            style: Theme.of(context).textTheme.headlineSmall),
-                        SizedBox(height: 2.h),
+                        // Personalized Greeting Header — editorial style
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                          margin: EdgeInsets.only(bottom: 2.h),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                warmBrown.withOpacity(0.07),
+                                warmAmber.withOpacity(0.04),
+                                Colors.white.withOpacity(0.3),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: warmBrown.withOpacity(0.12),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: warmBrown.withOpacity(0.06),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${_getGreeting()} ✨',
+                                      style: TextStyle(
+                                        fontSize: 17.sp,
+                                        fontWeight: FontWeight.w800,
+                                        color: warmBrown,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                    SizedBox(height: 0.5.h),
+                                    Text(
+                                      _selectedDate.day == DateTime.now().day &&
+                                              _selectedDate.month == DateTime.now().month &&
+                                              _selectedDate.year == DateTime.now().year
+                                          ? "What's on your mind today?"
+                                          : "Viewing ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}",
+                                      style: TextStyle(
+                                        fontSize: 13.sp,
+                                        color: warmBrown.withOpacity(0.55),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_journalEntries.containsKey(_formatDateKey(_selectedDate)))
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Colors.green.withOpacity(0.12), Colors.green.withOpacity(0.06)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.green.withOpacity(0.25)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle_rounded, size: 15, color: Colors.green[600]),
+                                      SizedBox(width: 1.w),
+                                      Text('Saved', style: TextStyle(fontSize: 10.sp, color: Colors.green[700], fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [warmAmber.withOpacity(0.12), warmAmber.withOpacity(0.06)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: warmAmber.withOpacity(0.25)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_note_rounded, size: 15, color: warmBrown),
+                                      SizedBox(width: 1.w),
+                                      Text('New', style: TextStyle(fontSize: 10.sp, color: warmBrown, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
 
                         // Mood Selector
                         MoodSelectorWidget(
                             selectedMood: _selectedMood,
                             moodOptions: _moodOptions,
                             onMoodSelected: _onMoodSelected),
-                        SizedBox(height: 3.h),
+                        SizedBox(height: 2.5.h),
 
                         // Journal Entry
                         JournalEntryWidget(
@@ -351,28 +935,161 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                             writingStartTime: _writingStartTime),
                         SizedBox(height: 3.h),
 
+                        // Saved Attachments Display (from loaded entry)
+                        if (_savedImageUrls.isNotEmpty || _savedAudioUrl != null)
+                          Container(
+                            padding: EdgeInsets.all(3.w),
+                            margin: EdgeInsets.only(bottom: 2.h),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.green.withOpacity(0.06), Colors.green.withOpacity(0.03)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.green.withOpacity(0.2)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.check_circle, size: 16, color: Colors.green),
+                                    SizedBox(width: 1.w),
+                                    Text('Saved Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green[700])),
+                                  ],
+                                ),
+                                SizedBox(height: 1.h),
+                                // Saved Images
+                                if (_savedImageUrls.isNotEmpty)
+                                  SizedBox(
+                                    height: 12.h,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _savedImageUrls.length,
+                                      itemBuilder: (ctx, i) => Container(
+                                        margin: EdgeInsets.only(right: 2.w),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.network(
+                                            _savedImageUrls[i],
+                                            height: 12.h,
+                                            width: 20.w,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => Container(
+                                              height: 12.h,
+                                              width: 20.w,
+                                              color: Colors.grey[200],
+                                              child: Icon(Icons.broken_image, color: Colors.grey),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                // Saved Audio
+                                if (_savedAudioUrl != null) ...[
+                                  SizedBox(height: 1.h),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.audiotrack, size: 16, color: Colors.blue),
+                                        SizedBox(width: 1.w),
+                                        Text('Audio attached', style: TextStyle(color: Colors.blue, fontSize: 10.sp)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+
+                        // New Attachment Indicators (being added now)
+                        if (_selectedImages.isNotEmpty || _selectedAudio != null)
+                          Container(
+                            padding: EdgeInsets.all(3.w),
+                            margin: EdgeInsets.only(bottom: 2.h),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [const Color(0xFF8B4513).withOpacity(0.08), const Color(0xFFD4A574).withOpacity(0.04)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF8B4513).withOpacity(0.2)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('New Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8B4513))),
+                                SizedBox(height: 1.h),
+                                Wrap(
+                                  spacing: 2.w,
+                                  runSpacing: 1.h,
+                                  children: [
+                                    ..._selectedImageNames.map((name) => Chip(
+                                      avatar: Icon(Icons.image, size: 18, color: Colors.green),
+                                      label: Text(name.length > 15 ? '${name.substring(0, 12)}...' : name, style: TextStyle(fontSize: 10.sp)),
+                                      deleteIcon: Icon(Icons.close, size: 16),
+                                      onDeleted: () {
+                                        final idx = _selectedImageNames.indexOf(name);
+                                        setState(() {
+                                          _selectedImages.removeAt(idx);
+                                          _selectedImageNames.removeAt(idx);
+                                        });
+                                      },
+                                    )),
+                                    if (_selectedAudioName != null)
+                                      Chip(
+                                        avatar: Icon(Icons.audiotrack, size: 18, color: Colors.blue),
+                                        label: Text(_selectedAudioName!.length > 15 ? '${_selectedAudioName!.substring(0, 12)}...' : _selectedAudioName!, style: TextStyle(fontSize: 10.sp)),
+                                        deleteIcon: Icon(Icons.close, size: 16),
+                                        onDeleted: () => setState(() { _selectedAudio = null; _selectedAudioName = null; }),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Bottom Actions
                         BottomActionWidget(
-                            onSave: _saveEntry,
-                            onVoiceInput: () {
-                              // Voice input functionality would be implemented here
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Voice input feature coming soon!')));
-                            },
-                            onPhotoAttach: () {
-                              // Photo attachment functionality would be implemented here
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Photo attachment feature coming soon!')));
-                            }),
+                            onSave: _isUploading ? () {} : _saveEntry,
+                            onVoiceInput: _pickAudio,
+                            onPhotoAttach: _pickPhoto,
+                            currentEntryText: _journalController.text,
+                            onShowInsights: _showMoodInsights),
+
+                        // Upload Progress Indicator
+                        if (_isUploading)
+                          Padding(
+                            padding: EdgeInsets.only(top: 2.h),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                                SizedBox(width: 2.w),
+                                Text('Uploading...', style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          ),
                       ]))),
+          
+          // Banner Ad at bottom
+          const BannerAdWidget(placement: BannerPlacement.journal),
         ]),
         bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: 2, // Journal tab active
+            backgroundColor: Colors.white,
+            selectedItemColor: warmBrown,
+            unselectedItemColor: Colors.grey[600],
             onTap: (index) {
               switch (index) {
                 case 0:
@@ -391,60 +1108,20 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
             },
             items: [
               BottomNavigationBarItem(
-                  icon: CustomIconWidget(
-                      iconName: 'schedule',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .unselectedItemColor!,
-                      size: 24),
-                  activeIcon: CustomIconWidget(
-                      iconName: 'schedule',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .selectedItemColor!,
-                      size: 24),
+                  icon: Icon(Icons.schedule, color: Colors.grey[600], size: 24),
+                  activeIcon: Icon(Icons.schedule, color: warmBrown, size: 24),
                   label: 'Routine'),
               BottomNavigationBarItem(
-                  icon: CustomIconWidget(
-                      iconName: 'self_improvement',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .unselectedItemColor!,
-                      size: 24),
-                  activeIcon: CustomIconWidget(
-                      iconName: 'self_improvement',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .selectedItemColor!,
-                      size: 24),
+                  icon: Icon(Icons.self_improvement, color: Colors.grey[600], size: 24),
+                  activeIcon: Icon(Icons.self_improvement, color: warmBrown, size: 24),
                   label: 'Guided'),
               BottomNavigationBarItem(
-                  icon: CustomIconWidget(
-                      iconName: 'book',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .selectedItemColor!,
-                      size: 24),
-                  activeIcon: CustomIconWidget(
-                      iconName: 'book',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .selectedItemColor!,
-                      size: 24),
+                  icon: Icon(Icons.book, color: warmBrown, size: 24),
+                  activeIcon: Icon(Icons.book, color: warmBrown, size: 24),
                   label: 'Journal'),
               BottomNavigationBarItem(
-                  icon: CustomIconWidget(
-                      iconName: 'person',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .unselectedItemColor!,
-                      size: 24),
-                  activeIcon: CustomIconWidget(
-                      iconName: 'person',
-                      color: Theme.of(context)
-                          .bottomNavigationBarTheme
-                          .selectedItemColor!,
-                      size: 24),
+                  icon: Icon(Icons.person, color: Colors.grey[600], size: 24),
+                  activeIcon: Icon(Icons.person, color: warmBrown, size: 24),
                   label: 'Me'),
             ]));
   }

@@ -4,7 +4,9 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 
 class EmptyRoutineWidget extends StatelessWidget {
-  const EmptyRoutineWidget({super.key});
+  final VoidCallback? onRoutineCreated;
+  
+  const EmptyRoutineWidget({super.key, this.onRoutineCreated});
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +75,10 @@ class EmptyRoutineWidget extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamed(context, '/routine-builder');
+                onPressed: () async {
+                  await Navigator.pushNamed(context, '/routine-builder');
+                  // Reload tasks after returning
+                  onRoutineCreated?.call();
                 },
                 icon: CustomIconWidget(
                   iconName: 'add',

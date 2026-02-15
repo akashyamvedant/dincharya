@@ -52,15 +52,58 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
 
   Future<void> _loadSuggestions() async {
     if (mounted) {
+      // Generate helpful suggestions based on activity type
+      final activityLower = widget.activityName.toLowerCase();
+      final suggestions = <Map<String, dynamic>>[];
+      
+      if (activityLower.contains('meditation') || activityLower.contains('dhyan')) {
+        suggestions.addAll([
+          {'title': '🧘 Start Small', 'description': 'Even 5 minutes of meditation daily builds the habit.'},
+          {'title': '⏰ Same Time', 'description': 'Try meditating at the same time each day for consistency.'},
+        ]);
+      } else if (activityLower.contains('yoga') || activityLower.contains('asana')) {
+        suggestions.addAll([
+          {'title': '🧎 Warm Up First', 'description': 'Light stretching before yoga prevents injuries.'},
+          {'title': '💧 Stay Hydrated', 'description': 'Drink water 30 mins before practice.'},
+        ]);
+      } else if (activityLower.contains('pranayama') || activityLower.contains('breathing')) {
+        suggestions.addAll([
+          {'title': '💨 Empty Stomach', 'description': 'Practice pranayama on an empty stomach.'},
+          {'title': '🌅 Morning Best', 'description': 'Early morning is ideal for breath work.'},
+        ]);
+      } else if (activityLower.contains('exercise') || activityLower.contains('workout')) {
+        suggestions.addAll([
+          {'title': '💪 Progressive Overload', 'description': 'Gradually increase intensity for results.'},
+          {'title': '😴 Rest Days', 'description': 'Rest days help muscles recover and grow.'},
+        ]);
+      } else if (activityLower.contains('study') || activityLower.contains('read')) {
+        suggestions.addAll([
+          {'title': '📚 Pomodoro', 'description': 'Study 25 mins, break 5 mins for better focus.'},
+          {'title': '🎯 Active Recall', 'description': 'Test yourself while studying for better retention.'},
+        ]);
+      } else if (activityLower.contains('journal') || activityLower.contains('write')) {
+        suggestions.addAll([
+          {'title': '📝 Gratitude First', 'description': 'Start by writing 3 things you\'re grateful for.'},
+          {'title': '🌙 Evening Reflection', 'description': 'Journal before bed helps process the day.'},
+        ]);
+      } else {
+        suggestions.addAll([
+          {'title': '✨ One Step at a Time', 'description': 'Small daily progress leads to big results.'},
+          {'title': '🎯 Set Clear Goals', 'description': 'Know why you\'re doing this activity.'},
+        ]);
+      }
+      
       setState(() {
-        _suggestions = [];
+        _suggestions = suggestions;
       });
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      backgroundColor: const Color(0xFFFDF8F3), // Light cream background
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -447,13 +490,14 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
 
   Future<void> _saveTracking() async {
     try {
-      // Save to tracking service using the new trackActivity method
+      // Save to tracking service using the enhanced trackActivity method
       await _trackingService.trackActivity(
         activityName: widget.activityName,
         scheduledTime: widget.scheduledTime,
         completed: _isCompleted,
         actualTime: _actualTime,
-        reason: _selectedReason,
+        taskId: widget.taskId,
+        skipReason: _selectedReason,
         notes: _notes.isNotEmpty ? _notes : null,
       );
 

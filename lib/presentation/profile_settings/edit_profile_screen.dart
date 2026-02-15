@@ -5,8 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../core/constants/ad_constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -716,6 +718,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
 
+              SizedBox(height: 2.h),
+              
+              // Banner Ad at bottom
+              const BannerAdWidget(placement: BannerPlacement.editProfile),
+              
               SizedBox(height: 2.h),
             ],
           ),

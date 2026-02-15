@@ -3,9 +3,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import './supabase_service.dart';
+import './subscription_manager.dart';
+import '../core/utils/validators.dart';
 
 // lib/services/auth_service.dart
 
@@ -15,25 +19,16 @@ class AuthService {
   AuthService._internal();
 
   final SupabaseService _supabase = SupabaseService();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  
+  // GoogleSignIn with serverClientId for Supabase integration
+  // The serverClientId MUST be the Web Client ID from Google Cloud Console
+  // Without this, Supabase cannot validate the idToken and users won't be created
+  late final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
+    scopes: ['email', 'profile'],
+  );
 
-  // Input validation helpers
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(email);
-  }
-
-  bool _isValidPassword(String password) {
-    return password.length >= 8 &&
-        RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]')
-            .hasMatch(password);
-  }
-
-  bool _isValidFullName(String fullName) {
-    return fullName.isNotEmpty &&
-        fullName.length <= 100 &&
-        RegExp(r'^[a-zA-Z\s]+$').hasMatch(fullName);
-  }
+  // Input validation helpers - using centralized Validators class
 
   // Secure hash function for sensitive data
   String _hashData(String data) {
@@ -86,6 +81,7 @@ class AuthService {
               user.userMetadata?['full_name'] ??
               user.email?.split('@')[0] ??
               'User',
+          'is_admin': profileData?['is_admin'] ?? false, // Admin flag from database
           'joinDate': 'Today',
           'currentStreak': 0,
           'totalMeditationTime': 0,
@@ -131,14 +127,15 @@ class AuthService {
   }) async {
     try {
       // Input validation
-      if (!_isValidEmail(email)) {
+      // Input validation
+      if (!Validators.isValidEmail(email)) {
         return {
           'success': false,
           'message': 'Please enter a valid email address',
         };
       }
 
-      if (!_isValidPassword(password)) {
+      if (!Validators.isValidPassword(password)) {
         return {
           'success': false,
           'message': 'Please enter a valid password',
@@ -178,62 +175,124 @@ class AuthService {
   // Google sign in
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
+      debugPrint('═══════════════════════════════════════════════════════════');
       debugPrint('🔄 Starting Google Sign-In...');
+      debugPrint('📋 serverClientId loaded: ${dotenv.env['GOOGLE_WEB_CLIENT_ID'] != null}');
+      debugPrint('📋 serverClientId value: ${dotenv.env['GOOGLE_WEB_CLIENT_ID']?.substring(0, 20) ?? 'NULL'}...');
+      debugPrint('═══════════════════════════════════════════════════════════');
 
-      // Check if Google Sign-In is available
-      final isAvailable = await _googleSignIn.isSignedIn();
-      debugPrint('📱 Google Sign-In available: $isAvailable');
+      // First sign out to clear any cached state
+      await _googleSignIn.signOut();
+      debugPrint('🔄 Cleared previous Google sign-in state');
 
       final result = await _googleSignIn.signIn();
       debugPrint('🔍 Google Sign-In result: ${result?.email ?? 'null'}');
 
       if (result != null) {
+        debugPrint('✅ Google account selected: ${result.email}');
+        debugPrint('👤 Display name: ${result.displayName}');
+        
         // Get Google authentication details
         final googleAuth = await result.authentication;
         final accessToken = googleAuth.accessToken;
         final idToken = googleAuth.idToken;
 
-        debugPrint(
-            '🔑 Google Auth - AccessToken: ${accessToken != null ? 'present' : 'null'}');
-        debugPrint(
-            '🔑 Google Auth - IdToken: ${idToken != null ? 'present' : 'null'}');
+        debugPrint('🔑 AccessToken present: ${accessToken != null}');
+        debugPrint('🔑 IdToken present: ${idToken != null}');
+        if (idToken != null) {
+          debugPrint('🔑 IdToken length: ${idToken.length}');
+          debugPrint('🔑 IdToken preview: ${idToken.substring(0, 50)}...');
+        }
 
         if (accessToken != null && idToken != null) {
           // Use Supabase for Google authentication with tokens
           final supabaseClient = await _supabase.client;
           if (supabaseClient != null) {
             debugPrint('🌐 Authenticating with Supabase...');
+            debugPrint('🌐 Supabase client ready');
 
-            final response = await supabaseClient.auth.signInWithIdToken(
-              provider: OAuthProvider.google,
-              idToken: idToken,
-              accessToken: accessToken,
-            );
+            try {
+              final response = await supabaseClient.auth.signInWithIdToken(
+                provider: OAuthProvider.google,
+                idToken: idToken,
+                accessToken: accessToken,
+              );
+              
+              debugPrint('🌐 Supabase response received');
+              debugPrint('🌐 Response user: ${response.user?.id ?? 'NULL'}');
+              debugPrint('🌐 Response session: ${response.session != null}');
 
-            if (response.user != null) {
-              debugPrint('✅ Supabase authentication successful');
+              if (response.user != null) {
+                debugPrint('✅ Supabase authentication successful');
+                debugPrint('👤 User ID: ${response.user!.id}');
+                debugPrint('📧 User Email: ${response.user!.email}');
 
-              // Save login state securely
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('has_completed_onboarding', true);
+                // Profile is now created automatically by database trigger
+                // This is just a verification/fallback step
+                try {
+                  // Small delay to let trigger execute
+                  await Future.delayed(const Duration(milliseconds: 500));
+                  
+                  final existingProfile = await supabaseClient
+                      .from('user_profiles')
+                      .select('id, email')
+                      .eq('id', response.user!.id)
+                      .limit(1);
+                  
+                  if (existingProfile != null && (existingProfile as List).isNotEmpty) {
+                    debugPrint('✅ User profile verified/created by trigger');
+                  } else {
+                    // Fallback: Create profile if trigger didn't work
+                    debugPrint('⚠️ Trigger may not have fired, creating profile manually...');
+                    await supabaseClient.from('user_profiles').upsert({
+                      'id': response.user!.id,
+                      'full_name': result.displayName ?? response.user!.userMetadata?['full_name'] ?? 'User',
+                      'email': result.email ?? response.user!.email ?? '',
+                      'bio': '',
+                      'avatar_url': result.photoUrl ?? response.user!.userMetadata?['avatar_url'],
+                      'created_at': DateTime.now().toIso8601String(),
+                      'updated_at': DateTime.now().toIso8601String(),
+                    }).select();
+                    debugPrint('✅ User profile created manually (fallback)');
+                  }
+                } catch (profileError) {
+                  debugPrint('⚠️ Profile verification error (non-fatal): $profileError');
+                  // Non-fatal - user can still use the app, profile will be created on next action
+                }
 
-              // Store hashed user info for security
-              final hashedUserId = _hashData(response.user!.id);
-              await prefs.setString('user_hash', hashedUserId);
+                // Save login state securely
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('has_completed_onboarding', true);
 
+                // Store hashed user info for security
+                final hashedUserId = _hashData(response.user!.id);
+                await prefs.setString('user_hash', hashedUserId);
+
+                return {
+                  'success': true,
+                  'user': response.user,
+                  'message': 'Google sign in successful',
+                };
+              } else {
+                debugPrint('❌ Supabase authentication failed - no user returned');
+                debugPrint('❌ Response details: session=${response.session}');
+              }
+            } catch (supabaseError, stackTrace) {
+              debugPrint('❌ SUPABASE AUTH ERROR: $supabaseError');
+              debugPrint('❌ Stack trace: $stackTrace');
+              
+              // Return specific error message
               return {
-                'success': true,
-                'user': response.user,
-                'message': 'Google sign in successful',
+                'success': false,
+                'message': 'Supabase auth error: ${supabaseError.toString()}',
               };
-            } else {
-              debugPrint('❌ Supabase authentication failed - no user returned');
             }
           } else {
             debugPrint('❌ Supabase client is null');
           }
         } else {
           debugPrint('❌ Google authentication tokens are null');
+          debugPrint('❌ This usually means serverClientId is not configured correctly');
         }
       } else {
         debugPrint('❌ Google Sign-In result is null (user cancelled)');
@@ -243,14 +302,15 @@ class AuthService {
         'success': false,
         'message': 'Google sign in cancelled or failed',
       };
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ Google sign in error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
 
       // Provide more specific error messages
-      String errorMessage = 'Google sign in failed';
+      String errorMessage = 'Google sign in failed: ${e.toString()}';
       if (e.toString().contains('ApiException: 10')) {
         errorMessage =
-            'Google Sign-In needs proper configuration. Please check GOOGLE_SIGNIN_SETUP.md or use Email/Password.';
+            'Google Sign-In needs proper configuration. serverClientId may be wrong.';
       } else if (e.toString().contains('sign_in_failed')) {
         errorMessage =
             'Google Sign-In failed. Please try again or use Email/Password.';
@@ -273,14 +333,15 @@ class AuthService {
   }) async {
     try {
       // Input validation
-      if (!_isValidEmail(email)) {
+      // Input validation
+      if (!Validators.isValidEmail(email)) {
         return {
           'success': false,
           'message': 'Please enter a valid email address',
         };
       }
 
-      if (!_isValidPassword(password)) {
+      if (!Validators.isValidPassword(password)) {
         return {
           'success': false,
           'message':
@@ -288,7 +349,7 @@ class AuthService {
         };
       }
 
-      if (!_isValidFullName(fullName)) {
+      if (!Validators.isValidName(fullName)) {
         return {
           'success': false,
           'message': 'Please enter a valid full name',
@@ -318,11 +379,34 @@ class AuthService {
           // Continue even if profile creation fails - it will be created on first update
         }
 
+        // Auto-login: Save session state
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('has_completed_onboarding', true);
+          
+          // Store hashed user info for security
+          final hashedUserId = _hashData(response.user!.id);
+          await prefs.setString('user_hash', hashedUserId);
+          
+          debugPrint('✅ User auto-logged in after signup');
+        } catch (e) {
+          debugPrint('⚠️ Error saving session: $e');
+        }
+
+        // Auto-start 7-day free trial for new users
+        try {
+          final trialStarted = await SubscriptionManager().startFreeTrial();
+          if (trialStarted) {
+            debugPrint('🎉 7-day free trial activated for new user');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Trial activation failed (non-blocking): $e');
+        }
+
         return {
           'success': true,
           'user': response.user,
-          'message':
-              'Account created successfully! Please check your email to verify your account.',
+          'message': 'Account created successfully! Welcome to DinCharya.',
         };
       } else {
         return {
@@ -341,7 +425,7 @@ class AuthService {
   // Reset password
   Future<Map<String, dynamic>> resetPassword(String email) async {
     try {
-      if (!_isValidEmail(email)) {
+      if (!Validators.isValidEmail(email)) {
         return {
           'success': false,
           'message': 'Please enter a valid email address',
@@ -373,7 +457,8 @@ class AuthService {
   }) async {
     try {
       // Input validation
-      if (!_isValidPassword(newPassword)) {
+      // Input validation
+      if (!Validators.isValidPassword(newPassword)) {
         return {
           'success': false,
           'message':
@@ -439,7 +524,7 @@ class AuthService {
           final key = entry.key;
           final value = entry.value;
 
-          if (key == 'full_name' && _isValidFullName(value.toString())) {
+          if (key == 'full_name' && Validators.isValidName(value.toString())) {
             final trimmedValue = value.toString().trim();
             validatedUpdates[key] = trimmedValue;
             authMetadataUpdates['full_name'] = trimmedValue;

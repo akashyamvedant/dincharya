@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sizer/sizer.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/app_export.dart';
+import '../../core/constants/ad_constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_service.dart';
+import '../../services/subscription_manager.dart';
+import '../../widgets/ads/native_ad_widget.dart';
+import '../payment/payment_plans_screen.dart';
 
 class ProfileSettings extends StatefulWidget {
   const ProfileSettings({super.key});
@@ -14,16 +22,34 @@ class ProfileSettings extends StatefulWidget {
 
 class _ProfileSettingsState extends State<ProfileSettings> {
   int _currentIndex = 3; // Me tab is active
+  // ignore: unused_field - used for loading state
   bool _isLoading = true;
   bool _isLoggedIn = false;
+  bool _notificationsEnabled = true;
+  String _appVersion = 'Loading...';
+  String _buildNumber = '';
   Map<String, dynamic>? _userData;
   final AuthService _authService = AuthService();
   final SupabaseService _supabaseService = SupabaseService();
+
+  /// Check if current user is admin (from database is_admin field)
+  bool get _isAdmin {
+    return _userData?['is_admin'] == true;
+  }
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = packageInfo.version;
+      _buildNumber = packageInfo.buildNumber;
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -36,32 +62,81 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
       if (isLoggedIn) {
         final user = await _authService.getCurrentUser();
+        final client = await _supabaseService.client;
+        final userId = _supabaseService.currentUser?.id;
+        
+        // Default values
+        int currentStreak = 0;
+        int bestStreak = 0;
+        int completedRoutines = 0;
+        int journalEntries = 0;
+        int totalTasksCompleted = 0;
+        
+        // Fetch real data from Supabase
+        if (client != null && userId != null) {
+          try {
+            // Get user profile stats
+            final profileData = await client
+                .from('user_profiles')
+                .select('current_streak, best_streak, total_tasks_completed, total_practice_days')
+                .eq('id', userId)
+                .maybeSingle();
+            
+            if (profileData != null) {
+              currentStreak = profileData['current_streak'] ?? 0;
+              bestStreak = profileData['best_streak'] ?? 0;
+              totalTasksCompleted = profileData['total_tasks_completed'] ?? 0;
+            }
+            
+            // Count completed routines (completed tasks today)
+            final today = DateTime.now().toIso8601String().split('T')[0];
+            final completedToday = await client
+                .from('routine_tracking')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('completed', true)
+                .gte('tracking_date', today);
+            completedRoutines = completedToday.length;
+            
+            // Count journal entries
+            final journals = await client
+                .from('journal_entries')
+                .select('id')
+                .eq('user_id', userId);
+            journalEntries = journals.length;
+            
+            debugPrint('📊 Profile Stats: Streak=$currentStreak, Routines=$completedRoutines, Journals=$journalEntries');
+          } catch (e) {
+            debugPrint('⚠️ Error fetching stats: $e');
+          }
+        }
+        
+        // Get subscription plan from SubscriptionManager (single source of truth)
+        final subManager = SubscriptionManager();
+        await subManager.initialize();
+        final subPlan = subManager.isPremium
+            ? (subManager.isTrial ? 'Trial' : 'Premium')
+            : 'Free';
+
         setState(() {
           _isLoggedIn = true;
-          _userData = user ??
-              {
-                "id": "authenticated_user",
-                "name": "User",
-                "email": "user@dincharya.com",
-                "avatar": null,
-                "joinDate": "Today",
-                "currentStreak": 0,
-                "totalMeditationTime": 0,
-                "completedRoutines": 0,
-                "journalEntries": 0,
-                "subscriptionPlan": "Free",
-                "achievements": <String>[],
-                "preferences": {
-                  "darkMode": false,
-                  "language": "English",
-                  "adProvider": "AdMob",
-                  "notifications": {
-                    "routineReminders": true,
-                    "streakNotifications": true,
-                    "weeklySummaries": false
-                  }
-                }
-              };
+          _userData = user ?? {};
+          _userData!['currentStreak'] = currentStreak;
+          _userData!['bestStreak'] = bestStreak;
+          _userData!['completedRoutines'] = completedRoutines;
+          _userData!['journalEntries'] = journalEntries;
+          _userData!['totalTasksCompleted'] = totalTasksCompleted;
+          _userData!['subscriptionPlan'] = subPlan;
+          _userData!['preferences'] = {
+            'darkMode': false,
+            'language': 'English',
+            'adProvider': 'AdMob',
+            'notifications': {
+              'routineReminders': true,
+              'streakNotifications': true,
+              'weeklySummaries': false
+            }
+          };
         });
       } else {
         setState(() {
@@ -83,7 +158,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           "totalMeditationTime": 0,
           "completedRoutines": 0,
           "journalEntries": 0,
-          "subscriptionPlan": "Free",
+          "subscriptionPlan": SubscriptionManager().isPremium ? "Premium" : "Free",
           "achievements": <String>[],
           "preferences": {
             "darkMode": false,
@@ -106,30 +181,20 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-        body: Center(
-          child: CircularProgressIndicator(
-            color: AppTheme.lightTheme.colorScheme.primary,
-          ),
-        ),
-      );
-    }
-
-    // Ensure we always have valid user data
+    // Always show content immediately with default data while loading
     final userData = _userData ??
         {
           "id": "default_user",
-          "name": "User",
-          "email": "user@dincharya.com",
+          "name": "Loading...",
+          "full_name": "Loading...",
+          "email": "loading@dincharya.com",
           "avatar": null,
           "joinDate": "Today",
           "currentStreak": 0,
           "totalMeditationTime": 0,
           "completedRoutines": 0,
           "journalEntries": 0,
-          "subscriptionPlan": "Free",
+          "subscriptionPlan": SubscriptionManager().isPremium ? "Premium" : "Free",
           "achievements": <String>[],
           "preferences": {
             "darkMode": false,
@@ -162,11 +227,6 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
               SizedBox(height: 2.h),
 
-              // Online Status Card
-              _buildOnlineStatusCard(),
-
-                    SizedBox(height: 2.h),
-
               // Subscription Card
               if (userData["subscriptionPlan"] != "Premium")
                 _buildSubscriptionCard(userData),
@@ -176,6 +236,11 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
               // Settings Sections
               _buildSimpleSettings(),
+
+              SizedBox(height: 2.h),
+              
+              // Native Ad — single ad per screen (AdMob policy)
+              const NativeAdWidget(placement: NativePlacement.meTab),
 
               SizedBox(height: 8.h), // Bottom padding for tab bar
             ],
@@ -256,10 +321,10 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         Navigator.pushReplacementNamed(context, '/routine-dashboard');
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, '/guided-meditation');
+        Navigator.pushReplacementNamed(context, '/guided-sessions-hub');
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, '/journal');
+        Navigator.pushReplacementNamed(context, '/journal-mood-tracker');
         break;
       case 3:
         // Already on Me tab
@@ -270,43 +335,136 @@ class _ProfileSettingsState extends State<ProfileSettings> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'Logout',
-            style: AppTheme.lightTheme.textTheme.titleLarge,
-          ),
-          content: Text(
-            'Are you sure you want to logout?',
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+      barrierDismissible: false, // Prevent dismissing during logout
+      builder: (BuildContext dialogContext) {
+        bool isLoggingOut = false;
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFFDF8F3), // Warm cream background
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(
+                  color: Color(0xFFD4A574), // Brown border
+                  width: 1,
                 ),
               ),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _authService.signOut();
-                if (mounted) {
-                  Navigator.pushReplacementNamed(
-                      context, '/authentication-screen');
-                }
-              },
-              child: Text(
-                'Logout',
-                style: TextStyle(
-                  color: AppTheme.lightTheme.colorScheme.error,
-                ),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.logout_rounded,
+                    color: AppTheme.lightTheme.colorScheme.primary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Logout',
+                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                      color: const Color(0xFF2C1810), // Dark brown text
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              content: isLoggingOut
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B4513)),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          'Logging out...',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xFF5D4037),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      'Are you sure you want to logout?',
+                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF5D4037), // Medium brown text
+                      ),
+                    ),
+              actions: isLoggingOut
+                  ? [] // No actions while logging out
+                  : [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: const Color(0xFF8B7355), // Light brown
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          // Show loading state
+                          setDialogState(() => isLoggingOut = true);
+                          
+                          try {
+                            // Wait for sign out to complete
+                            await _authService.signOut();
+                            
+                            // Small delay to ensure state is cleared
+                            await Future.delayed(const Duration(milliseconds: 300));
+                            
+                            // Close dialog first
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                            
+                            // Then navigate to auth screen
+                            if (mounted) {
+                              Navigator.of(context).pushNamedAndRemoveUntil(
+                                '/authentication-screen',
+                                (route) => false,
+                              );
+                            }
+                          } catch (e) {
+                            // Handle error
+                            setDialogState(() => isLoggingOut = false);
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Logout failed: $e')),
+                              );
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B4513), // Brown button
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+            );
+          },
         );
       },
     );
@@ -314,6 +472,276 @@ class _ProfileSettingsState extends State<ProfileSettings> {
 
   void _navigateToAuth() {
     Navigator.pushNamed(context, '/authentication-screen');
+  }
+
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isLoading = false;
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    String? errorMessage;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFFFDF8F3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: const BorderSide(color: Color(0xFFD4A574), width: 1),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.lock_outline, color: Colors.orange, size: 28),
+                  SizedBox(width: 2.w),
+                  const Text(
+                    'Change Password',
+                    style: TextStyle(
+                      color: Color(0xFF2C1810),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Error message
+                    if (errorMessage != null)
+                      Container(
+                        padding: EdgeInsets.all(2.w),
+                        margin: EdgeInsets.only(bottom: 2.h),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red, size: 20),
+                            SizedBox(width: 2.w),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: TextStyle(color: Colors.red, fontSize: 12.sp),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    
+                    // Current Password
+                    TextField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrent,
+                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      decoration: InputDecoration(
+                        labelText: 'Current Password',
+                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF8B4513)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureCurrent ? Icons.visibility : Icons.visibility_off,
+                            color: Color(0xFF8B4513),
+                          ),
+                          onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    
+                    // New Password
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNew,
+                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock, color: Color(0xFF8B4513)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNew ? Icons.visibility : Icons.visibility_off,
+                            color: Color(0xFF8B4513),
+                          ),
+                          onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        helperText: 'Min 8 chars, upper, lower, number, special',
+                        helperStyle: TextStyle(color: Color(0xFF8B4513), fontSize: 11),
+                        helperMaxLines: 2,
+                      ),
+                    ),
+                    SizedBox(height: 2.h),
+                    
+                    // Confirm Password
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirm,
+                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password',
+                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock_reset, color: Color(0xFF8B4513)),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirm ? Icons.visibility : Icons.visibility_off,
+                            color: Color(0xFF8B4513),
+                          ),
+                          onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isLoading ? null : () async {
+                    // Validate inputs
+                    final currentPassword = currentPasswordController.text.trim();
+                    final newPassword = newPasswordController.text.trim();
+                    final confirmPassword = confirmPasswordController.text.trim();
+                    
+                    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+                      setDialogState(() => errorMessage = 'All fields are required');
+                      return;
+                    }
+                    
+                    if (newPassword != confirmPassword) {
+                      setDialogState(() => errorMessage = 'New passwords do not match');
+                      return;
+                    }
+                    
+                    if (newPassword.length < 8) {
+                      setDialogState(() => errorMessage = 'Password must be at least 8 characters');
+                      return;
+                    }
+                    
+                    setDialogState(() {
+                      isLoading = true;
+                      errorMessage = null;
+                    });
+                    
+                    try {
+                      final result = await _authService.changePassword(
+                        currentPassword: currentPassword,
+                        newPassword: newPassword,
+                      );
+                      
+                      if (result['success'] == true) {
+                        Navigator.pop(dialogContext);
+                        if (mounted) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.white),
+                                  SizedBox(width: 2.w),
+                                  Text('Password changed successfully!'),
+                                ],
+                              ),
+                              backgroundColor: Colors.green,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                        }
+                      } else {
+                        setDialogState(() {
+                          isLoading = false;
+                          errorMessage = result['message'] ?? 'Failed to change password';
+                        });
+                      }
+                    } catch (e) {
+                      setDialogState(() {
+                        isLoading = false;
+                        errorMessage = 'Error: ${e.toString()}';
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B4513),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: isLoading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Change Password',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildEnhancedProfileHeader(Map<String, dynamic> userData) {
@@ -325,13 +753,13 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           end: Alignment.bottomRight,
           colors: [
             AppTheme.lightTheme.colorScheme.primary,
-            AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+            AppTheme.lightTheme.colorScheme.primary.withOpacity(0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.3),
+            color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -349,7 +777,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.black.withOpacity(0.2),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
@@ -402,7 +830,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         children: [
           Icon(
                 Icons.email_outlined,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.white.withOpacity(0.9),
                 size: 16,
               ),
               SizedBox(width: 1.w),
@@ -410,7 +838,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                 child: Text(
                   userData["email"] as String,
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -422,10 +850,10 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: Colors.white.withOpacity(0.3),
                   width: 1,
                 ),
               ),
@@ -495,12 +923,12 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         color: AppTheme.lightTheme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withValues(alpha: 0.2),
+          color: color.withOpacity(0.2),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: Colors.black.withOpacity(0.03),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -511,7 +939,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           Container(
             padding: EdgeInsets.all(2.5.w),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -533,7 +961,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             label,
             style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
               color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.6),
+                  .withOpacity(0.6),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -554,25 +982,25 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           end: Alignment.bottomRight,
           colors: isOnline
               ? [
-                  Colors.green.withValues(alpha: 0.1),
-                  Colors.green.withValues(alpha: 0.05),
+                  Colors.green.withOpacity(0.1),
+                  Colors.green.withOpacity(0.05),
                 ]
               : [
-                  Colors.orange.withValues(alpha: 0.1),
-                  Colors.orange.withValues(alpha: 0.05),
+                  Colors.orange.withOpacity(0.1),
+                  Colors.orange.withOpacity(0.05),
                 ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isOnline
-              ? Colors.green.withValues(alpha: 0.3)
-              : Colors.orange.withValues(alpha: 0.3),
+              ? Colors.green.withOpacity(0.3)
+              : Colors.orange.withOpacity(0.3),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
             color: (isOnline ? Colors.green : Colors.orange)
-                .withValues(alpha: 0.1),
+                .withOpacity(0.1),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -611,7 +1039,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                       : 'Please sign in to sync your data',
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.lightTheme.colorScheme.onSurface
-                        .withValues(alpha: 0.7),
+                        .withOpacity(0.7),
                   ),
                 ),
               ],
@@ -677,85 +1105,90 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               'Update your account password',
               Icons.lock_outline,
                 Colors.orange,
-              onTap: () {},
+              onTap: () => _showChangePasswordDialog(),
             ),
           ],
           ),
         SizedBox(height: 2.h),
         ],
 
-        // Preferences
+        // Activity Section (History)
         _buildModernSettingsCard(
-          title: 'Preferences',
+          title: 'Activity',
           children: [
-            _buildModernSwitchTile(
-            'Routine Reminders',
-              'Get notified about daily routines',
-            Icons.notifications,
-              Colors.blue,
-            true,
-            (value) {},
-          ),
+            _buildModernSettingsTile(
+              'Your Journey',
+              'View task completion history',
+              Icons.calendar_month,
+              Colors.teal,
+              onTap: () {
+                Navigator.pushNamed(context, '/history');
+              },
+            ),
             _buildDivider(),
-            _buildModernSwitchTile(
-            'Streak Notifications',
-            'Celebrate your meditation streaks',
-            Icons.local_fire_department,
-              Colors.orange,
-            true,
-            (value) {},
-          ),
-            _buildDivider(),
-            _buildModernSwitchTile(
-            'Weekly Summaries',
-            'Receive weekly progress reports',
-            Icons.summarize,
+            _buildModernSettingsTile(
+              'Change Profile',
+              'Switch your lifestyle routine',
+              Icons.swap_horiz,
               Colors.purple,
-            false,
-            (value) {},
-          ),
+              onTap: () {
+                Navigator.pushNamed(context, '/profile-selection');
+              },
+            ),
+            // Admin-only: Manage Sessions (hidden for regular users)
+            if (_isAdmin) ...[
+              _buildDivider(),
+              _buildModernSettingsTile(
+                'Manage Sessions',
+                'Admin: Add/Edit guided sessions',
+                Icons.admin_panel_settings,
+                Colors.deepPurple,
+                onTap: () {
+                  Navigator.pushNamed(context, '/sessions-admin');
+                },
+              ),
+            ],
           ],
-          ),
+        ),
 
         SizedBox(height: 2.h),
 
-        // Data & Sync
+        // Preferences
         _buildModernSettingsCard(
-          title: 'Data & Sync',
+          title: 'Notifications',
           children: [
-            _buildModernSettingsTile(
-            'Export Data',
-              'Download your data from cloud',
-            Icons.cloud_download,
-              Colors.green,
-            onTap: () {},
-          ),
-            _buildDivider(),
-            _buildModernSettingsTile(
-              'Sync Status',
-              _isLoggedIn ? 'All data synced' : 'Sign in to sync',
-              Icons.sync,
-              _isLoggedIn ? Colors.green : Colors.orange,
-              onTap: () {
-                if (_isLoggedIn) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 2.w),
-                          Text('All data is synced to the cloud'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
+            _buildModernSwitchTile(
+              'Task Reminders',
+              'Get notified 5 mins before each task',
+              Icons.notifications_active,
+              Colors.blue,
+              _notificationsEnabled,
+              (value) {
+                setState(() => _notificationsEnabled = value);
+                // Show feedback
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(
+                          value ? Icons.notifications_active : Icons.notifications_off,
+                          color: Colors.white,
+                        ),
+                        SizedBox(width: 2.w),
+                        Text(value 
+                          ? 'Task reminders enabled' 
+                          : 'Task reminders disabled'),
+                      ],
                     ),
-                  );
-                } else {
-                  _navigateToAuth();
-                }
+                    backgroundColor: value ? Colors.green : Colors.orange,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
               },
-          ),
+            ),
           ],
         ),
 
@@ -766,36 +1199,94 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           title: 'Support & Info',
           children: [
             _buildModernSettingsTile(
-            'Help Center',
-            'Get help and support',
-            Icons.help_outline,
+              'Help Center',
+              'FAQs और troubleshooting guide',
+              Icons.help_center,
               Colors.blue,
-            onTap: () {},
-          ),
+              onTap: () => Navigator.pushNamed(context, '/help-center'),
+            ),
             _buildDivider(),
             _buildModernSettingsTile(
-            'Contact Support',
-            'Reach out to our team',
-            Icons.support_agent,
+              'Contact Support',
+              'हमारी team से संपर्क करें',
+              Icons.support_agent,
               Colors.purple,
-            onTap: () {},
-          ),
+              onTap: () => Navigator.pushNamed(context, '/contact-support'),
+            ),
             _buildDivider(),
             _buildModernSettingsTile(
-            'Rate App',
-            'Rate us on the app store',
-            Icons.star_outline,
+              'Share App',
+              'Friends को DinCharya recommend करें',
+              Icons.share,
+              Colors.green,
+              onTap: () async {
+                const appUrl = 'https://play.google.com/store/apps/details?id=com.akashyam.dincharya';
+                const shareText = '''🧘 *DinCharya* - Daily Routine Tracker
+
+अपनी daily routine को track करें और disciplined lifestyle जीएं!
+
+✅ Smart Task Management
+✅ Personalized Routines  
+✅ Progress Analytics
+✅ Reminder Notifications
+
+📲 Download करें: $appUrl''';
+                
+                await Share.share(
+                  shareText,
+                  subject: 'DinCharya - Daily Routine Tracker App',
+                );
+              },
+            ),
+            _buildDivider(),
+            _buildModernSettingsTile(
+              'Rate App ⭐',
+              'Play Store पर rate करें',
+              Icons.star_rate,
               Colors.orange,
-            onTap: () {},
-          ),
+              onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.akashyam.dincharya'),
+            ),
             _buildDivider(),
             _buildModernSettingsTile(
-            'Privacy Policy',
-            'Read our privacy policy',
-            Icons.privacy_tip_outlined,
+              'Privacy Policy',
+              'हमारी privacy policy पढ़ें',
+              Icons.privacy_tip,
               Colors.grey,
-            onTap: () {},
-          ),
+              onTap: () => _launchUrl('https://sites.google.com/view/dincharyaapp/home?authuser=0'),
+            ),
+            _buildDivider(),
+            _buildModernSettingsTile(
+              'Terms of Use',
+              'हमारी terms of use पढ़ें',
+              Icons.article,
+              Colors.blueGrey,
+              onTap: () => _launchUrl('https://sites.google.com/view/dincharyaappacountdelete/home'),
+            ),
+            _buildDivider(),
+            _buildModernSettingsTile(
+              'App Version',
+              'v$_appVersion (Build $_buildNumber)',
+              Icons.info_outline,
+              Colors.teal,
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.celebration, color: Colors.white),
+                        SizedBox(width: 2.w),
+                        Text('DinCharya v$_appVersion - Made with ❤️ in India'),
+                      ],
+                    ),
+                    backgroundColor: Colors.teal,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         ),
 
@@ -1103,7 +1594,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  '₹299/month',
+                  '₹199/month',
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -1174,349 +1665,45 @@ class _ProfileSettingsState extends State<ProfileSettings> {
     );
   }
 
-  void _showSubscriptionDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            bool isYearlySelected = false;
-
-            return AlertDialog(
-              title: Text(
-                'Upgrade to Premium',
-                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Premium Features:',
-                      style:
-                          AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 1.h),
-                    ...[
-                      'Unlimited Routines',
-                      'Premium Meditations',
-                      'Advanced Analytics',
-                      'Priority Support'
-                    ]
-                        .map((feature) => Padding(
-                              padding: EdgeInsets.only(bottom: 0.5.h),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 2.w),
-                                  Expanded(
-                                    child: Text(
-                                      feature,
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ))
-                        ,
-                    SizedBox(height: 2.h),
-
-                    // Monthly Plan
-                    GestureDetector(
-                      onTap: () => setState(() => isYearlySelected = false),
-                      child: Container(
-                        padding: EdgeInsets.all(3.w),
-                        decoration: BoxDecoration(
-                          color: !isYearlySelected
-                              ? AppTheme.lightTheme.colorScheme.primary
-                                  .withValues(alpha: 0.1)
-                              : Colors.grey[100]!,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: !isYearlySelected
-                                ? AppTheme.lightTheme.colorScheme.primary
-                                : Colors.grey[300]!,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: !isYearlySelected
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color: !isYearlySelected
-                                      ? AppTheme.lightTheme.colorScheme.primary
-                                      : Colors.grey[400]!,
-                                  width: 2,
-                                ),
-                              ),
-                              child: !isYearlySelected
-                                  ? Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 14,
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-                            SizedBox(width: 3.w),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Monthly Plan',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.titleMedium
-                                        ?.copyWith(
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Perfect for trying out',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall
-                                        ?.copyWith(
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '₹199/month',
-                              style: AppTheme.lightTheme.textTheme.titleMedium
-                                  ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.lightTheme.colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: 1.h),
-
-                    // Yearly Plan
-                    GestureDetector(
-                      onTap: () => setState(() => isYearlySelected = true),
-                      child: Container(
-                        padding: EdgeInsets.all(3.w),
-                        decoration: BoxDecoration(
-                          color: isYearlySelected
-                              ? AppTheme.lightTheme.colorScheme.primary
-                                  .withValues(alpha: 0.1)
-                              : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isYearlySelected
-                                ? AppTheme.lightTheme.colorScheme.primary
-                                : Colors.grey[300]!,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isYearlySelected
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color: isYearlySelected
-                                      ? AppTheme.lightTheme.colorScheme.primary
-                                      : Colors.grey[400]!,
-                                  width: 2,
-                                ),
-                              ),
-                              child: isYearlySelected
-                                  ? Icon(
-                                      Icons.check,
-                                      color: Colors.white,
-                                      size: 14,
-                                    )
-                                  : null,
-                            ),
-                            SizedBox(width: 3.w),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Yearly Plan',
-                                        style: AppTheme
-                                            .lightTheme.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color: Colors.black87,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      SizedBox(width: 2.w),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 1.w, vertical: 0.5.h),
-                                        decoration: BoxDecoration(
-                                          color: Colors.green,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          'SAVE 17%',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    'Best value for money',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.bodySmall
-                                        ?.copyWith(
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '₹1,999/year',
-                                  style: AppTheme
-                                      .lightTheme.textTheme.titleMedium
-                                      ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        AppTheme.lightTheme.colorScheme.primary,
-                                  ),
-                                ),
-                                Text(
-                                  '₹167/month',
-                                  style: AppTheme.lightTheme.textTheme.bodySmall
-                                      ?.copyWith(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _processPayment(isYearlySelected);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(
-                    isYearlySelected ? 'Pay ₹1,999' : 'Pay ₹199',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+  void _showSubscriptionDialog() async {
+    // Navigate to the new premium PaymentPlansScreen
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentPlansScreen(userData: _userData ?? {}),
+      ),
     );
-  }
-
-  void _processPayment(bool isYearly) {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(
-                color: AppTheme.lightTheme.colorScheme.primary,
-              ),
-              SizedBox(height: 2.h),
-              Text('Processing payment...'),
-            ],
-          ),
-        );
-      },
-    );
-
-    // Simulate payment processing
-    Future.delayed(Duration(seconds: 2), () {
-      Navigator.of(context).pop(); // Close loading dialog
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isYearly
-              ? 'Payment successful! Premium Yearly activated!'
-              : 'Payment successful! Premium Monthly activated!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-
-      // Update user data to Premium
+    
+    // If payment was successful, refresh user data
+    if (result == true) {
       setState(() {
         _userData!["subscriptionPlan"] = "Premium";
       });
-    });
+    }
+  }
+  Future<void> _launchUrl(String urlString) async {
+    try {
+      final Uri url = Uri.parse(urlString);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not launch $urlString'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching URL: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error launching URL: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 }

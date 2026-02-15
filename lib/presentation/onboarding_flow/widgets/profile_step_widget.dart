@@ -99,8 +99,15 @@ class ProfileStepWidget extends StatelessWidget {
           TextFormField(
             initialValue: userName,
             onChanged: onNameChanged,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+            ),
             decoration: InputDecoration(
               hintText: 'Enter your name',
+              hintStyle: TextStyle(
+                color: Colors.grey[500],
+              ),
               prefixIcon: Icon(
                 Icons.person_outline,
                 color: userName.isNotEmpty

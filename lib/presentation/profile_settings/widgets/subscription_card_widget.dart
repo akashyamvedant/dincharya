@@ -1,8 +1,11 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../payment/payment_plans_screen.dart';
+import '../../../models/payment_models.dart';
 
 class SubscriptionCardWidget extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -16,15 +19,38 @@ class SubscriptionCardWidget extends StatefulWidget {
   State<SubscriptionCardWidget> createState() => _SubscriptionCardWidgetState();
 }
 
-class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget> {
+class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
+    with TickerProviderStateMixin {
   final PaymentService _paymentService = PaymentService();
   bool _isPremium = false;
   bool _isLoading = true;
+  int _selectedPlanIndex = 1; // Default to yearly (best value)
+  late PageController _pageController;
+  late AnimationController _shimmerController;
+
+  static const Color warmBrown = Color(0xFF8B4513);
+  static const Color warmAmber = Color(0xFFD4A574);
+  static const Color premiumGold = Color(0xFFFFD700);
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(
+      viewportFraction: 0.85,
+      initialPage: _selectedPlanIndex,
+    );
+    _shimmerController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat();
     _checkSubscriptionStatus();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _shimmerController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkSubscriptionStatus() async {
@@ -37,290 +63,733 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget> {
     }
   }
 
-  void _handleSubscriptionAction(BuildContext context) async {
-    if (_isPremium) {
-      // Show subscription management dialog
-      showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-                title: Text('Manage Subscription',
-                    style: AppTheme.lightTheme.textTheme.titleMedium),
-                content: Text(
-                    'Your premium subscription is active. You can manage your subscription through your payment method or contact support for assistance.',
-                    style: AppTheme.lightTheme.textTheme.bodyMedium),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Close')),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        _showCancelSubscriptionDialog();
-                      },
-                      child: Text('Cancel Subscription',
-                          style: TextStyle(color: Colors.red))),
-                ]);
-          });
-    } else {
-      // Navigate to payment plans screen
-      final result = await Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  PaymentPlansScreen(userData: widget.userData)));
+  void _onPlanSelected(int index) {
+    HapticFeedback.selectionClick();
+    setState(() => _selectedPlanIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
+  }
 
-      if (result == true) {
-        // Refresh subscription status after successful payment
-        _checkSubscriptionStatus();
-      }
+  void _navigateToPayment(PaymentPlan plan) async {
+    HapticFeedback.mediumImpact();
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentPlansScreen(userData: widget.userData),
+      ),
+    );
+    if (result == true) {
+      _checkSubscriptionStatus();
     }
   }
 
-  void _showCancelSubscriptionDialog() {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-              title: Text('Cancel Subscription',
-                  style: AppTheme.lightTheme.textTheme.titleMedium),
-              content: Text(
-                  'Are you sure you want to cancel your premium subscription? You will lose access to all premium features.',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Keep Subscription')),
-                ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop();
-                      await _paymentService.clearSubscription();
-                      _checkSubscriptionStatus();
-                    },
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white),
-                    child: const Text('Cancel')),
-              ]);
-        });
+  void _showManageDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildManageSheet(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4.w),
-          child: Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(4.w),
-              decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                      color: AppTheme.lightTheme.colorScheme.outline
-                          .withValues(alpha: 0.2),
-                      width: 1)),
-              child: const Center(child: CircularProgressIndicator())));
+      return _buildLoadingCard();
     }
 
-    return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4.w),
-        child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(4.w),
-            decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: _isPremium
-                        ? [
-                            AppTheme.lightTheme.colorScheme.tertiary
-                                .withValues(alpha: 0.1),
-                            AppTheme.lightTheme.colorScheme.primary
-                                .withValues(alpha: 0.1),
-                          ]
-                        : [
-                            AppTheme.lightTheme.colorScheme.surface,
-                            AppTheme.lightTheme.colorScheme.surface
-                                .withValues(alpha: 0.8),
-                          ]),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: _isPremium
-                        ? AppTheme.lightTheme.colorScheme.primary
-                            .withValues(alpha: 0.3)
-                        : AppTheme.lightTheme.colorScheme.outline
-                            .withValues(alpha: 0.2),
-                    width: _isPremium ? 2 : 1),
-                boxShadow: [
-                  BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow
-                          .withValues(alpha: 0.1),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4)),
-                ]),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                    padding: EdgeInsets.all(2.w),
-                    decoration: BoxDecoration(
-                        color: _isPremium
-                            ? AppTheme.lightTheme.colorScheme.tertiary
-                                .withValues(alpha: 0.2)
-                            : AppTheme.lightTheme.colorScheme.outline
-                                .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: CustomIconWidget(
-                        iconName:
-                            _isPremium ? 'workspace_premium' : 'account_circle',
-                        color: _isPremium
-                            ? AppTheme.lightTheme.colorScheme.tertiary
-                            : AppTheme.lightTheme.colorScheme.onSurface
-                                .withValues(alpha: 0.7),
-                        size: 24)),
-                SizedBox(width: 3.w),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Row(children: [
-                        Text('${_isPremium ? 'Premium' : 'Free'} Plan',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
-                                ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: _isPremium
-                                        ? AppTheme
-                                            .lightTheme.colorScheme.primary
-                                        : AppTheme
-                                            .lightTheme.colorScheme.onSurface)),
-                        if (_isPremium) ...[
-                          SizedBox(width: 2.w),
-                          Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 2.w, vertical: 0.5.h),
-                              decoration: BoxDecoration(
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.tertiary,
-                                  borderRadius: BorderRadius.circular(12)),
-                              child: Text('ACTIVE',
-                                  style: AppTheme
-                                      .lightTheme.textTheme.labelSmall
-                                      ?.copyWith(
-                                          color: AppTheme.lightTheme.colorScheme
-                                              .onTertiary,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 10.sp))),
-                        ],
-                      ]),
-                      SizedBox(height: 0.5.h),
-                      Text(
-                          _isPremium
-                              ? 'Enjoy unlimited access to all premium features'
-                              : 'Upgrade to Premium for the complete DinCharya experience with Razorpay secure payments.',
-                          style: AppTheme.lightTheme.textTheme.bodySmall
-                              ?.copyWith(
-                                  color: AppTheme
-                                      .lightTheme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7)),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis),
-                    ])),
-              ]),
+    if (_isPremium) {
+      return _buildPremiumActiveCard();
+    }
 
-              SizedBox(height: 2.h),
-
-              // Features or Benefits
-              if (!_isPremium) ...[
-                Text('Premium Benefits:',
-                    style: AppTheme.lightTheme.textTheme.labelLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                SizedBox(height: 1.h),
-                Column(children: [
-                  _buildFeatureItem('Ad-free experience', 'block'),
-                  _buildFeatureItem('Offline content access', 'download'),
-                  _buildFeatureItem('Advanced analytics', 'analytics'),
-                  _buildFeatureItem('Priority support', 'support_agent'),
-                ]),
-                SizedBox(height: 1.h),
-                Container(
-                    padding: EdgeInsets.all(2.w),
-                    decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary
-                            .withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8)),
-                    child: Row(children: [
-                      CustomIconWidget(
-                          iconName: 'payment',
-                          color: AppTheme.lightTheme.colorScheme.primary,
-                          size: 16),
-                      SizedBox(width: 2.w),
-                      Expanded(
-                          child: Text(
-                              'Secure payments powered by Razorpay. Perfect for Indian users!',
-                              style: AppTheme.lightTheme.textTheme.bodySmall
-                                  ?.copyWith(
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.primary))),
-                    ])),
-                SizedBox(height: 2.h),
-              ],
-
-              // Action Button
-              SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                      onPressed: () => _handleSubscriptionAction(context),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: _isPremium
-                              ? AppTheme.lightTheme.colorScheme.surface
-                              : AppTheme.lightTheme.colorScheme.primary,
-                          foregroundColor: _isPremium
-                              ? AppTheme.lightTheme.colorScheme.primary
-                              : AppTheme.lightTheme.colorScheme.onPrimary,
-                          side: _isPremium
-                              ? BorderSide(
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.primary)
-                              : null,
-                          padding: EdgeInsets.symmetric(vertical: 1.5.h),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12))),
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CustomIconWidget(
-                                iconName: _isPremium ? 'settings' : 'upgrade',
-                                color: _isPremium
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : AppTheme.lightTheme.colorScheme.onPrimary,
-                                size: 20),
-                            SizedBox(width: 2.w),
-                            Text(
-                                _isPremium
-                                    ? 'Manage Subscription'
-                                    : 'Upgrade to Premium',
-                                style: AppTheme.lightTheme.textTheme.labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w600)),
-                          ]))),
-            ])));
+    return _buildUpgradeCard();
   }
 
-  Widget _buildFeatureItem(String text, String iconName) {
-    return Padding(
-        padding: EdgeInsets.only(bottom: 0.8.h),
-        child: Row(children: [
-          CustomIconWidget(
-              iconName: iconName,
-              color: AppTheme.lightTheme.colorScheme.primary
-                  .withValues(alpha: 0.7),
-              size: 16),
-          SizedBox(width: 2.w),
-          Expanded(
-              child: Text(text,
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurface
-                          .withValues(alpha: 0.7)))),
-        ]));
+  Widget _buildLoadingCard() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w),
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: warmBrown.withOpacity(0.2)),
+      ),
+      child: Center(
+        child: CircularProgressIndicator(color: warmBrown),
+      ),
+    );
+  }
+
+  Widget _buildPremiumActiveCard() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [warmBrown.withOpacity(0.15), warmAmber.withOpacity(0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: premiumGold.withOpacity(0.5), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: premiumGold.withOpacity(0.2),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            // Shimmer effect
+            AnimatedBuilder(
+              animation: _shimmerController,
+              builder: (context, child) {
+                return Positioned(
+                  left: -100 + (_shimmerController.value * 400),
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 100,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withOpacity(0),
+                          Colors.white.withOpacity(0.1),
+                          Colors.white.withOpacity(0),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            
+            Padding(
+              padding: EdgeInsets.all(4.w),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      // Premium badge
+                      Container(
+                        padding: EdgeInsets.all(3.w),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [premiumGold, warmAmber],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: premiumGold.withOpacity(0.4),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Icon(Icons.workspace_premium, color: Colors.white, size: 24),
+                      ),
+                      SizedBox(width: 3.w),
+                      
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Premium Active',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.bold,
+                                    color: warmBrown,
+                                  ),
+                                ),
+                                SizedBox(width: 2.w),
+                                Container(
+                                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '✓ ACTIVE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 0.5.h),
+                            Text(
+                              'Enjoy all premium features!',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: warmBrown.withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                  
+                  // Manage button
+                  GestureDetector(
+                    onTap: _showManageDialog,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                      decoration: BoxDecoration(
+                        color: warmBrown.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: warmBrown.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.settings, color: warmBrown, size: 18),
+                          SizedBox(width: 2.w),
+                          Text(
+                            'Manage Subscription',
+                            style: TextStyle(
+                              color: warmBrown,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.sp,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUpgradeCard() {
+    final plans = PaymentPlan.availablePlans;
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [warmBrown.withOpacity(0.1), warmAmber.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: warmBrown.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: warmBrown.withOpacity(0.1),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: EdgeInsets.all(4.w),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(2.5.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [warmBrown, warmAmber]),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.diamond, color: Colors.white, size: 20),
+                ),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Upgrade to Premium',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: warmBrown,
+                        ),
+                      ),
+                      Text(
+                        'Unlock all features',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: warmBrown.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Plan toggle
+                _buildPlanToggle(),
+              ],
+            ),
+          ),
+
+          // Plans Slider
+          SizedBox(
+            height: 22.h,
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) => setState(() => _selectedPlanIndex = index),
+              itemCount: plans.length,
+              itemBuilder: (context, index) => _buildPlanCard(plans[index], index),
+            ),
+          ),
+
+          // Page indicators
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 1.5.h),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(plans.length, (index) {
+                final isSelected = index == _selectedPlanIndex;
+                return AnimatedContainer(
+                  duration: Duration(milliseconds: 200),
+                  margin: EdgeInsets.symmetric(horizontal: 1.w),
+                  width: isSelected ? 6.w : 2.w,
+                  height: 0.8.h,
+                  decoration: BoxDecoration(
+                    color: isSelected ? warmBrown : warmBrown.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlanToggle() {
+    return Container(
+      padding: EdgeInsets.all(0.5.w),
+      decoration: BoxDecoration(
+        color: warmBrown.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          _buildToggleButton('Monthly', 0),
+          _buildToggleButton('Yearly', 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleButton(String label, int index) {
+    final isSelected = _selectedPlanIndex == index;
+    return GestureDetector(
+      onTap: () => _onPlanSelected(index),
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: 200),
+        padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.8.h),
+        decoration: BoxDecoration(
+          color: isSelected ? warmBrown : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : warmBrown,
+            fontSize: 9.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlanCard(PaymentPlan plan, int index) {
+    final isSelected = index == _selectedPlanIndex;
+    final isYearly = plan.duration == 'year';
+    
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 200),
+      margin: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
+      decoration: BoxDecoration(
+        gradient: isSelected
+            ? LinearGradient(
+                colors: isYearly
+                    ? [warmBrown.withOpacity(0.15), premiumGold.withOpacity(0.1)]
+                    : [warmBrown.withOpacity(0.1), warmAmber.withOpacity(0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: isSelected ? null : Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isSelected ? warmBrown : warmBrown.withOpacity(0.2),
+          width: isSelected ? 2 : 1,
+        ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: warmBrown.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(3.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Plan header
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            plan.name,
+                            style: TextStyle(
+                              fontSize: 14.sp,
+                              fontWeight: FontWeight.bold,
+                              color: warmBrown,
+                            ),
+                          ),
+                          if (plan.isPopular) ...[
+                            SizedBox(width: 2.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.3.h),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [premiumGold, warmAmber]),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'BEST VALUE',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 7.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      SizedBox(height: 0.5.h),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₹${plan.price.toInt()}',
+                            style: TextStyle(
+                              fontSize: 22.sp,
+                              fontWeight: FontWeight.bold,
+                              color: warmBrown,
+                            ),
+                          ),
+                          Text(
+                            '/${plan.duration}',
+                            style: TextStyle(
+                              fontSize: 11.sp,
+                              color: warmBrown.withOpacity(0.6),
+                            ),
+                          ),
+                          if (isYearly) ...[
+                            SizedBox(width: 2.w),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Save ₹389',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 8.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: 1.5.h),
+            
+            // Features (compact)
+            Expanded(
+              child: Wrap(
+                spacing: 2.w,
+                runSpacing: 0.5.h,
+                children: plan.features.take(4).map((feature) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 12),
+                    SizedBox(width: 1.w),
+                    Text(
+                      feature,
+                      style: TextStyle(fontSize: 9.sp, color: warmBrown.withOpacity(0.7)),
+                    ),
+                  ],
+                )).toList(),
+              ),
+            ),
+            
+            // Select button
+            GestureDetector(
+              onTap: () => _navigateToPayment(plan),
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 1.2.h),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(colors: [warmBrown, warmAmber])
+                      : null,
+                  color: isSelected ? null : warmBrown.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    isSelected ? 'Subscribe Now' : 'Select Plan',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : warmBrown,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11.sp,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildManageSheet() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(
+            width: 12.w,
+            height: 0.5.h,
+            margin: EdgeInsets.symmetric(vertical: 2.h),
+            decoration: BoxDecoration(
+              color: Theme.of(context).dividerColor,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          Padding(
+            padding: EdgeInsets.all(4.w),
+            child: Column(
+              children: [
+                // Premium status
+                Container(
+                  padding: EdgeInsets.all(4.w),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [warmBrown.withOpacity(0.1), warmAmber.withOpacity(0.05)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: premiumGold.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(3.w),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [premiumGold, warmAmber]),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.workspace_premium, color: Colors.white, size: 24),
+                      ),
+                      SizedBox(width: 3.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Premium Member',
+                              style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.bold,
+                                color: warmBrown,
+                              ),
+                            ),
+                            Text(
+                              'Your subscription is active',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: 2.h),
+                
+                // Options
+                _buildManageOption(
+                  icon: Icons.receipt_long,
+                  title: 'View Receipt',
+                  subtitle: 'Download payment receipt',
+                  onTap: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Receipt feature coming soon!')),
+                    );
+                  },
+                ),
+                
+                _buildManageOption(
+                  icon: Icons.support_agent,
+                  title: 'Contact Support',
+                  subtitle: 'Get help with your subscription',
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Open support
+                  },
+                ),
+                
+                _buildManageOption(
+                  icon: Icons.cancel,
+                  title: 'Cancel Subscription',
+                  subtitle: 'You will lose premium access',
+                  isDestructive: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCancelDialog();
+                  },
+                ),
+                
+                SizedBox(height: 2.h),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManageOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final color = isDestructive ? Colors.red : warmBrown;
+    
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        margin: EdgeInsets.only(bottom: 1.h),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(2.w),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            SizedBox(width: 3.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCancelDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Cancel Subscription?'),
+        content: Text('You will lose access to all premium features. Are you sure?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Keep Premium'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _paymentService.clearSubscription();
+              _checkSubscriptionStatus();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 }

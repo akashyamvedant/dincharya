@@ -2,6 +2,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../core/utils/validators.dart';
 
 class SupabaseService {
   static final SupabaseService _instance = SupabaseService._internal();
@@ -27,40 +29,29 @@ class SupabaseService {
     await _initFuture;
   }
 
-  // Input validation helper
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(email);
-  }
+  // Input validation helper - using centralized Validators class
 
-  bool _isValidPassword(String password) {
-    return password.length >= 8 &&
-        RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]')
-            .hasMatch(password);
-  }
 
-  bool _isValidUserId(String userId) {
-    return userId.isNotEmpty && userId.length <= 100;
-  }
-
-  bool _isValidString(String? str, {int maxLength = 1000}) {
-    return str != null && str.isNotEmpty && str.length <= maxLength;
-  }
 
   Future<void> _initializeSupabase() async {
-    // Get environment variables with fallback values for development
-    String supabaseUrl = const String.fromEnvironment('SUPABASE_URL');
-    String supabaseAnonKey = const String.fromEnvironment('SUPABASE_ANON_KEY');
+    // Get environment variables from .env file
+    String supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
+    String supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
-    // Use environment variables from env.json
+    // Validation: fail if keys are missing to prevent using default/insecure keys
     if (supabaseUrl.isEmpty || supabaseUrl == 'your-supabase-url-here') {
-      supabaseUrl = 'https://djaevixaqvwtuizbadds.supabase.co';
+      debugPrint('❌ Fatal: SUPABASE_URL not found in .env file');
+      debugPrint('💡 Tip: Make sure .env file exists with SUPABASE_URL');
+      _isInitialized = false;
+      return; 
     }
 
     if (supabaseAnonKey.isEmpty ||
         supabaseAnonKey == 'your-supabase-anon-key-here') {
-      supabaseAnonKey =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqYWV2aXhhcXZ3dHVpemJhZGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2NjU3MjIsImV4cCI6MjA2OTI0MTcyMn0.SOPAC7NJ0RkV-tXKnkNCANJjtsF3-h0g1OO80Wcu3lU';
+      debugPrint('❌ Fatal: SUPABASE_ANON_KEY not found in .env file');
+      debugPrint('💡 Tip: Make sure .env file exists with SUPABASE_ANON_KEY');
+      _isInitialized = false;
+      return;
     }
 
     debugPrint('Supabase URL: ${supabaseUrl.isEmpty ? "NOT SET" : "SET"}');
@@ -109,15 +100,20 @@ class SupabaseService {
       }
 
       // Input validation
-      if (!_isValidEmail(email)) {
+      if (!Validators.isValidEmail(email)) {
         throw Exception('Invalid email format');
       }
-      if (!_isValidPassword(password)) {
+      if (!Validators.isValidPassword(password)) {
         throw Exception(
             'Password must be at least 8 characters with uppercase, lowercase, number, and special character');
       }
 
-      return await client.auth.signUp(email: email, password: password);
+      // Sign up with auto-confirm option (no email verification required)
+      return await client.auth.signUp(
+        email: email, 
+        password: password,
+        emailRedirectTo: null, // Disable email verification redirect
+      );
     } catch (e) {
       throw Exception('Sign up failed: $e');
     }
@@ -134,10 +130,10 @@ class SupabaseService {
       }
 
       // Input validation
-      if (!_isValidEmail(email)) {
+      if (!Validators.isValidEmail(email)) {
         throw Exception('Invalid email format');
       }
-      if (!_isValidString(password)) {
+      if (!Validators.isValidString(password)) {
         throw Exception('Password cannot be empty');
       }
 
@@ -178,7 +174,7 @@ class SupabaseService {
   // User profile methods with validation
   Future<List<Map<String, dynamic>>> getUserProfile(String userId) async {
     try {
-      if (!_isValidUserId(userId)) {
+      if (!Validators.isValidUserId(userId)) {
         throw Exception('Invalid user ID');
       }
 
@@ -202,7 +198,7 @@ class SupabaseService {
   Future<List<Map<String, dynamic>>> updateUserProfile(
       String userId, Map<String, dynamic> updates) async {
     try {
-      if (!_isValidUserId(userId)) {
+      if (!Validators.isValidUserId(userId)) {
         throw Exception('Invalid user ID');
       }
 
@@ -221,20 +217,20 @@ class SupabaseService {
 
         if (key == 'full_name') {
           final trimmedValue = value.toString().trim();
-          if (_isValidString(trimmedValue, maxLength: 100)) {
+          if (Validators.isValidString(trimmedValue, maxLength: 100)) {
             sanitizedUpdates[key] = trimmedValue;
             debugPrint('   ✓ full_name: ${trimmedValue.substring(0, trimmedValue.length > 20 ? 20 : trimmedValue.length)}...');
           }
         } else if (key == 'bio') {
           // Bio can be empty, so allow empty string
           final trimmedValue = value.toString().trim();
-          if (trimmedValue.isEmpty || _isValidString(trimmedValue, maxLength: 500)) {
+          if (trimmedValue.isEmpty || Validators.isValidString(trimmedValue, maxLength: 500)) {
             sanitizedUpdates[key] = trimmedValue;
             debugPrint('   ✓ bio: ${trimmedValue.isEmpty ? "(empty)" : "${trimmedValue.substring(0, trimmedValue.length > 30 ? 30 : trimmedValue.length)}..."}');
           }
         } else if (key == 'avatar_url') {
           final trimmedValue = value.toString().trim();
-          if (trimmedValue.isEmpty || _isValidString(trimmedValue, maxLength: 500)) {
+          if (trimmedValue.isEmpty || Validators.isValidString(trimmedValue, maxLength: 500)) {
             sanitizedUpdates[key] = trimmedValue;
             debugPrint('   ✓ avatar_url: ${trimmedValue.isEmpty ? "(empty)" : "set"}');
           }
@@ -317,7 +313,7 @@ class SupabaseService {
   // Local tasks methods with validation
   Future<List<Map<String, dynamic>>> getLocalTasks(String userId) async {
     try {
-      if (!_isValidUserId(userId)) {
+      if (!Validators.isValidUserId(userId)) {
         throw Exception('Invalid user ID');
       }
 
@@ -347,16 +343,16 @@ class SupabaseService {
       }
 
       final userId = taskData['user_id']?.toString() ?? '';
-      if (!_isValidUserId(userId)) {
+      if (!Validators.isValidUserId(userId)) {
         throw Exception('Invalid user ID');
       }
-      if (!_isValidString(taskData['title']?.toString() ?? '',
+      if (!Validators.isValidString(taskData['title']?.toString() ?? '',
           maxLength: 200)) {
         throw Exception('Invalid task title');
       }
 
       final sanitizedTaskData = {
-        'id': _isValidString(taskData['id']?.toString() ?? '')
+        'id': Validators.isValidString(taskData['id']?.toString() ?? '')
             ? taskData['id'].toString()
             : _uuid.v4(),
         'user_id': userId,
@@ -385,7 +381,7 @@ class SupabaseService {
   Future<List<Map<String, dynamic>>> updateLocalTask(
       String taskId, Map<String, dynamic> updates) async {
     try {
-      if (!_isValidString(taskId)) {
+      if (!Validators.isValidString(taskId)) {
         throw Exception('Invalid task ID');
       }
 
@@ -403,19 +399,19 @@ class SupabaseService {
 
         if (value == null) continue;
         if (key == 'title' &&
-            _isValidString(value.toString(), maxLength: 200)) {
+            Validators.isValidString(value.toString(), maxLength: 200)) {
           sanitizedUpdates[key] = value.toString().trim();
         } else if (key == 'description' &&
-            _isValidString(value.toString(), maxLength: 1000)) {
+            Validators.isValidString(value.toString(), maxLength: 1000)) {
           sanitizedUpdates[key] = value.toString().trim();
         } else if (key == 'time' &&
-            _isValidString(value.toString(), maxLength: 50)) {
+            Validators.isValidString(value.toString(), maxLength: 50)) {
           sanitizedUpdates[key] = value.toString().trim();
         } else if (key == 'category' &&
-            _isValidString(value.toString(), maxLength: 100)) {
+            Validators.isValidString(value.toString(), maxLength: 100)) {
           sanitizedUpdates[key] = value.toString().trim();
         } else if (key == 'status' &&
-            _isValidString(value.toString(), maxLength: 50)) {
+            Validators.isValidString(value.toString(), maxLength: 50)) {
           sanitizedUpdates[key] = value.toString().trim();
         } else if (key == 'priority' && value is int) {
           sanitizedUpdates[key] = value;
@@ -441,7 +437,7 @@ class SupabaseService {
 
   Future<void> deleteLocalTask(String taskId) async {
     try {
-      if (!_isValidString(taskId)) {
+      if (!Validators.isValidString(taskId)) {
         throw Exception('Invalid task ID');
       }
 
@@ -454,6 +450,45 @@ class SupabaseService {
     } catch (e) {
       throw Exception('Failed to delete local task: $e');
     }
+  }
+
+  /// Delete all tasks created from a specific profile
+  /// Used to prevent duplicates when re-selecting a profile
+  Future<void> deleteTasksByProfile(String userId, String profileName) async {
+    try {
+      if (!Validators.isValidUserId(userId)) {
+        throw Exception('Invalid user ID');
+      }
+
+      final client = await this.client;
+      if (client == null) {
+        throw Exception('Supabase not initialized');
+      }
+
+      // Delete tasks where description contains the profile name
+      final descriptionPattern = 'Part of $profileName routine';
+      await client
+          .from('local_tasks')
+          .delete()
+          .eq('user_id', userId)
+          .ilike('description', '%$descriptionPattern%');
+      
+      debugPrint('✅ Deleted existing tasks for profile: $profileName');
+    } catch (e) {
+      debugPrint('⚠️ Error deleting profile tasks: $e');
+      // Don't throw - allow task creation to proceed
+    }
+  }
+
+  /// Delete all preset profile tasks (used when switching to Custom Routine)
+  /// This preserves user's manually created custom tasks
+  Future<void> deleteAllPresetProfileTasks(String userId) async {
+    const presetProfiles = ['Yogic Lifestyle', 'Student Life', 'Working Professional', 'Homemaker'];
+    
+    for (final profileName in presetProfiles) {
+      await deleteTasksByProfile(userId, profileName);
+    }
+    debugPrint('✅ Deleted all preset profile tasks');
   }
 
   // Admin settings management with validation
@@ -501,7 +536,7 @@ class SupabaseService {
   // Journal entries (online only)
   Future<List<Map<String, dynamic>>> getJournalEntries(String userId) async {
     try {
-      if (!_isValidUserId(userId)) {
+      if (!Validators.isValidUserId(userId)) {
         throw Exception('Invalid user ID');
       }
 
@@ -530,20 +565,20 @@ class SupabaseService {
         throw Exception('Supabase not initialized');
       }
 
-      if (!_isValidUserId(entryData['user_id']?.toString() ?? '')) {
+      if (!Validators.isValidUserId(entryData['user_id']?.toString() ?? '')) {
         throw Exception('Invalid user ID');
       }
-      if (!_isValidString(entryData['title']?.toString() ?? '',
+      if (!Validators.isValidString(entryData['title']?.toString() ?? '',
           maxLength: 200)) {
         throw Exception('Invalid entry title');
       }
-      if (!_isValidString(entryData['content']?.toString() ?? '',
+      if (!Validators.isValidString(entryData['content']?.toString() ?? '',
           maxLength: 5000)) {
         throw Exception('Invalid entry content');
       }
 
       var entryId = entryData['id']?.toString().trim();
-      if (!_isValidString(entryId)) {
+      if (!Validators.isValidString(entryId)) {
         entryId = _uuid.v4();
       }
 
@@ -580,7 +615,7 @@ class SupabaseService {
 
   Future<void> deleteJournalEntry(String entryId) async {
     try {
-      if (!_isValidString(entryId)) {
+      if (!Validators.isValidString(entryId)) {
         throw Exception('Invalid entry ID');
       }
 
@@ -599,19 +634,20 @@ class SupabaseService {
   Future<String> uploadFile(
       String bucket, String path, List<int> fileBytes) async {
     try {
-      // Validate bucket name
-      if (!['journal_images', 'journal_audio', 'profile_images']
+      // Validate bucket name - added sessions-media for video/audio uploads
+      if (!['journal_images', 'journal_audio', 'profile_images', 'sessions-media']
           .contains(bucket)) {
         throw Exception('Invalid bucket name: $bucket');
       }
 
-      // Validate file size (max 10MB)
-      if (fileBytes.length > 10 * 1024 * 1024) {
-        throw Exception('File size too large. Maximum size is 10MB');
+      // Validate file size (max 50MB for sessions-media, 10MB for others)
+      final maxSize = bucket == 'sessions-media' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (fileBytes.length > maxSize) {
+        throw Exception('File size too large. Maximum size is ${maxSize ~/ (1024 * 1024)}MB');
       }
 
       // Validate file path
-      if (!_isValidString(path, maxLength: 200)) {
+      if (!Validators.isValidString(path, maxLength: 200)) {
         throw Exception('Invalid file path: $path');
       }
 
@@ -623,6 +659,18 @@ class SupabaseService {
 
       debugPrint('📤 Attempting upload to bucket: $bucket, path: $path');
 
+      // Determine content type based on file extension
+      final extension = path.split('.').last.toLowerCase();
+      String contentType = 'application/octet-stream';
+      if (['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(extension)) {
+        contentType = 'video/$extension';
+      } else if (['mp3', 'wav', 'aac', 'm4a', 'ogg'].contains(extension)) {
+        contentType = 'audio/$extension';
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) {
+        contentType = 'image/$extension';
+      }
+      debugPrint('📄 Content type: $contentType');
+
       // Upload file with upsert option to overwrite if exists
       try {
         await _client.storage.from(bucket).uploadBinary(
@@ -630,7 +678,7 @@ class SupabaseService {
               uint8List,
               fileOptions: FileOptions(
                 upsert: true,
-                contentType: 'image/jpeg',
+                contentType: contentType,
               ),
             );
         debugPrint('✅ Upload successful');
@@ -685,7 +733,7 @@ class SupabaseService {
       }
 
       // Validate file path
-      if (!_isValidString(path, maxLength: 200)) {
+      if (!Validators.isValidString(path, maxLength: 200)) {
         throw Exception('Invalid file path');
       }
 

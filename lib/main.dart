@@ -2,18 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
 import 'package:dincharya/widgets/custom_error_widget.dart';
 import './services/ads_service.dart';
 import './services/auth_service.dart';
 import './services/notification_service.dart';
+import './services/routine_tracking_service.dart';
 import './services/supabase_service.dart';
+import './services/subscription_manager.dart';
 import 'core/app_export.dart';
 
 // lib/main.dart
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from .env file
+  try {
+    await dotenv.load(fileName: ".env");
+    debugPrint('✅ Environment variables loaded successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to load .env file: $e');
+    debugPrint('💡 Make sure .env file exists in the project root');
+  }
 
   // Set up global error handling
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -46,6 +59,14 @@ void main() async {
 
 // Initialize heavy services in background to avoid blocking app startup
 void _initializeServicesInBackground() async {
+  // Initialize timezone for scheduled notifications
+  try {
+    tz.initializeTimeZones();
+    debugPrint('✅ Timezone initialized');
+  } catch (e) {
+    debugPrint('Failed to initialize timezone: $e');
+  }
+
   // Initialize Supabase
   try {
     await SupabaseService().initFuture;
@@ -64,9 +85,17 @@ void _initializeServicesInBackground() async {
 
   try {
     await NotificationService().initialize();
-    debugPrint('Notification service initialized successfully');
+    debugPrint('✅ Notification service initialized successfully');
   } catch (e) {
     debugPrint('Failed to initialize notification service: $e');
+  }
+
+  // Initialize routine tracking service for notifications
+  try {
+    await RoutineTrackingService().initialize();
+    debugPrint('✅ Routine tracking service initialized');
+  } catch (e) {
+    debugPrint('Failed to initialize routine tracking: $e');
   }
 
   // Initialize payment service
@@ -75,6 +104,14 @@ void _initializeServicesInBackground() async {
     debugPrint('Payment service initialized successfully');
   } catch (e) {
     debugPrint('Failed to initialize payment service: $e');
+  }
+
+  // Initialize subscription manager (checks premium status)
+  try {
+    await SubscriptionManager().initialize();
+    debugPrint('✅ Subscription manager initialized: ${SubscriptionManager().isPremium ? "PREMIUM" : "FREE"}');
+  } catch (e) {
+    debugPrint('Failed to initialize subscription manager: $e');
   }
 
   // Log security initialization
@@ -89,15 +126,112 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isDarkMode = true; // Default to dark mode (pure black)
   String _initialRoute = AppRoutes.splashScreen;
   bool _isInitialized = false;
+  
+  // App Open Ad tracking
+  bool _isShowingAd = false;
+  bool _hasShownAdThisSession = false; // Only show ad ONCE per session
+  DateTime? _appPausedTime;
+  
+  // AdMob Policy Compliant Settings:
+  // - App Open ads should show when user returns to app after being away
+  // - Google recommends showing only when user has engaged with app a few times
+  // - Must NOT show on app exit or before content is visible
+  static const int _minSecondsInBackground = 30; // 30 seconds - reasonable time away
+  int _appLaunchCount = 0;
+  static const int _showAfterLaunches = 3; // Show after 3rd launch for better UX
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeApp();
+    _incrementLaunchCount();
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  // Track app launches for frequency capping
+  Future<void> _incrementLaunchCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _appLaunchCount = (prefs.getInt('app_launch_count') ?? 0) + 1;
+      await prefs.setInt('app_launch_count', _appLaunchCount);
+      debugPrint('📱 App launch count: $_appLaunchCount');
+    } catch (e) {
+      debugPrint('Error tracking launch: $e');
+    }
+  }
+  
+  // App lifecycle observer - for App Open Ad
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    debugPrint('📱 App lifecycle: $state');
+    
+    if (state == AppLifecycleState.paused) {
+      // App going to background - record time
+      _appPausedTime = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      // App coming to foreground - show App Open Ad
+      _showAppOpenAdOnResume();
+    }
+  }
+  
+  // Show App Open Ad when app resumes from background (ONCE per session)
+  Future<void> _showAppOpenAdOnResume({bool isFromBackground = true}) async {
+    // Skip if already showing
+    if (_isShowingAd) {
+      debugPrint('⏳ Already showing ad');
+      return;
+    }
+    
+    // CRITICAL: Only show ad ONCE per session
+    if (_hasShownAdThisSession) {
+      debugPrint('✅ Ad already shown this session - skipping');
+      return;
+    }
+    
+    // Skip on first 2 launches (better UX)
+    if (_appLaunchCount < _showAfterLaunches) {
+      debugPrint('🔢 Skipping: Launch $_appLaunchCount < $_showAfterLaunches');
+      return;
+    }
+    
+    // If coming from background, check if user was away for 5+ minutes
+    if (isFromBackground && _appPausedTime != null) {
+      final secondsSincePause = DateTime.now().difference(_appPausedTime!).inSeconds;
+      if (secondsSincePause < _minSecondsInBackground) {
+        debugPrint('⏱️ Not long enough in background: ${secondsSincePause}s < ${_minSecondsInBackground}s (5 min)');
+        return;
+      }
+    }
+    
+    final adsService = AdsService();
+    
+    if (!adsService.shouldShowAds) {
+      debugPrint('👑 Premium user - no ads');
+      return;
+    }
+    
+    _isShowingAd = true;
+    debugPrint('🎬 Showing App Open Ad...');
+    
+    try {
+      await adsService.showAppOpenAd();
+      _hasShownAdThisSession = true; // Mark as shown for this session
+      debugPrint('✅ App Open Ad shown - will not show again this session');
+    } catch (e) {
+      debugPrint('❌ App Open Ad error: $e');
+    } finally {
+      _isShowingAd = false;
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -113,6 +247,11 @@ class _MyAppState extends State<MyApp> {
 
       SecurityConfig.logSecurityEvent('APP_READY',
           details: 'App initialization complete');
+      
+      // Show App Open Ad on app launch (not from background)
+      if (_appLaunchCount >= _showAfterLaunches) {
+        _showAppOpenAdOnResume(isFromBackground: false);
+      }
     } catch (e) {
       debugPrint('Failed to initialize app: $e');
       SecurityConfig.logSecurityViolation('INITIALIZATION_FAILED',

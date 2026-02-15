@@ -1,134 +1,199 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
-import '../../../widgets/custom_icon_widget.dart';
 
-class BottomActionWidget extends StatelessWidget {
+class BottomActionWidget extends StatefulWidget {
   final VoidCallback onSave;
   final VoidCallback onVoiceInput;
   final VoidCallback onPhotoAttach;
+  final VoidCallback? onShowInsights;
+  final String? currentEntryText;
 
   const BottomActionWidget({
     super.key,
     required this.onSave,
     required this.onVoiceInput,
     required this.onPhotoAttach,
+    this.onShowInsights,
+    this.currentEntryText,
   });
 
   @override
+  State<BottomActionWidget> createState() => _BottomActionWidgetState();
+}
+
+class _BottomActionWidgetState extends State<BottomActionWidget>
+    with TickerProviderStateMixin {
+  late AnimationController _saveController;
+  late Animation<double> _saveScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _saveController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _saveScale = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _saveController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _saveController.dispose();
+    super.dispose();
+  }
+
+  void _onSavePressed() {
+    HapticFeedback.mediumImpact();
+    _saveController.forward().then((_) {
+      _saveController.reverse();
+      widget.onSave();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    const warmBrown = Color(0xFF8B4513);
+    const warmAmber = Color(0xFFD4A574);
+
     return Container(
-      padding: EdgeInsets.all(4.w),
+      padding: EdgeInsets.all(3.5.w),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            const Color(0xFFFFF8F0),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: warmAmber.withOpacity(0.2),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).shadowColor,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: warmBrown.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick Actions Row
+          // Quick actions row — media buttons
           Row(
             children: [
               Text(
-                'Quick Actions',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                'Add to entry',
+                style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: warmBrown,
+                  letterSpacing: 0.3,
+                ),
               ),
               const Spacer(),
-              _buildQuickActionButton(
-                context: context,
-                icon: 'mic',
+              _buildMediaButton(
+                icon: Icons.mic_rounded,
                 label: 'Voice',
-                onTap: onVoiceInput,
-                color: Colors.blue,
+                gradient: [warmBrown, const Color(0xFFa05a2c)],
+                onTap: widget.onVoiceInput,
               ),
               SizedBox(width: 2.w),
-              _buildQuickActionButton(
-                context: context,
-                icon: 'photo_camera',
+              _buildMediaButton(
+                icon: Icons.photo_camera_rounded,
                 label: 'Photo',
-                onTap: onPhotoAttach,
-                color: Colors.green,
+                gradient: [const Color(0xFF4A7C59), const Color(0xFF2E7D32)],
+                onTap: widget.onPhotoAttach,
               ),
             ],
           ),
-          SizedBox(height: 3.h),
-
-          // Main Save Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onSave,
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 4.w),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CustomIconWidget(
-                    iconName: 'save',
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    size: 20,
-                  ),
-                  SizedBox(width: 2.w),
-                  Text(
-                    'Save Entry',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           SizedBox(height: 2.h),
 
-          // Additional Options
+          // Save button — gradient pill
+          AnimatedBuilder(
+            animation: _saveScale,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _saveScale.value,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [warmBrown, Color(0xFFa05a2c)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: warmBrown.withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _onSavePressed,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 1.6.h),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.save_rounded, size: 20, color: Colors.white),
+                            SizedBox(width: 2.w),
+                            Text(
+                              'Save Entry',
+                              style: TextStyle(
+                                fontSize: 13.sp,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: 1.5.h),
+
+          // Secondary actions — Copy, Insights, History
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildSecondaryAction(
-                context: context,
-                icon: 'share',
-                label: 'Share',
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share feature coming soon!')),
-                  );
-                },
+                icon: Icons.copy_rounded,
+                label: 'Copy',
+                onTap: _copyToClipboard,
+                color: warmBrown,
               ),
               _buildSecondaryAction(
-                context: context,
-                icon: 'backup',
-                label: 'Backup',
+                icon: Icons.insights_rounded,
+                label: 'Insights',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Backup feature coming soon!')),
-                  );
+                  if (widget.onShowInsights != null) {
+                    widget.onShowInsights!();
+                  }
                 },
+                color: warmBrown,
               ),
               _buildSecondaryAction(
-                context: context,
-                icon: 'download',
-                label: 'Export',
-                onTap: () {
-                  _showExportOptions(context);
-                },
+                icon: Icons.history_rounded,
+                label: 'History',
+                onTap: _navigateToHistory,
+                color: warmBrown,
               ),
             ],
           ),
@@ -137,40 +202,38 @@ class BottomActionWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActionButton({
-    required BuildContext context,
-    required String icon,
+  Widget _buildMediaButton({
+    required IconData icon,
     required String label,
+    required List<Color> gradient,
     required VoidCallback onTap,
-    required Color color,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.w),
+        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-            width: 1,
+          gradient: LinearGradient(
+            colors: gradient.map((c) => c.withOpacity(0.12)).toList(),
           ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: gradient.first.withOpacity(0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CustomIconWidget(
-              iconName: icon,
-              color: color,
-              size: 16,
-            ),
-            SizedBox(width: 1.w),
+            Icon(icon, color: gradient.first, size: 18),
+            SizedBox(width: 1.5.w),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: gradient.first,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -179,42 +242,37 @@ class BottomActionWidget extends StatelessWidget {
   }
 
   Widget _buildSecondaryAction({
-    required BuildContext context,
-    required String icon,
+    required IconData icon,
     required String label,
     required VoidCallback onTap,
+    required Color color,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
-        padding: EdgeInsets.all(3.w),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Theme.of(context).dividerColor,
-            width: 1,
-          ),
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
         child: Column(
           children: [
-            CustomIconWidget(
-              iconName: icon,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.7),
-              size: 20,
+            Container(
+              padding: EdgeInsets.all(2.5.w),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color.withOpacity(0.1)),
+              ),
+              child: Icon(icon, color: color.withOpacity(0.6), size: 20),
             ),
-            SizedBox(height: 1.w),
+            SizedBox(height: 0.6.h),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                  ),
+              style: TextStyle(
+                fontSize: 11.sp,
+                color: color.withOpacity(0.5),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -222,95 +280,46 @@ class BottomActionWidget extends StatelessWidget {
     );
   }
 
-  void _showExportOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  void _copyToClipboard() {
+    final text = widget.currentEntryText ?? '';
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.warning_amber, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('No text to copy'),
+            ],
+          ),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      );
+      return;
+    }
+
+    Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
           children: [
-            Container(
-              width: 12.w,
-              height: 0.5.h,
-              margin: EdgeInsets.symmetric(vertical: 2.h),
-              decoration: BoxDecoration(
-                color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(4.w),
-              child: Column(
-                children: [
-                  Text(
-                    'Export Options',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 3.h),
-                  ListTile(
-                    leading: CustomIconWidget(
-                      iconName: 'picture_as_pdf',
-                      color: Colors.red,
-                      size: 24,
-                    ),
-                    title: Text('Export as PDF'),
-                    subtitle:
-                        Text('Generate a PDF file of your journal entries'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('PDF export feature coming soon!')),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: CustomIconWidget(
-                      iconName: 'text_snippet',
-                      color: Colors.blue,
-                      size: 24,
-                    ),
-                    title: Text('Export as Text'),
-                    subtitle:
-                        Text('Generate a text file of your journal entries'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Text export feature coming soon!')),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: CustomIconWidget(
-                      iconName: 'email',
-                      color: Colors.green,
-                      size: 24,
-                    ),
-                    title: Text('Email to Healthcare Provider'),
-                    subtitle:
-                        Text('Share entries with your healthcare provider'),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('Email sharing feature coming soon!')),
-                      );
-                    },
-                  ),
-                  SizedBox(height: 2.h),
-                ],
-              ),
-            ),
+            Icon(Icons.check_circle, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Entry copied to clipboard!'),
           ],
         ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+
+  void _navigateToHistory() {
+    HapticFeedback.selectionClick();
+    Navigator.pushNamed(context, AppRoutes.history);
   }
 }

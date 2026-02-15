@@ -3,14 +3,23 @@ import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart'; // For generating unique IDs
 
 import '../../core/app_export.dart';
+import '../../core/constants/ad_constants.dart';
 import '../../services/supabase_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/routine_tracking_service.dart';
+import '../../services/task_lifecycle_service.dart';
+import '../../services/ads_service.dart';
+import '../../services/notification_deep_link_service.dart';
+import '../../services/app_tour_service.dart';
 import './widgets/add_task_bottom_sheet.dart';
+import './widgets/edit_task_bottom_sheet.dart';
 import './widgets/empty_routine_widget.dart';
 import './widgets/routine_header_widget.dart';
 import './widgets/task_card_widget.dart';
 import './widgets/activity_tracking_dialog.dart';
+import './widgets/celebration_overlay.dart';
+import '../../widgets/ads/native_ad_widget.dart';
+
 
 class RoutineDashboard extends StatefulWidget {
   const RoutineDashboard({super.key});
@@ -24,68 +33,166 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   int _currentTabIndex = 0;
   bool _isLoading = false;
   int _streakCount = 0; // Dynamic streak count
+  int _bestStreak = 0; // Personal best streak
+  int _totalXP = 0; // Total XP earned
+  double _weeklyCompletion = 0.0; // Weekly completion rate
+  List<bool> _weeklyDays = [false, false, false, false, false, false, false];
+  bool _showCelebration = false;
+  int _celebrationXP = 25;
+  String _celebrationTaskName = '';
+  String _selectedCategory = 'all'; // For category filter
   
-  // Remove selectedProfile - not used properly
-  // String _selectedProfile = 'Village Life';
+  // Category definitions for filter chips
+  final List<Map<String, String>> _categories = [
+    {'key': 'all', 'label': 'All', 'icon': '📋'},
+    {'key': 'meditation', 'label': 'Meditation', 'icon': '🧘'},
+    {'key': 'yoga', 'label': 'Yoga', 'icon': '🧎'},
+    {'key': 'pranayama', 'label': 'Pranayama', 'icon': '💨'},
+    {'key': 'study', 'label': 'Study', 'icon': '📚'},
+    {'key': 'journal', 'label': 'Journal', 'icon': '📝'},
+    {'key': 'exercise', 'label': 'Exercise', 'icon': '💪'},
+  ];
 
   List<Map<String, dynamic>> _todayTasks = [];
   final SupabaseService _supabaseService = SupabaseService();
   final RoutineTrackingService _trackingService = RoutineTrackingService();
+  final TaskLifecycleService _lifecycleService = TaskLifecycleService();
+  final NotificationDeepLinkService _deepLinkService = NotificationDeepLinkService();
   final Uuid _uuid = Uuid();
+  
+  // Currently highlighted task ID (from notification tap)
+  String? _highlightedTaskId;
+  
+  // ScrollController for main content to enable scroll-to-task
+  final ScrollController _scrollController = ScrollController();
+  
+  // Map of task IDs to GlobalKeys for scrolling
+  final Map<String, GlobalKey> _taskKeys = {};
+  
+  // GlobalKeys for app tour
+  final GlobalKey _progressSummaryKey = GlobalKey();
+  final GlobalKey _addTaskFabKey = GlobalKey();
+  final GlobalKey _bottomNavKey = GlobalKey();
+  final AppTourService _appTourService = AppTourService();
 
-  // Remove unused profiles - feature not implemented
-  // final List<String> _routineProfiles = ['Village Life', 'City Life', 'Student Life'];
   final List<String> _tabLabels = ['Routine', 'Guided', 'Journal', 'Me'];
+
 
   @override
   void initState() {
     super.initState();
     _initializeTracking();
-    _loadTasks();
-    _calculateStreak();
+    _initializeLifecycle();
+    _initializeDeepLinkListener();
   }
 
-  // Calculate user's current streak
+  /// Initialize lifecycle service and check for day change
+  Future<void> _initializeLifecycle() async {
+    // Check if day changed (processes missed tasks from yesterday)
+    final dayChanged = await _lifecycleService.checkAndProcessDayChange();
+    if (dayChanged) {
+      debugPrint('📅 New day detected - tasks reset');
+    }
+    
+    // Now load tasks and calculate streak
+    await _loadTasks();
+    await _calculateStreak();
+    await _loadWeeklyStats();
+    await _loadUserXP();
+    
+    // Update task statuses based on current time
+    if (_todayTasks.isNotEmpty) {
+      await _lifecycleService.updateTaskStatuses(_todayTasks);
+      // Reload to get updated statuses
+      await _loadTasks();
+    }
+  }
+
+  /// Initialize listener for notification deep link highlighting
+  void _initializeDeepLinkListener() {
+    _deepLinkService.highlightedTaskId.addListener(_onHighlightedTaskChanged);
+  }
+
+  /// Called when highlighted task ID changes (from notification tap)
+  void _onHighlightedTaskChanged() {
+    final newHighlightedId = _deepLinkService.highlightedTaskId.value;
+    
+    setState(() {
+      _highlightedTaskId = newHighlightedId;
+    });
+    
+    // Log for debugging
+    if (_highlightedTaskId != null) {
+      debugPrint('🔦 Dashboard: Highlighting task $_highlightedTaskId');
+      
+      // Scroll to the highlighted task after a short delay to allow UI to rebuild
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _scrollToHighlightedTask();
+      });
+    }
+  }
+  
+  /// Scroll to the highlighted task
+  void _scrollToHighlightedTask() {
+    if (_highlightedTaskId == null) return;
+    
+    final key = _taskKeys[_highlightedTaskId];
+    if (key?.currentContext != null) {
+      Scrollable.ensureVisible(
+        key!.currentContext!,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+        alignment: 0.3, // Position task 30% from top
+      );
+      debugPrint('🔦 Scrolled to task $_highlightedTaskId');
+    } else {
+      debugPrint('⚠️ Task key not found for $_highlightedTaskId');
+    }
+  }
+
+  @override
+  void dispose() {
+    _deepLinkService.highlightedTaskId.removeListener(_onHighlightedTaskChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Load streak from user_profiles (authoritative source, updated by _updateUserStats)
   Future<void> _calculateStreak() async {
     try {
-      final history = await _trackingService.getTrackingHistory();
-      // Calculate streak from history
-      int streak = 0;
-      final today = DateTime.now();
+      final userId = _supabaseService.currentUser?.id;
+      if (userId == null) return;
       
-      for (int i = 0; i < 365; i++) {
-        final checkDate = today.subtract(Duration(days: i));
-        final dateStr = checkDate.toIso8601String().split('T')[0];
-        
-        final dayCompleted = history.any((entry) =>
-            entry['date'] == dateStr && entry['completed'] == true);
-        
-        if (dayCompleted) {
-          streak++;
-        } else if (i > 0) {
-          // Break streak if a day is missed (except today)
-          break;
-        }
-      }
+      final client = await _supabaseService.client;
+      if (client == null) return;
+      
+      final profile = await client
+          .from('user_profiles')
+          .select('current_streak, best_streak')
+          .eq('id', userId)
+          .maybeSingle();
       
       if (mounted) {
         setState(() {
-          _streakCount = streak;
+          _streakCount = profile?['current_streak'] ?? 0;
+          _bestStreak = profile?['best_streak'] ?? 0;
         });
       }
     } catch (e) {
-      debugPrint('Error calculating streak: $e');
+      debugPrint('Error loading streak: $e');
     }
   }
 
   Future<void> _initializeTracking() async {
     await _trackingService.initialize();
+    debugPrint('✅ Tracking service initialized');
   }
 
   Future<void> _loadTasks() async {
     setState(() {
       _isLoading = true;
     });
+    
     try {
       final authService = AuthService();
       final isLoggedIn = await authService.isUserLoggedIn();
@@ -94,6 +201,12 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         final userId = _supabaseService.currentUser?.id;
         if (userId != null) {
           final tasks = await _supabaseService.getLocalTasks(userId);
+          // Sort tasks by time (AM to PM)
+          tasks.sort((a, b) {
+            final timeA = _parseTimeToMinutes(a['time'] ?? '12:00 AM');
+            final timeB = _parseTimeToMinutes(b['time'] ?? '12:00 AM');
+            return timeA.compareTo(timeB);
+          });
           setState(() {
             _todayTasks = tasks;
           });
@@ -105,8 +218,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content:
-                  const Text('Please sign in to view and manage your routine.'),
+              content: const Text('Please sign in to view and manage your routine.'),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
@@ -127,27 +239,120 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         _isLoading = false;
       });
 
-      // Schedule notifications for today's tasks
+      // Schedule notifications for today's tasks (only once per session)
       await _scheduleTaskNotifications();
+      
+      // Check and show app tour for first-time users (with delay for UI to settle)
+      _checkAndShowAppTour();
+    }
+  }
+  
+  /// Check if app tour should be shown and display it
+  Future<void> _checkAndShowAppTour() async {
+    // Small delay to ensure UI is fully rendered
+    await Future.delayed(const Duration(milliseconds: 800));
+    
+    if (!mounted) return;
+    
+    final shouldShow = await _appTourService.shouldShowTour();
+    if (shouldShow && _todayTasks.isNotEmpty) {
+      debugPrint('📚 Showing app tour for first-time user');
+      
+      // Get first task key for highlighting
+      GlobalKey? firstTaskKey;
+      if (_todayTasks.isNotEmpty) {
+        final firstTaskId = _todayTasks.first['id'] as String?;
+        if (firstTaskId != null) {
+          firstTaskKey = _taskKeys[firstTaskId];
+        }
+      }
+      
+      final targets = _appTourService.createTourTargets(
+        progressSummaryKey: _progressSummaryKey,
+        addTaskFabKey: _addTaskFabKey,
+        firstTaskCardKey: firstTaskKey,
+        bottomNavKey: _bottomNavKey,
+      );
+      
+      _appTourService.showTour(
+        context: context,
+        targets: targets,
+      );
     }
   }
 
   // Schedule notifications for today's tasks
   Future<void> _scheduleTaskNotifications() async {
     try {
-      final routine = {
-        'activities': _todayTasks
-            .map((task) => {
-                  'name': task['title'] ?? 'Task',
-                  'time': task['scheduled_time'] ?? '09:00',
-                })
-            .toList(),
-      };
+      // Cancel existing notifications first to avoid duplicates
+      await _trackingService.cancelAllNotifications();
+      
+      final activities = _todayTasks.map((task) {
+        // Extract time - could be 'time', 'scheduled_time', or 'due_date'
+        String timeStr;
+        
+        if (task['time'] != null) {
+          timeStr = task['time'];
+        } else if (task['scheduled_time'] != null) {
+          timeStr = task['scheduled_time'];
+        } else if (task['due_date'] != null) {
+          // due_date is in ISO format like "2026-01-25T10:30:00"
+          timeStr = _extractTimeFromIso(task['due_date']);
+        } else {
+          timeStr = '09:00';
+        }
+        
+        // Convert 12-hour format to 24-hour if needed (e.g., "6:00 AM" -> "06:00")
+        if (timeStr.contains('AM') || timeStr.contains('PM')) {
+          timeStr = _convertTo24Hour(timeStr);
+        }
+        
+        return {
+          'id': task['id'],  // Include task ID for deep link highlighting
+          'name': task['title'] ?? task['name'] ?? 'Task',
+          'time': timeStr,
+        };
+      }).toList();
 
+      final routine = {'activities': activities};
       await _trackingService.scheduleRoutineNotifications(routine);
-      debugPrint('📅 Scheduled notifications for ${_todayTasks.length} tasks');
+      debugPrint('✅ Notifications scheduled for ${activities.length} tasks');
     } catch (e) {
-      debugPrint('❌ Error scheduling notifications: $e');
+      debugPrint('Error scheduling notifications: $e');
+    }
+  }
+  
+  // Extract time from ISO date string like "2026-01-25T10:30:00" -> "10:30"
+  String _extractTimeFromIso(String isoDate) {
+    try {
+      final dateTime = DateTime.parse(isoDate);
+      return '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      debugPrint('❌ Failed to parse ISO date: $isoDate');
+      return '09:00';
+    }
+  }
+  
+  // Convert 12-hour time to 24-hour format
+  String _convertTo24Hour(String time12h) {
+    try {
+      final parts = time12h.split(' ');
+      if (parts.length != 2) return '09:00';
+      
+      final timeParts = parts[0].split(':');
+      int hour = int.parse(timeParts[0]);
+      final minute = timeParts.length > 1 ? timeParts[1] : '00';
+      final period = parts[1].toUpperCase();
+      
+      if (period == 'AM' && hour == 12) {
+        hour = 0;
+      } else if (period == 'PM' && hour != 12) {
+        hour += 12;
+      }
+      
+      return '${hour.toString().padLeft(2, '0')}:$minute';
+    } catch (e) {
+      return '09:00';
     }
   }
 
@@ -167,19 +372,195 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     );
   }
 
+  // Show dialog explaining why task is locked
+  void _showLockedTaskDialog(
+    BuildContext context,
+    String taskName,
+    String reason,
+    String status,
+    String scheduledTime,
+  ) {
+    String title;
+    String message;
+    IconData icon;
+    Color iconColor;
+    
+    if (reason.contains('unlock')) {
+      // Task not yet available
+      title = '⏳ अभी समय नहीं हुआ';
+      message = '"$taskName" का समय अभी नहीं आया है।\n\n'
+          '📅 Task Time: $scheduledTime\n'
+          '🔓 $reason';
+      icon = Icons.lock_clock;
+      iconColor = Colors.blue;
+    } else if (reason == 'Window closed' || status == 'missed') {
+      // Task window closed / missed
+      title = '❌ Task छूट गया';
+      message = '"$taskName" का completion window बंद हो गया।\n\n'
+          '📅 Scheduled: $scheduledTime\n'
+          '⚠️ आपने इस task को समय पर confirm नहीं किया।\n\n'
+          'अगली बार समय पर complete करें!';
+      icon = Icons.cancel;
+      iconColor = Colors.red;
+    } else if (status == 'overdue') {
+      // Task is overdue but still completable
+      title = '⚠️ Time निकल गया';
+      message = '"$taskName" का scheduled time निकल गया है।\n\n'
+          '📅 Scheduled: $scheduledTime\n'
+          '⏰ आप अभी भी इसे complete कर सकते हैं!';
+      icon = Icons.warning_amber;
+      iconColor = Colors.orange;
+    } else {
+      title = '🔒 Task Locked';
+      message = reason.isNotEmpty ? reason : 'This task is not available right now.';
+      icon = Icons.lock;
+      iconColor = Colors.grey;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            SizedBox(width: 2.w),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            fontSize: 14.sp,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('समझ गया'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Load weekly completion stats for the header
+  Future<void> _loadWeeklyStats() async {
+    try {
+      final userId = _supabaseService.currentUser?.id;
+      if (userId == null) return;
+      
+      final client = await _supabaseService.client;
+      if (client == null) return;
+      
+      final now = DateTime.now();
+      // Monday of this week
+      final mondayOffset = now.weekday - 1;
+      final monday = DateTime(now.year, now.month, now.day).subtract(Duration(days: mondayOffset));
+      
+      final weeklyTracking = await client
+          .from('routine_tracking')
+          .select()
+          .eq('user_id', userId)
+          .gte('tracking_date', monday.toIso8601String().split('T')[0])
+          .lte('tracking_date', now.toIso8601String().split('T')[0]);
+      
+      // Calculate per-day completion
+      List<bool> days = [false, false, false, false, false, false, false];
+      Map<int, List<bool>> dayResults = {};
+      
+      for (final task in weeklyTracking) {
+        final dateStr = task['tracking_date'];
+        if (dateStr == null) continue;
+        try {
+          final date = DateTime.parse(dateStr);
+          final dayIndex = date.weekday - 1; // 0 = Monday
+          dayResults[dayIndex] ??= [];
+          dayResults[dayIndex]!.add(task['completed'] == true);
+        } catch (_) {}
+      }
+      
+      int totalCompleted = 0;
+      int totalTasks = 0;
+      for (final entry in dayResults.entries) {
+        final completed = entry.value.where((v) => v).length;
+        totalCompleted += completed;
+        totalTasks += entry.value.length;
+        // Consider day completed if >50% tasks done
+        days[entry.key] = completed > entry.value.length / 2;
+      }
+      
+      if (mounted) {
+        setState(() {
+          _weeklyDays = days;
+          _weeklyCompletion = totalTasks > 0 ? totalCompleted / totalTasks : 0.0;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading weekly stats: $e');
+    }
+  }
+  
+  /// Load user's total XP from profile
+  Future<void> _loadUserXP() async {
+    try {
+      final userId = _supabaseService.currentUser?.id;
+      if (userId == null) return;
+      
+      final client = await _supabaseService.client;
+      if (client == null) return;
+      
+      final profile = await client
+          .from('user_profiles')
+          .select('total_tasks_completed')
+          .eq('id', userId)
+          .maybeSingle();
+      
+      // Estimate XP from total tasks (25 XP per task)
+      final totalTasks = profile?['total_tasks_completed'] ?? 0;
+      if (mounted) {
+        setState(() {
+          _totalXP = totalTasks * 25;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading user XP: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Stack(
+      children: [
+        Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             // Sticky Header
             RoutineHeaderWidget(
-              selectedProfile: 'Daily Routine', // Simplified - no profile switching
-              routineProfiles: const [], // Empty - feature removed
-              onProfileChanged: (_) {}, // No-op
-              streakCount: _streakCount, // Dynamic streak!
+              selectedProfile: 'custom', // Will load from database later
+              routineProfiles: const [],
+              onProfileChanged: (_) {},
+              streakCount: _streakCount,
+              totalXP: _totalXP,
+              weeklyCompletion: _weeklyCompletion,
+              weeklyDays: _weeklyDays,
+              onProfileTap: () async {
+                final result = await Navigator.pushNamed(context, '/profile-selection');
+                if (result == true) {
+                  await _loadTasks(); // Reload tasks if profile changed
+                }
+              },
             ),
 
             // Main Content
@@ -187,13 +568,78 @@ class _RoutineDashboardState extends State<RoutineDashboard>
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
                 color: AppTheme.lightTheme.primaryColor,
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _todayTasks.isEmpty
-                        ? const EmptyRoutineWidget()
-                        : ListView(
+                child: _todayTasks.isEmpty
+                    ? (_isLoading 
+                        ? ListView(
                             padding: EdgeInsets.symmetric(vertical: 2.h),
                             children: [
+                              // Show shimmer/placeholder while loading
+                              _buildProgressSummary(),
+                              SizedBox(height: 2.h),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.today,
+                                      color: AppTheme.lightTheme.colorScheme.primary,
+                                      size: 24,
+                                    ),
+                                    SizedBox(width: 2.w),
+                                    Text(
+                                      'Today\'s Tasks',
+                                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: AppTheme.lightTheme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 2.h),
+                              // Loading placeholders
+                              ...List.generate(3, (i) => Container(
+                                margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                                height: 10.h,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.lightTheme.colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.lightTheme.colorScheme.outline.withOpacity(0.1),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Loading...',
+                                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                                      color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.4),
+                                    ),
+                                  ),
+                                ),
+                              )),
+                            ],
+                          )
+                        : EmptyRoutineWidget(onRoutineCreated: _loadTasks))
+                    : ListView(
+                        padding: EdgeInsets.symmetric(vertical: 2.h),
+                        children: [
+                          // Daily Progress Summary
+                          Container(
+                            key: _progressSummaryKey,
+                            child: _buildProgressSummary(),
+                          ),
+                              
+                              SizedBox(height: 2.h),
+                              
                               // Today's Tasks Header
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -216,47 +662,28 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                                       ),
                                     ),
                                     const Spacer(),
-                                    Text(
-                                      '${_todayTasks.length} tasks',
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                        color: Colors.black54,
-                                      ),
-                                    ),
+                                    _buildCompletedBadge(),
                                   ],
                                 ),
                               ),
 
-                              SizedBox(height: 2.h),
+                              SizedBox(height: 1.h),
 
-                              // Tasks List
-                              ..._todayTasks
-                                  .map((task) => Container(
-                                        margin: EdgeInsets.symmetric(
-                                            horizontal: 4.w, vertical: 1.h),
-                                        child: TaskCardWidget(
-                                          task: task,
-                                          onTaskCompleted: () =>
-                                              _onTaskCompleted(
-                                                  task["id"],
-                                                  task["is_completed"] as int ==
-                                                      1),
-                                          onTaskEdit: () =>
-                                              _onTaskEdit(task["id"]),
-                                          onTaskReschedule: () =>
-                                              _onTaskReschedule(task["id"]),
-                                          onTaskDelete: () =>
-                                              _onTaskDelete(task["id"]),
-                                          onTaskTrack: () =>
-                                              _showTrackingDialog(task),
-                                        ),
-                                      ))
-                                  ,
+                              // Time-Grouped Task Sections
+                              _buildTimeSection('morning', _groupedTasks['morning']!),
+                              _buildTimeSection('afternoon', _groupedTasks['afternoon']!),
+                              _buildTimeSection('evening', _groupedTasks['evening']!),
+
+                              // Native Ad at bottom of task list
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                                child: const NativeAdWidget(placement: NativePlacement.routineDashboard),
+                              ),
 
                               SizedBox(height: 8.h), // Space for FAB
                             ],
                           ),
+
               ),
             ),
           ],
@@ -265,6 +692,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
       // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
+        key: _bottomNavKey,
         currentIndex: _currentTabIndex,
         onTap: _onTabChanged,
         type: BottomNavigationBarType.fixed,
@@ -318,6 +746,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
       // Floating Action Button
       floatingActionButton: FloatingActionButton(
+        key: _addTaskFabKey,
         onPressed: _showAddTaskBottomSheet,
         backgroundColor: AppTheme.lightTheme.colorScheme.tertiary,
         foregroundColor: AppTheme.lightTheme.colorScheme.onTertiary,
@@ -328,11 +757,400 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           size: 28,
         ),
       ),
-    );
+    ), // Close Scaffold
+        // Celebration Overlay
+        if (_showCelebration)
+          CelebrationOverlay(
+            xpEarned: _celebrationXP,
+            taskName: _celebrationTaskName,
+            dailyProgress: _todayTasks.isEmpty ? 0.0 :
+              _todayTasks.where((t) => t['is_completed'] == true || t['is_completed'] == 1).length / _todayTasks.length,
+            onDismiss: () {
+              if (mounted) setState(() => _showCelebration = false);
+            },
+          ),
+      ], // Close Stack children
+    ); // Close Stack
   }
 
   // Removed broken profile change method
   // void _onProfileChanged(String? newProfile) { ... }
+
+  // Helper to parse time string to minutes for sorting
+  int _parseTimeToMinutes(String timeStr) {
+    try {
+      // Handle formats like "3:00 AM", "12:30 PM"
+      final cleanTime = timeStr.trim();
+      final isPM = cleanTime.toUpperCase().contains('PM');
+      final isAM = cleanTime.toUpperCase().contains('AM');
+      
+      final timePart = cleanTime.replaceAll(RegExp(r'[APMapm\s]'), '');
+      final parts = timePart.split(':');
+      
+      int hours = int.tryParse(parts[0]) ?? 0;
+      int minutes = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      
+      // Convert to 24-hour format for proper sorting
+      if (isPM && hours != 12) {
+        hours += 12;
+      } else if (isAM && hours == 12) {
+        hours = 0;
+      }
+      
+      return hours * 60 + minutes;
+    } catch (e) {
+      return 720; // Default to noon if parsing fails
+    }
+  }
+
+  // Helper to get time period (morning/afternoon/evening)
+  String _getTimePeriod(int minutes) {
+    if (minutes < 720) return 'morning';      // Before 12 PM
+    if (minutes < 1020) return 'afternoon';   // Before 5 PM  
+    return 'evening';
+  }
+
+  // Get filtered tasks based on selected category
+  List<Map<String, dynamic>> get _filteredTasks {
+    if (_selectedCategory == 'all') return _todayTasks;
+    return _todayTasks.where((task) => 
+      task['type']?.toString().toLowerCase() == _selectedCategory
+    ).toList();
+  }
+
+  // Get tasks grouped by time period
+  Map<String, List<Map<String, dynamic>>> get _groupedTasks {
+    final groups = <String, List<Map<String, dynamic>>>{
+      'morning': [],
+      'afternoon': [],
+      'evening': [],
+    };
+    
+    for (var task in _filteredTasks) {
+      final minutes = _parseTimeToMinutes(task['time'] ?? '12:00 PM');
+      final period = _getTimePeriod(minutes);
+      groups[period]!.add(task);
+    }
+    
+    return groups;
+  }
+
+  // Build category filter chips
+  Widget _buildCategoryFilters() {
+    return Container(
+      height: 5.h,
+      margin: EdgeInsets.symmetric(horizontal: 2.w),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final isSelected = _selectedCategory == category['key'];
+          final taskCount = category['key'] == 'all' 
+              ? _todayTasks.length 
+              : _todayTasks.where((t) => 
+                  t['type']?.toString().toLowerCase() == category['key']
+                ).length;
+          
+          return Padding(
+            padding: EdgeInsets.only(right: 2.w),
+            child: FilterChip(
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(category['icon']!, style: TextStyle(fontSize: 12.sp)),
+                  SizedBox(width: 1.w),
+                  Text(
+                    category['label']!,
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      color: isSelected 
+                          ? Colors.white 
+                          : AppTheme.lightTheme.colorScheme.onSurface,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                  if (taskCount > 0) ...[
+                    SizedBox(width: 1.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
+                      decoration: BoxDecoration(
+                        color: isSelected 
+                            ? Colors.white.withOpacity(0.3) 
+                            : AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$taskCount',
+                        style: TextStyle(
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected 
+                              ? Colors.white 
+                              : AppTheme.lightTheme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _selectedCategory = category['key']!;
+                });
+              },
+              backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+              selectedColor: AppTheme.lightTheme.colorScheme.primary,
+              checkmarkColor: Colors.transparent,
+              side: BorderSide(
+                color: isSelected 
+                    ? AppTheme.lightTheme.colorScheme.primary 
+                    : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.3),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Build section header for time periods
+  Widget _buildTimeSection(String period, List<Map<String, dynamic>> tasks) {
+    if (tasks.isEmpty) return const SizedBox.shrink();
+    
+    final sectionData = {
+      'morning': {'title': 'Morning', 'icon': '🌅', 'subtitle': '5 AM - 12 PM'},
+      'afternoon': {'title': 'Afternoon', 'icon': '☀️', 'subtitle': '12 PM - 5 PM'},
+      'evening': {'title': 'Evening', 'icon': '🌙', 'subtitle': '5 PM - 10 PM'},
+    };
+    
+    final data = sectionData[period]!;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+          child: Row(
+            children: [
+              Text(data['icon']!, style: TextStyle(fontSize: 16.sp)),
+              SizedBox(width: 2.w),
+              Text(
+                data['title']!,
+                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              SizedBox(width: 2.w),
+              Text(
+                data['subtitle']!,
+                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  color: Colors.black45,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${tasks.where((t) => t['is_completed'] == true || t['is_completed'] == 1).length}/${tasks.length}',
+                  style: TextStyle(
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.lightTheme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        ...List.generate(tasks.length, (index) {
+          final task = tasks[index];
+          
+          // Section end times
+          final sectionEndTimes = {
+            'morning': '12:00 PM',
+            'afternoon': '05:00 PM',
+            'evening': '10:00 PM',
+          };
+          
+          // Calculate next task's time for completion window
+          // For last task in section, use section end time
+          String? nextTaskTime;
+          if (index < tasks.length - 1) {
+            nextTaskTime = tasks[index + 1]['time'] ?? tasks[index + 1]['scheduledTime'];
+          } else {
+            // Last task in section - use section end time as deadline
+            nextTaskTime = sectionEndTimes[period];
+          }
+          
+          // Create or get existing GlobalKey for this task (for scroll-to-task)
+          final taskId = task['id'] as String?;
+          if (taskId != null && !_taskKeys.containsKey(taskId)) {
+            _taskKeys[taskId] = GlobalKey();
+          }
+          
+          return Container(
+            key: taskId != null ? _taskKeys[taskId] : null,
+            margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.8.h),
+            child: TaskCardWidget(
+              task: task,
+              nextTaskTime: nextTaskTime,
+              sectionEndTime: sectionEndTimes[period],
+              isHighlighted: _highlightedTaskId == task['id'],
+              onTaskCompleted: () => _onTaskCompleted(
+                  task["id"],
+                  task["is_completed"] == true || task["is_completed"] == 1),
+              onTaskEdit: () => _onTaskEdit(task["id"]),
+              onTaskReschedule: () => _onTaskReschedule(task["id"]),
+              onTaskDelete: () => _onTaskDelete(task["id"]),
+              onTaskTrack: () => _showTrackingDialog(task),
+              onTapLocked: (String reason, String status) => _showLockedTaskDialog(
+                context, 
+                task['title'] ?? 'Task', 
+                reason, 
+                status,
+                task['time'] ?? '',
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  // Build COMPACT daily progress summary widget
+  Widget _buildProgressSummary() {
+    final completedCount = _todayTasks.where((task) => 
+      task['is_completed'] == true || task['is_completed'] == 1
+    ).length;
+    final totalCount = _todayTasks.length;
+    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
+    
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+            AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Circular progress (smaller)
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 4,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    completedCount == totalCount && totalCount > 0
+                        ? AppTheme.getSuccessColor(true)
+                        : AppTheme.lightTheme.colorScheme.primary,
+                  ),
+                ),
+                Text(
+                  '${(progress * 100).toInt()}%',
+                  style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10.sp,
+                    color: AppTheme.lightTheme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 3.w),
+          // Text info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Daily Progress',
+                  style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.lightTheme.colorScheme.primary,
+                  ),
+                ),
+                Text(
+                  '$completedCount of $totalCount tasks',
+                  style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Celebration if complete
+          if (completedCount == totalCount && totalCount > 0)
+            Text('🎉', style: TextStyle(fontSize: 20.sp)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedBadge() {
+    final completedCount = _todayTasks.where((task) => 
+      task['is_completed'] == true || task['is_completed'] == 1
+    ).length;
+    final totalCount = _todayTasks.length;
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+      decoration: BoxDecoration(
+        color: completedCount == totalCount && totalCount > 0
+            ? AppTheme.getSuccessColor(true).withOpacity(0.1)
+            : AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            completedCount == totalCount && totalCount > 0
+                ? Icons.check_circle
+                : Icons.pending_actions,
+            size: 16,
+            color: completedCount == totalCount && totalCount > 0
+                ? AppTheme.getSuccessColor(true)
+                : AppTheme.lightTheme.colorScheme.primary,
+          ),
+          SizedBox(width: 1.w),
+          Text(
+            '$completedCount/$totalCount',
+            style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: completedCount == totalCount && totalCount > 0
+                  ? AppTheme.getSuccessColor(true)
+                  : AppTheme.lightTheme.colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _onRefresh() async {
     await _loadTasks();
@@ -344,21 +1162,54 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         _supabaseService.currentUser?.id; // Use SupabaseService's currentUser
     if (userId == null) return;
 
-    final updatedStatus = isCompleted ? 0 : 1; // Toggle completion status
+    final updatedStatus = !isCompleted; // Toggle: if completed, mark incomplete and vice versa
     final updates = {
-      'is_completed': updatedStatus,
+      'is_completed': updatedStatus, // Send boolean, not int
       'updated_at': DateTime.now().toIso8601String(),
     };
 
     try {
+      // Find task for celebration and tracking
+      final task = _todayTasks.firstWhere(
+        (t) => t['id'] == taskId,
+        orElse: () => {},
+      );
+      final taskName = task['title'] ?? 'Task';
+      final scheduledTime = task['scheduled_time'] ?? task['time'] ?? '';
+      
       await _supabaseService.updateLocalTask(taskId, updates);
+      
+      // ── CRITICAL: Track task completion in routine_tracking + user_profiles ──
+      if (updatedStatus) {
+        // Task is being marked as COMPLETED — record it
+        await _trackingService.trackActivity(
+          taskId: taskId,
+          activityName: taskName,
+          scheduledTime: scheduledTime is String ? scheduledTime : '',
+          completed: true,
+          actualTime: DateTime.now(),
+          durationMinutes: task['duration_minutes'] as int? ?? 15,
+          completionPercent: 100,
+          notes: 'Completed via quick toggle',
+        );
+      }
+      
       await _loadTasks();
       await _calculateStreak(); // Update streak after completion
-      if (mounted) {
+      await _loadWeeklyStats(); // Refresh weekly stats
+      
+      // Show celebration overlay when completing (not uncompleting)
+      if (updatedStatus && mounted) {
+        setState(() {
+          _celebrationTaskName = taskName;
+          _celebrationXP = 25;
+          _totalXP += 25; // Increment local XP
+          _showCelebration = true;
+        });
+      } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Task ${updatedStatus == 1 ? "completed" : "marked incomplete"}!'),
+            content: const Text('Task marked incomplete'),
             duration: const Duration(seconds: 2),
             backgroundColor: AppTheme.lightTheme.primaryColor,
           ),
@@ -378,38 +1229,125 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   }
 
   void _onTaskEdit(String taskId) {
-    // Show edit dialog instead of navigation
-    showDialog(
+    // Find the task to edit
+    final task = _todayTasks.firstWhere(
+      (t) => t['id'] == taskId,
+      orElse: () => {},
+    );
+    
+    if (task.isEmpty) return;
+    
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Task'),
-        content: const Text(
-            'Task editing feature is coming soon.\nFor now, you can delete and create a new task.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: EditTaskBottomSheet(
+          task: task,
+          onTaskUpdated: (updatedTask) async {
+            try {
+              await _supabaseService.updateLocalTask(taskId, {
+                'title': updatedTask['title'],
+                'description': updatedTask['description'],
+                'category': updatedTask['category'],
+                'time': updatedTask['time'],
+                'updated_at': DateTime.now().toIso8601String(),
+              });
+              await _loadTasks();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Task updated successfully!'),
+                    backgroundColor: AppTheme.getSuccessColor(true),
+                  ),
+                );
+              }
+            } catch (e) {
+              debugPrint('Error updating task: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to update task: $e'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                );
+              }
+            }
+          },
+        ),
       ),
     );
   }
 
-  void _onTaskReschedule(String taskId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reschedule Task'),
-        content:
-            const Text('Task rescheduling feature will be available soon.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+  void _onTaskReschedule(String taskId) async {
+    // Find the task
+    final task = _todayTasks.firstWhere(
+      (t) => t['id'] == taskId,
+      orElse: () => {},
     );
+    
+    if (task.isEmpty) return;
+    
+    // Parse current time
+    TimeOfDay currentTime = const TimeOfDay(hour: 6, minute: 0);
+    try {
+      final timeStr = task['time'] ?? '06:00 AM';
+      final parts = timeStr.replaceAll(RegExp(r'[AP]M', caseSensitive: false), '').trim().split(':');
+      int hour = int.parse(parts[0]);
+      int minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+      if (timeStr.toUpperCase().contains('PM') && hour != 12) hour += 12;
+      if (timeStr.toUpperCase().contains('AM') && hour == 12) hour = 0;
+      currentTime = TimeOfDay(hour: hour, minute: minute);
+    } catch (e) {
+      debugPrint('Error parsing time: $e');
+    }
+    
+    // Show time picker
+    final TimeOfDay? newTime = await showTimePicker(
+      context: context,
+      initialTime: currentTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppTheme.lightTheme.colorScheme.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (newTime != null && mounted) {
+      try {
+        await _supabaseService.updateLocalTask(taskId, {
+          'time': newTime.format(context),
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+        await _loadTasks();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Task rescheduled to ${newTime.format(context)}'),
+              backgroundColor: AppTheme.getSuccessColor(true),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error rescheduling task: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to reschedule: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _onTaskDelete(String taskId) async {
@@ -493,6 +1431,10 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     try {
       await _supabaseService.createLocalTask(taskWithId);
       await _loadTasks();
+      
+      // Show interstitial ad with frequency capping (every 3 task adds)
+      AdsService().showInterstitialAdWithCapping(InterstitialPlacement.taskAdded);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/app_export.dart';
 import '../../theme/app_theme.dart';
+import '../../services/supabase_service.dart';
 import './widgets/advanced_settings_widget.dart';
 import './widgets/schedule_section_widget.dart';
 import './widgets/task_details_form_widget.dart';
@@ -29,6 +31,10 @@ class _RoutineBuilderState extends State<RoutineBuilder> {
   String _selectedMeditationType = 'Mindfulness';
   String _selectedYogaSequence = 'Sun Salutation';
   String _selectedStudyMode = 'Pomodoro';
+  bool _isSaving = false;
+
+  final SupabaseService _supabaseService = SupabaseService();
+  final Uuid _uuid = const Uuid();
 
   final List<Map<String, dynamic>> _taskTypes = [
     {'name': 'Meditation', 'icon': 'self_improvement'},
@@ -86,18 +92,67 @@ class _RoutineBuilderState extends State<RoutineBuilder> {
     super.dispose();
   }
 
-  void _saveRoutine() {
+  Future<void> _saveRoutine() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Mock save functionality
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Routine "${_routineNameController.text}" saved successfully!'),
-          backgroundColor: AppTheme.getSuccessColor(
-              Theme.of(context).brightness == Brightness.light),
-        ),
-      );
-      Navigator.pop(context);
+      setState(() {
+        _isSaving = true;
+      });
+
+      try {
+        // Get current user ID
+        final userId = _supabaseService.currentUser?.id;
+        if (userId == null) {
+          throw Exception('User not logged in');
+        }
+
+        // Create task object with proper field mapping
+        final taskData = {
+          'id': _uuid.v4(),
+          'user_id': userId,
+          'title': _taskTitleController.text.trim(),
+          'description': _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : 'Daily ${_selectedTaskType.toLowerCase()} practice',
+          'category': _selectedTaskType.toLowerCase(),
+          'time': _selectedTime.format(context),
+          'priority': 1,
+          'status': 'pending',
+          'is_completed': false,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        // Save to database
+        await _supabaseService.createLocalTask(taskData);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Task "${_taskTitleController.text}" saved successfully!'),
+              backgroundColor: AppTheme.getSuccessColor(
+                  Theme.of(context).brightness == Brightness.light),
+            ),
+          );
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        debugPrint('Error saving routine: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to save task: ${e.toString()}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+        }
+      }
     }
   }
 
@@ -129,14 +184,23 @@ class _RoutineBuilderState extends State<RoutineBuilder> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: _saveRoutine,
-            child: Text(
-              'Save',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
+            onPressed: _isSaving ? null : _saveRoutine,
+            child: _isSaving
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  )
+                : Text(
+                    'Save',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-            ),
           ),
         ],
       ),

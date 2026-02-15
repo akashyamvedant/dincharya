@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../core/utils/validators.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
 import './widgets/auth_footer_widget.dart';
@@ -66,11 +67,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   bool get _isFormValid {
     return _emailController.text.isNotEmpty &&
         _passwordController.text.isNotEmpty &&
-        _isValidEmail(_emailController.text);
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+        Validators.isValidEmail(_emailController.text);
   }
 
   Future<void> _handleSignIn() async {
@@ -101,13 +98,13 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         }
       } else {
         setState(() {
-          _errorMessage = 'Invalid credentials. Please try again.';
+          _errorMessage = result['message'] ?? 'Invalid credentials. Please try again.';
         });
         HapticFeedback.mediumImpact();
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Invalid credentials. Please try again.';
+        _errorMessage = 'Network error. Please check your connection.';
       });
       HapticFeedback.mediumImpact();
     } finally {

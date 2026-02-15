@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../core/utils/validators.dart';
 import '../../services/auth_service.dart';
 import './widgets/auth_header_widget.dart';
 
@@ -57,11 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
 
   bool get _isFormValid {
     return _emailController.text.isNotEmpty &&
-        _isValidEmail(_emailController.text);
-  }
-
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
+        Validators.isValidEmail(_emailController.text);
   }
 
   Future<void> _handleResetPassword() async {
@@ -322,7 +319,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                 if (value == null || value.isEmpty) {
                   return 'Please enter your email address';
                 }
-                if (!_isValidEmail(value)) {
+                if (!Validators.isValidEmail(value)) {
                   return 'Please enter a valid email address';
                 }
                 return null;

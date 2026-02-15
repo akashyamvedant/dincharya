@@ -21,17 +21,24 @@ class JournalEntryWidget extends StatefulWidget {
   State<JournalEntryWidget> createState() => _JournalEntryWidgetState();
 }
 
-class _JournalEntryWidgetState extends State<JournalEntryWidget> {
+class _JournalEntryWidgetState extends State<JournalEntryWidget>
+    with TickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   bool _isFocused = false;
+
+  static const List<String> _prompts = [
+    "What made you smile today? ✨",
+    "What are you grateful for? 🙏",
+    "Describe a moment of peace today 🌿",
+    "What lesson did today teach you? 💡",
+    "How did you nourish your soul? 🕊️",
+  ];
 
   @override
   void initState() {
     super.initState();
     _focusNode.addListener(() {
-      setState(() {
-        _isFocused = _focusNode.hasFocus;
-      });
+      setState(() => _isFocused = _focusNode.hasFocus);
     });
   }
 
@@ -42,201 +49,154 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget> {
   }
 
   String _getWritingTime() {
-    if (widget.writingStartTime == null) return '0 min';
+    if (widget.writingStartTime == null) return '0m';
     final duration = DateTime.now().difference(widget.writingStartTime!);
     final minutes = duration.inMinutes;
-    return minutes > 0 ? '$minutes min' : '< 1 min';
+    return '${minutes}m';
+  }
+
+  String _getRandomPrompt() {
+    return _prompts[DateTime.now().day % _prompts.length];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    const warmBrown = Color(0xFF8B4513);
+    const warmAmber = Color(0xFFD4A574);
+    const parchment = Color(0xFFFFF8F0);
+    const inkBrown = Color(0xFF3E2723);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            parchment,
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _isFocused
+              ? warmBrown.withOpacity(0.5)
+              : warmAmber.withOpacity(0.25),
+          width: _isFocused ? 2 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).shadowColor,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: _isFocused
+                ? warmBrown.withOpacity(0.12)
+                : Colors.black.withOpacity(0.06),
+            blurRadius: _isFocused ? 20 : 12,
+            offset: const Offset(0, 4),
           ),
+          if (_isFocused)
+            BoxShadow(
+              color: warmAmber.withOpacity(0.1),
+              blurRadius: 30,
+              spreadRadius: 2,
+              offset: const Offset(0, 2),
+            ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with metadata
+          // Header with title and save indicator
+          _buildHeader(warmBrown, warmAmber),
+
+          // Writing prompt (when empty & not focused)
+          if (widget.controller.text.isEmpty && !_isFocused)
+            _buildPrompt(warmBrown, warmAmber),
+
+          // Text editing area — parchment style
+          _buildTextArea(warmBrown, inkBrown, parchment),
+
+          // Stats footer
+          _buildStatsBar(warmBrown, warmAmber),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(Color warmBrown, Color warmAmber) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            warmBrown.withOpacity(0.06),
+            warmAmber.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+      ),
+      child: Row(
+        children: [
+          // Pen icon
           Container(
-            padding: EdgeInsets.all(4.w),
+            padding: EdgeInsets.all(1.5.w),
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              children: [
-                CustomIconWidget(
-                  iconName: 'edit_note',
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 20,
-                ),
-                SizedBox(width: 2.w),
-                Text(
-                  'Journal Entry',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const Spacer(),
-                if (widget.isAutoSaving) ...[
-                  SizedBox(
-                    width: 4.w,
-                    height: 4.w,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 2.w),
-                  Text(
-                    'Saving...',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                  ),
-                ] else ...[
-                  CustomIconWidget(
-                    iconName: 'check_circle',
-                    color: AppTheme.getSuccessColor(
-                        Theme.of(context).brightness == Brightness.light),
-                    size: 16,
-                  ),
-                  SizedBox(width: 1.w),
-                  Text(
-                    'Saved',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.getSuccessColor(
-                              Theme.of(context).brightness == Brightness.light),
-                        ),
-                  ),
+              gradient: LinearGradient(
+                colors: [
+                  warmBrown.withOpacity(0.12),
+                  warmAmber.withOpacity(0.08),
                 ],
-              ],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.edit_note_rounded, color: warmBrown, size: 20),
+          ),
+          SizedBox(width: 2.w),
+          Text(
+            'Your Thoughts',
+            style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+              color: warmBrown,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
+          const Spacer(),
 
-          // Text Input Area
-          Padding(
-            padding: EdgeInsets.all(4.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // Auto-save indicator
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.6.h),
+            decoration: BoxDecoration(
+              color: widget.isAutoSaving
+                  ? warmBrown.withOpacity(0.08)
+                  : Colors.green.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: widget.isAutoSaving
+                    ? warmBrown.withOpacity(0.15)
+                    : Colors.green.withOpacity(0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: _isFocused
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).dividerColor,
-                      width: _isFocused ? 2 : 1,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focusNode,
-                    maxLines: null,
-                    minLines: 6,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText:
-                          'How was your day? Share your thoughts, feelings, and experiences...',
-                      hintStyle:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.6),
-                              ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(4.w),
-                    ),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          height: 1.5,
-                        ),
-                  ),
-                ),
-                SizedBox(height: 2.h),
-
-                // Writing Statistics
-                Container(
-                  padding: EdgeInsets.all(3.w),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).dividerColor,
-                      width: 1,
+                if (widget.isAutoSaving) ...[
+                  SizedBox(
+                    width: 10, height: 10,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      valueColor: AlwaysStoppedAnimation(warmBrown),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildStatItem(
-                        icon: 'text_fields',
-                        label: 'Words',
-                        value: '${widget.wordCount}',
-                      ),
-                      SizedBox(width: 4.w),
-                      _buildStatItem(
-                        icon: 'schedule',
-                        label: 'Time',
-                        value: _getWritingTime(),
-                      ),
-                      const Spacer(),
-                      if (widget.controller.text.isNotEmpty) ...[
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 2.w, vertical: 1.w),
-                          decoration: BoxDecoration(
-                            color: AppTheme.getSuccessColor(
-                                    Theme.of(context).brightness ==
-                                        Brightness.light)
-                                .withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CustomIconWidget(
-                                iconName: 'cloud_done',
-                                color: AppTheme.getSuccessColor(
-                                    Theme.of(context).brightness ==
-                                        Brightness.light),
-                                size: 14,
-                              ),
-                              SizedBox(width: 1.w),
-                              Text(
-                                'Auto-saved',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppTheme.getSuccessColor(
-                                          Theme.of(context).brightness ==
-                                              Brightness.light),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
+                  SizedBox(width: 1.w),
+                  Text('Saving',
+                    style: TextStyle(fontSize: 9.sp, color: warmBrown, fontWeight: FontWeight.w600),
                   ),
-                ),
+                ] else ...[
+                  Icon(Icons.cloud_done_rounded, size: 12, color: Colors.green[600]),
+                  SizedBox(width: 1.w),
+                  Text('Saved',
+                    style: TextStyle(fontSize: 9.sp, color: Colors.green[600], fontWeight: FontWeight.w600),
+                  ),
+                ],
               ],
             ),
           ),
@@ -245,38 +205,189 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget> {
     );
   }
 
-  Widget _buildStatItem({
-    required String icon,
-    required String label,
+  Widget _buildPrompt(Color warmBrown, Color warmAmber) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(4.w, 1.5.h, 4.w, 0),
+      padding: EdgeInsets.all(3.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            warmBrown.withOpacity(0.04),
+            warmAmber.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: warmBrown.withOpacity(0.90)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(1.5.w),
+            decoration: BoxDecoration(
+              color: warmBrown.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text('💡', style: TextStyle(fontSize: 16)),
+          ),
+          SizedBox(width: 2.5.w),
+          Expanded(
+            child: Text(
+              _getRandomPrompt(),
+              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                color: warmBrown.withOpacity(0.6),
+                fontStyle: FontStyle.italic,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextArea(Color warmBrown, Color inkBrown, Color parchment) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF5E6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: warmBrown.withOpacity(0.12),
+        ),
+      ),
+      child: TextField(
+        controller: widget.controller,
+        focusNode: _focusNode,
+        maxLines: null,
+        minLines: 6,
+        textInputAction: TextInputAction.newline,
+        cursorColor: warmBrown,
+        cursorWidth: 2,
+        style: TextStyle(
+          fontSize: 14.sp,
+          height: 1.9,
+          color: inkBrown,
+          letterSpacing: 0.2,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Start writing here...',
+          hintStyle: TextStyle(
+            fontSize: 14.sp,
+            color: warmBrown.withOpacity(0.35),
+            fontStyle: FontStyle.italic,
+          ),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 1.h),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsBar(Color warmBrown, Color warmAmber) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(3.w, 0, 3.w, 2.w),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            warmBrown.withOpacity(0.04),
+            warmAmber.withOpacity(0.03),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Word count
+          _buildStatChip(
+            icon: Icons.text_fields_rounded,
+            value: '${widget.wordCount}',
+            label: 'words',
+            color: warmBrown,
+          ),
+          SizedBox(width: 4.w),
+
+          // Writing time
+          _buildStatChip(
+            icon: Icons.schedule_rounded,
+            value: _getWritingTime(),
+            label: 'writing',
+            color: warmBrown,
+          ),
+
+          const Spacer(),
+
+          // On fire badge
+          if (widget.controller.text.length > 50)
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.orange.withOpacity(0.15),
+                    Colors.deepOrange.withOpacity(0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.withOpacity(0.2)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🔥', style: TextStyle(fontSize: 14)),
+                  SizedBox(width: 1.w),
+                  Text('On fire!',
+                    style: TextStyle(
+                      fontSize: 9.sp,
+                      color: Colors.orange.shade800,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatChip({
+    required IconData icon,
     required String value,
+    required String label,
+    required Color color,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        CustomIconWidget(
-          iconName: icon,
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-          size: 16,
+        Container(
+          padding: EdgeInsets.all(1.2.w),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: color),
         ),
-        SizedBox(width: 1.w),
+        SizedBox(width: 1.5.w),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               value,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
+              style: TextStyle(
+                fontSize: 13.sp,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                  ),
+              style: TextStyle(
+                fontSize: 10.sp,
+                color: color.withOpacity(0.5),
+              ),
             ),
           ],
         ),
