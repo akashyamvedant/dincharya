@@ -79,8 +79,12 @@ class SubscriptionManager extends ChangeNotifier {
   }
 
   /// Initialize — call once at app startup
-  Future<void> initialize() async {
-    if (_isLoaded) return;
+  Future<void> initialize({bool forceRefresh = false}) async {
+    if (_isLoaded && !forceRefresh) {
+      // Still refresh in background to catch status changes
+      refresh(); // fire-and-forget
+      return;
+    }
     await refresh();
   }
 

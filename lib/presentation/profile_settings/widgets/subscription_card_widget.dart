@@ -6,6 +6,7 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 import '../../payment/payment_plans_screen.dart';
 import '../../../models/payment_models.dart';
+import '../../../services/subscription_manager.dart';
 
 class SubscriptionCardWidget extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -54,10 +55,12 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
   }
 
   Future<void> _checkSubscriptionStatus() async {
-    final isActive = await _paymentService.isSubscriptionActive();
+    // Use SubscriptionManager as single source of truth (always refresh from DB)
+    final subManager = SubscriptionManager();
+    await subManager.refresh();
     if (mounted) {
       setState(() {
-        _isPremium = isActive;
+        _isPremium = subManager.isPremium;
         _isLoading = false;
       });
     }

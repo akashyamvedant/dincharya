@@ -29,7 +29,7 @@ class RoutineDashboard extends StatefulWidget {
 }
 
 class _RoutineDashboardState extends State<RoutineDashboard>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _currentTabIndex = 0;
   bool _isLoading = false;
   int _streakCount = 0; // Dynamic streak count
@@ -81,6 +81,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeTracking();
     _initializeLifecycle();
     _initializeDeepLinkListener();
@@ -152,9 +153,18 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _deepLinkService.highlightedTaskId.removeListener(_onHighlightedTaskChanged);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Re-check day change when app returns from background
+      _initializeLifecycle();
+    }
   }
 
   // Load streak from user_profiles (authoritative source, updated by _updateUserStats)

@@ -322,12 +322,29 @@ class SupabaseService {
         throw Exception('Supabase not initialized');
       }
 
+      // Get user's active lifestyle profile
+      final profileData = await client
+          .from('user_profiles')
+          .select('lifestyle_profile')
+          .eq('id', userId)
+          .maybeSingle();
+      final activeProfile = profileData?['lifestyle_profile'] ?? 'custom';
+
       final response = await client
           .from('local_tasks')
           .select()
           .eq('user_id', userId)
           .order('created_at');
-      return List<Map<String, dynamic>>.from(response);
+
+      // Filter: show only tasks matching active profile + user's custom tasks
+      final allTasks = List<Map<String, dynamic>>.from(response);
+      final filtered = allTasks.where((task) {
+        final source = task['profile_source']?.toString() ?? 'custom';
+        if (activeProfile == 'custom') return source == 'custom';
+        return source == activeProfile || source == 'custom';
+      }).toList();
+
+      return filtered;
     } catch (e) {
       debugPrint('Error getting local tasks: $e');
       return [];
@@ -364,6 +381,7 @@ class SupabaseService {
         'priority': taskData['priority'],
         'status': taskData['status'],
         'is_completed': taskData['is_completed'] ?? false,
+        'profile_source': taskData['profile_source']?.toString() ?? 'custom',
         'created_at':
             taskData['created_at'] ?? DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
@@ -489,6 +507,25 @@ class SupabaseService {
       await deleteTasksByProfile(userId, profileName);
     }
     debugPrint('✅ Deleted all preset profile tasks');
+  }
+
+  /// Get tasks by profile_source column (e.g., 'student', 'yogic')
+  Future<List<Map<String, dynamic>>> getTasksByProfileSource(String userId, String profileId) async {
+    try {
+      if (!Validators.isValidUserId(userId)) return [];
+      final client = await this.client;
+      if (client == null) return [];
+
+      final response = await client
+          .from('local_tasks')
+          .select()
+          .eq('user_id', userId)
+          .eq('profile_source', profileId);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('Error getting tasks by profile source: $e');
+      return [];
+    }
   }
 
   // Admin settings management with validation

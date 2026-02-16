@@ -111,9 +111,9 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           }
         }
         
-        // Get subscription plan from SubscriptionManager (single source of truth)
+        // Get subscription plan from SubscriptionManager (always refresh for accurate status)
         final subManager = SubscriptionManager();
-        await subManager.initialize();
+        await subManager.refresh();
         final subPlan = subManager.isPremium
             ? (subManager.isTrial ? 'Trial' : 'Premium')
             : 'Free';

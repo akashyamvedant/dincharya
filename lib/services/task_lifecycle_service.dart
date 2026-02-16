@@ -53,7 +53,7 @@ class TaskLifecycleService {
     return value == 1 || value == true;
   }
 
-  /// Process end of day - reset ALL tasks first, then track missed ones
+  /// Process end of day - reset ACTIVE PROFILE tasks, then track missed ones
   Future<void> _processEndOfDay(String date) async {
     try {
       final client = await _supabase.client;
@@ -63,27 +63,44 @@ class TaskLifecycleService {
         debugPrint('❌ Cannot process end of day: client=$client, userId=$userId');
         return;
       }
+
+      // Get user's active lifestyle profile
+      final profileData = await client
+          .from('user_profiles')
+          .select('lifestyle_profile')
+          .eq('id', userId)
+          .maybeSingle();
+      final activeProfile = profileData?['lifestyle_profile'] ?? 'custom';
       
       // STEP 1: Get ALL tasks BEFORE resetting (we need current state for tracking)
       final allTasks = await client
           .from('local_tasks')
           .select()
           .eq('user_id', userId);
+
+      // Filter to only active profile + custom tasks
+      final activeTasks = allTasks.where((task) {
+        final source = task['profile_source']?.toString() ?? 'custom';
+        if (activeProfile == 'custom') return source == 'custom';
+        return source == activeProfile || source == 'custom';
+      }).toList();
       
-      debugPrint('📋 Day change: $date → today. Processing ${allTasks.length} tasks');
+      debugPrint('📋 Day change: $date → today. Processing ${activeTasks.length} active tasks (of ${allTasks.length} total)');
+
+      // STEP 2: RESET only ACTIVE PROFILE TASKS
+      final activeIds = activeTasks.map((t) => t['id']).toList();
+      if (activeIds.isNotEmpty) {
+        await client.from('local_tasks').update({
+          'task_status': TaskStatus.pending,
+          'is_completed': false,
+          'status_updated_at': DateTime.now().toIso8601String(),
+        }).eq('user_id', userId).inFilter('id', activeIds);
+      }
       
-      // STEP 2: RESET ALL TASKS FIRST (most critical step - do this before anything else!)
-      // This ensures tasks are reset even if tracking fails later
-      await client.from('local_tasks').update({
-        'task_status': TaskStatus.pending,
-        'is_completed': false,
-        'status_updated_at': DateTime.now().toIso8601String(),
-      }).eq('user_id', userId);
+      debugPrint('✅ Reset ${activeTasks.length} active tasks to pending for new day');
       
-      debugPrint('✅ Reset all ${allTasks.length} tasks to pending for new day');
-      
-      // STEP 3: Track uncompleted tasks as missed (non-blocking - failures won't affect reset)
-      for (final task in allTasks) {
+      // STEP 3: Track uncompleted active tasks as missed
+      for (final task in activeTasks) {
         try {
           final status = task['task_status'] ?? 'pending';
           final isCompleted = _isTaskCompleted(task['is_completed']);
@@ -101,7 +118,6 @@ class TaskLifecycleService {
             debugPrint('📝 Tracked missed: ${task['title']}');
           }
         } catch (trackError) {
-          // Individual tracking failures should NOT prevent other tasks from being tracked
           debugPrint('⚠️ Failed to track ${task['title']}: $trackError');
         }
       }

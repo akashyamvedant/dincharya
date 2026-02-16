@@ -305,78 +305,132 @@ class RoutinePreviewWidget extends StatelessWidget {
     );
   }
 
+  /// Generates the SAME routine that RoutineService.createDefaultRoutine creates
+  /// This ensures "what you see = what you get"
   List<Map<String, dynamic>> _generateRoutine(BuildContext context) {
-    final List<Map<String, dynamic>> baseRoutine = [
-      {
-        'time': wakeTime.format(context),
-        'title': 'Morning Wake Up',
-        'description': 'Start your day with gratitude',
-        'icon': 'wb_sunny',
-        'duration': null,
-      },
-      {
-        'time': _addMinutes(wakeTime, 15).format(context),
-        'title': 'Morning Meditation',
+    final List<Map<String, dynamic>> routine = [];
+
+    // === MORNING ROUTINE (mirrors RoutineService._generateMorningRoutine) ===
+    routine.add({
+      'time': wakeTime.format(context),
+      'title': 'Good Morning! 🌅',
+      'description': 'Start your day with gratitude and positive energy',
+      'icon': 'wb_sunny',
+      'duration': null,
+    });
+
+    if (goals.contains('Mindfulness') || goals.contains('Stress Relief')) {
+      routine.add({
+        'time': _addMinutes(wakeTime, 10).format(context),
+        'title': 'Morning Meditation 🧘‍♀️',
         'description': 'Center yourself for the day ahead',
         'icon': 'self_improvement',
         'duration': '10 min',
-      },
-      {
-        'time': _addMinutes(wakeTime, 30).format(context),
-        'title': 'Yoga Practice',
-        'description': 'Gentle stretches and poses',
-        'icon': 'fitness_center',
-        'duration': '20 min',
-      },
-    ];
+      });
+    }
 
-    // Add goal-specific activities
+    if (goals.contains('Physical Fitness') || goals.contains('Energy Boost')) {
+      routine.add({
+        'time': _addMinutes(wakeTime, 25).format(context),
+        'title': 'Morning Exercise 💪',
+        'description': 'Get your blood flowing and energy up',
+        'icon': 'fitness_center',
+        'duration': '25 min',
+      });
+    }
+
+    routine.add({
+      'time': _addMinutes(wakeTime, 45).format(context),
+      'title': 'Healthy Breakfast 🥗',
+      'description': 'Fuel your body with nutritious food',
+      'icon': 'restaurant',
+      'duration': '20 min',
+    });
+
+    // === DAY ROUTINE (mirrors RoutineService._generateDayRoutine) ===
     if (goals.contains('Focus & Productivity')) {
-      baseRoutine.add({
-        'time': _addMinutes(wakeTime, 60).format(context),
-        'title': 'Deep Work Session',
+      routine.add({
+        'time': _addMinutes(wakeTime, 90).format(context),
+        'title': 'Deep Work Session 🎯',
         'description': 'Focused work or study time',
         'icon': 'work',
         'duration': '90 min',
       });
     }
 
-    if (goals.contains('Physical Fitness')) {
-      baseRoutine.add({
-        'time': '18:00',
-        'title': 'Evening Exercise',
-        'description': 'Physical activity and movement',
-        'icon': 'directions_run',
+    routine.add({
+      'time': _addMinutes(wakeTime, 240).format(context),
+      'title': 'Midday Break ☀️',
+      'description': 'Take a moment to rest and recharge',
+      'icon': 'free_breakfast',
+      'duration': null,
+    });
+
+    // Age-group specific afternoon task
+    if (ageGroup == 'Student') {
+      routine.add({
+        'time': _addMinutes(wakeTime, 300).format(context),
+        'title': 'Study Session 📚',
+        'description': 'Review and prepare for tomorrow',
+        'icon': 'school',
+        'duration': '60 min',
+      });
+    } else if (ageGroup == 'Professional') {
+      routine.add({
+        'time': _addMinutes(wakeTime, 300).format(context),
+        'title': 'Work Tasks 💼',
+        'description': 'Complete important work assignments',
+        'icon': 'work',
+        'duration': '60 min',
+      });
+    } else if (ageGroup == 'Elder') {
+      routine.add({
+        'time': _addMinutes(wakeTime, 300).format(context),
+        'title': 'Gentle Activity 🚶‍♀️',
+        'description': 'Light walk or gentle movement',
+        'icon': 'directions_walk',
         'duration': '30 min',
       });
     }
 
-    // Add evening routine
-    baseRoutine.addAll([
-      {
+    // === EVENING ROUTINE (mirrors RoutineService._generateEveningRoutine) ===
+    routine.add({
+      'time': _subtractMinutes(sleepTime, 120).format(context),
+      'title': 'Evening Meal 🍽️',
+      'description': 'Enjoy a light, healthy dinner',
+      'icon': 'dinner_dining',
+      'duration': '30 min',
+    });
+
+    if (goals.contains('Stress Relief') || goals.contains('Better Sleep')) {
+      routine.add({
         'time': _subtractMinutes(sleepTime, 60).format(context),
-        'title': 'Evening Reflection',
-        'description': 'Journal and reflect on your day',
+        'title': 'Evening Relaxation 🌙',
+        'description': 'Wind down and prepare for rest',
+        'icon': 'spa',
+        'duration': '30 min',
+      });
+    }
+
+    if (goals.contains('Mindfulness') || goals.contains('Emotional Balance')) {
+      routine.add({
+        'time': _subtractMinutes(sleepTime, 30).format(context),
+        'title': 'Evening Reflection 📝',
+        'description': 'Reflect on your day and write in your journal',
         'icon': 'book',
         'duration': '15 min',
-      },
-      {
-        'time': _subtractMinutes(sleepTime, 30).format(context),
-        'title': 'Relaxation',
-        'description': 'Prepare your mind for rest',
-        'icon': 'spa',
-        'duration': '20 min',
-      },
-      {
-        'time': sleepTime.format(context),
-        'title': 'Sleep Time',
-        'description': 'Rest and rejuvenate',
-        'icon': 'bedtime',
-        'duration': null,
-      },
-    ]);
+      });
+    }
 
-    return baseRoutine;
+    routine.add({
+      'time': _subtractMinutes(sleepTime, 15).format(context),
+      'title': 'Prepare for Sleep 😴',
+      'description': 'Get ready for a restful night',
+      'icon': 'bedtime',
+      'duration': null,
+    });
+
+    return routine;
   }
 
   TimeOfDay _addMinutes(TimeOfDay time, int minutes) {

@@ -381,19 +381,15 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
         throw Exception('User not logged in');
       }
 
-      // Get selected profile
+      // Get selected profile (no deletion — tasks are preserved)
       LifestyleProfile? selectedProfile;
-      if (_selectedProfileId == 'custom') {
-        // For Custom: delete all preset profile tasks but keep user's custom tasks
-        await _supabaseService.deleteAllPresetProfileTasks(userId);
-      } else {
+      if (_selectedProfileId != 'custom') {
         selectedProfile = LifestyleProfile.presets.firstWhere(
           (p) => p.id == _selectedProfileId,
         );
       }
 
       // Save profile to user_profiles table
-      // Use UPDATE (not UPSERT) since profile already exists after signup
       final client = await _supabaseService.client;
       if (client == null) {
         throw Exception('Supabase client not initialized');
@@ -406,9 +402,12 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
           })
           .eq('id', userId);
 
-      // If preset profile selected, create default tasks
+      // Only create tasks if none exist for this profile yet
       if (selectedProfile != null) {
-        await _createTasksFromProfile(userId, selectedProfile);
+        final existing = await _supabaseService.getTasksByProfileSource(userId, selectedProfile.id);
+        if (existing.isEmpty) {
+          await _createTasksFromProfile(userId, selectedProfile);
+        }
       }
 
       if (mounted) {
@@ -445,9 +444,6 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
   }
 
   Future<void> _createTasksFromProfile(String userId, LifestyleProfile profile) async {
-    // FIRST: Delete existing tasks from this profile to prevent duplicates
-    await _supabaseService.deleteTasksByProfile(userId, profile.name);
-    
     // Get all activities from the default routine
     final allActivities = <Map<String, dynamic>>[];
     
@@ -462,7 +458,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
       }
     });
 
-    // Create tasks from activities
+    // Create tasks from activities with profile_source tag
     for (final activity in allActivities) {
       try {
         await _supabaseService.createLocalTask({
@@ -473,6 +469,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
           'duration': '${activity['duration']} min',
           'category': activity['category'],
           'prahar': activity['prahar'],
+          'profile_source': profile.id,
           'is_completed': false,
           'created_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),

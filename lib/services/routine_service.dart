@@ -10,6 +10,20 @@ class RoutineService {
   final SupabaseService _supabaseService = SupabaseService();
   final Uuid _uuid = Uuid();
 
+  /// Maps onboarding age group to lifestyle profile ID
+  String mapAgeGroupToProfileId(String ageGroup) {
+    switch (ageGroup) {
+      case 'Student':
+        return 'student';
+      case 'Professional':
+        return 'professional';
+      case 'Elder':
+        return 'yogic';
+      default:
+        return 'student';
+    }
+  }
+
   /// Creates a personalized default routine based on user preferences
   Future<void> createDefaultRoutine({
     required String userId,
@@ -20,7 +34,30 @@ class RoutineService {
     required TimeOfDay sleepTime,
   }) async {
     try {
-      debugPrint('Creating default routine for user: $userName');
+      final profileId = mapAgeGroupToProfileId(ageGroup);
+      debugPrint('Creating default routine for user: $userName (profile: $profileId)');
+
+      // Set lifestyle_profile in user_profiles (critical)
+      final client = await _supabaseService.client;
+      if (client != null) {
+        await client.from('user_profiles').update({
+          'lifestyle_profile': profileId,
+          'display_name': userName.isNotEmpty ? userName : null,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', userId);
+        debugPrint('✅ Set lifestyle_profile=$profileId in user_profiles');
+
+        // Store preferences (non-critical — columns may not exist yet)
+        try {
+          await client.from('user_profiles').update({
+            'wake_time': _formatTime(wakeTime),
+            'sleep_time': _formatTime(sleepTime),
+            'wellness_goals': goals,
+          }).eq('id', userId);
+        } catch (e) {
+          debugPrint('⚠️ Could not save preferences (columns may not exist): $e');
+        }
+      }
 
       // Generate routine tasks based on user preferences
       final routineTasks = _generatePersonalizedTasks(
@@ -31,13 +68,13 @@ class RoutineService {
         sleepTime: sleepTime,
       );
 
-      // Create tasks in database
+      // Create tasks in database with profile_source
       for (final task in routineTasks) {
-        await _createTask(userId, task);
+        await _createTask(userId, task, profileId);
       }
 
       debugPrint(
-          'Successfully created ${routineTasks.length} default routine tasks');
+          'Successfully created ${routineTasks.length} default routine tasks with profile_source=$profileId');
     } catch (e) {
       debugPrint('Error creating default routine: $e');
       rethrow;
@@ -218,8 +255,8 @@ class RoutineService {
     return eveningTasks;
   }
 
-  /// Creates a task in the database
-  Future<void> _createTask(String userId, Map<String, dynamic> taskData) async {
+  /// Creates a task in the database with profile_source
+  Future<void> _createTask(String userId, Map<String, dynamic> taskData, String profileId) async {
     final task = {
       'id': _uuid.v4(),
       'user_id': userId,
@@ -228,6 +265,7 @@ class RoutineService {
       'category': taskData['category'],
       'time': taskData['time'],
       'priority': taskData['priority'],
+      'profile_source': profileId,
       'is_completed': false,
       'created_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),

@@ -24,14 +24,42 @@ export default function SubscriptionsPage() {
 
     const fetchAll = async () => {
         setLoading(true);
-        const [plansRes, subsRes, auditRes] = await Promise.all([
-            supabase.from('subscription_plans').select('*').order('price_monthly', { ascending: true }),
-            supabase.from('subscriptions').select('*, user_profiles:user_id(full_name, email, avatar_url)').order('created_at', { ascending: false }),
-            supabase.from('payment_audit_log').select('*, user_profiles:user_id(full_name, email)').order('created_at', { ascending: false }).limit(50),
-        ]);
-        setPlans(plansRes.data || []);
-        setSubs(subsRes.data || []);
-        setAuditLog(auditRes.data || []);
+        try {
+            const [plansRes, subsRes, auditRes] = await Promise.all([
+                supabase.from('subscription_plans').select('*').order('price_monthly', { ascending: true }),
+                supabase.from('subscriptions').select('*').order('created_at', { ascending: false }),
+                supabase.from('payment_audit_log').select('*').order('created_at', { ascending: false }).limit(50),
+            ]);
+            if (plansRes.error) console.error('Plans fetch error:', plansRes.error);
+            if (subsRes.error) console.error('Subs fetch error:', subsRes.error);
+            if (auditRes.error) console.error('Audit fetch error:', auditRes.error);
+
+            const allSubs = subsRes.data || [];
+            const allAudit = auditRes.data || [];
+
+            // Enrich with user profiles (no FK exists, fetch separately)
+            const allUserIds = [...new Set([
+                ...allSubs.map(s => s.user_id),
+                ...allAudit.map(a => a.user_id),
+            ].filter(Boolean))];
+
+            let profileMap = {};
+            if (allUserIds.length > 0) {
+                const { data: profiles } = await supabase.from('user_profiles')
+                    .select('id, full_name, email, avatar_url')
+                    .in('id', allUserIds);
+                (profiles || []).forEach(p => { profileMap[p.id] = p; });
+            }
+
+            allSubs.forEach(s => { s._profile = profileMap[s.user_id] || null; });
+            allAudit.forEach(a => { a._profile = profileMap[a.user_id] || null; });
+
+            setPlans(plansRes.data || []);
+            setSubs(allSubs);
+            setAuditLog(allAudit);
+        } catch (err) {
+            console.error('Error fetching subscription data:', err);
+        }
         setLoading(false);
     };
 
@@ -166,12 +194,12 @@ export default function SubscriptionsPage() {
                                             <tr key={s.id}>
                                                 <td>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                        {s.user_profiles?.avatar_url && (
-                                                            <img src={s.user_profiles.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
+                                                        {s._profile?.avatar_url && (
+                                                            <img src={s._profile.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
                                                         )}
                                                         <div>
-                                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{s.user_profiles?.full_name || 'Unknown'}</div>
-                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s.user_profiles?.email || ''}</div>
+                                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{s._profile?.full_name || 'Unknown'}</div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s._profile?.email || ''}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -284,8 +312,8 @@ export default function SubscriptionsPage() {
                                                 {new Date(a.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                                             </td>
                                             <td>
-                                                <div style={{ fontWeight: 600, fontSize: 13 }}>{a.user_profiles?.full_name || '—'}</div>
-                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.user_profiles?.email || ''}</div>
+                                                <div style={{ fontWeight: 600, fontSize: 13 }}>{a._profile?.full_name || '—'}</div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a._profile?.email || ''}</div>
                                             </td>
                                             <td><span className="badge">{a.event_type}</span></td>
                                             <td style={{ fontFamily: 'monospace' }}>{a.amount ? formatPrice(a.amount) : '—'}</td>
@@ -308,8 +336,8 @@ export default function SubscriptionsPage() {
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <h2>Subscription Detail</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>User</strong><br />{subDetail.user_profiles?.full_name || 'Unknown'}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Email</strong><br />{subDetail.user_profiles?.email || '—'}</div>
+                            <div><strong style={{ color: 'var(--text-muted)' }}>User</strong><br />{subDetail._profile?.full_name || 'Unknown'}</div>
+                            <div><strong style={{ color: 'var(--text-muted)' }}>Email</strong><br />{subDetail._profile?.email || '—'}</div>
                             <div><strong style={{ color: 'var(--text-muted)' }}>Plan</strong><br />{subDetail.plan_name} ({subDetail.plan_id})</div>
                             <div><strong style={{ color: 'var(--text-muted)' }}>Amount</strong><br />{formatPrice(subDetail.amount)} {subDetail.currency}</div>
                             <div><strong style={{ color: 'var(--text-muted)' }}>Status</strong><br /><span className={`badge ${statusColor(subDetail.status)}`}>{subDetail.status}</span></div>
