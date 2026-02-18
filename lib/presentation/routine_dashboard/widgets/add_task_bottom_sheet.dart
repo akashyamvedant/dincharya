@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../models/task_categories.dart';
 
 class AddTaskBottomSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onTaskAdded;
@@ -18,55 +19,18 @@ class AddTaskBottomSheet extends StatefulWidget {
 class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _durationController = TextEditingController();
 
-  String _selectedType = 'meditation';
+  String _selectedCategoryId = 'meditation';
   TimeOfDay _selectedTime = TimeOfDay.now();
+  int _durationMinutes = 15;
 
-  final List<Map<String, dynamic>> _taskTypes = [
-    {
-      "type": "meditation",
-      "title": "Meditation",
-      "icon": "self_improvement",
-      "description": "Mindfulness and inner peace practice"
-    },
-    {
-      "type": "yoga",
-      "title": "Yoga",
-      "icon": "fitness_center",
-      "description": "Physical postures and breathing"
-    },
-    {
-      "type": "breathing",
-      "title": "Pranayama",
-      "icon": "air",
-      "description": "Breathing exercises and techniques"
-    },
-    {
-      "type": "study",
-      "title": "Study",
-      "icon": "menu_book",
-      "description": "Learning and knowledge acquisition"
-    },
-    {
-      "type": "journal",
-      "title": "Journal",
-      "icon": "edit_note",
-      "description": "Reflection and gratitude practice"
-    },
-    {
-      "type": "exercise",
-      "title": "Exercise",
-      "icon": "directions_run",
-      "description": "Physical fitness and movement"
-    },
-  ];
+  TaskCategory get _selectedCategory =>
+      TaskCategory.findById(_selectedCategoryId);
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _durationController.dispose();
     super.dispose();
   }
 
@@ -75,7 +39,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     return Container(
       height: 85.h,
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: const Color(0xFFFDF8F3),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -86,7 +50,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             width: 12.w,
             height: 0.5.h,
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.outline,
+              color: const Color(0xFF5D4037).withOpacity(0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -101,24 +65,28 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   onPressed: () => Navigator.pop(context),
                   child: Text(
                     'Cancel',
-                    style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    style: TextStyle(
+                      color: const Color(0xFF5D4037).withOpacity(0.7),
+                      fontSize: 15,
                     ),
                   ),
                 ),
                 Text(
                   'Add New Task',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2C1810),
                   ),
                 ),
                 TextButton(
                   onPressed: _addTask,
                   child: Text(
                     'Add',
-                    style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      color: const Color(0xFF5D4037),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
                     ),
                   ),
                 ),
@@ -127,8 +95,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ),
 
           Divider(
-            color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+            color: const Color(0xFF5D4037).withOpacity(0.1),
             height: 1,
           ),
 
@@ -139,111 +106,59 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Activity Type Selection
+                  // Category Selection
                   Text(
-                    'Activity Type',
-                    style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    'Category',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C1810),
                     ),
                   ),
                   SizedBox(height: 1.5.h),
 
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 3.w,
-                      mainAxisSpacing: 1.5.h,
-                      childAspectRatio: 2.5,
-                    ),
-                    itemCount: _taskTypes.length,
-                    itemBuilder: (context, index) {
-                      final taskType = _taskTypes[index];
-                      final isSelected = _selectedType == taskType["type"];
-
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedType = taskType["type"];
-                          });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.all(3.w),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme
-                                    .lightTheme.colorScheme.primaryContainer
-                                    .withValues(alpha: 0.2)
-                                : AppTheme.lightTheme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppTheme.lightTheme.colorScheme.primary
-                                  : AppTheme.lightTheme.colorScheme.outline
-                                      .withValues(alpha: 0.3),
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              CustomIconWidget(
-                                iconName: taskType["icon"],
-                                color: isSelected
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : AppTheme.lightTheme.colorScheme
-                                        .onSurfaceVariant,
-                                size: 20,
-                              ),
-                              SizedBox(width: 2.w),
-                              Expanded(
-                                child: Text(
-                                  taskType["title"],
-                                  style: AppTheme
-                                      .lightTheme.textTheme.bodyMedium
-                                      ?.copyWith(
-                                    color: isSelected
-                                        ? AppTheme
-                                            .lightTheme.colorScheme.primary
-                                        : AppTheme
-                                            .lightTheme.colorScheme.onSurface,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  _buildCategoryGrid(),
 
                   SizedBox(height: 3.h),
 
                   // Task Title
                   Text(
                     'Task Title',
-                    style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C1810),
                     ),
                   ),
                   SizedBox(height: 1.h),
                   TextField(
                     controller: _titleController,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
                       hintText: 'Enter task title',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
                       prefixIcon: Padding(
                         padding: EdgeInsets.all(3.w),
                         child: CustomIconWidget(
                           iconName: 'title',
-                          color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                          color: const Color(0xFF5D4037),
                           size: 20,
                         ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF5D4037), width: 2),
                       ),
                     ),
                     textCapitalization: TextCapitalization.words,
@@ -254,23 +169,41 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   // Description
                   Text(
                     'Description (Optional)',
-                    style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2C1810),
                     ),
                   ),
                   SizedBox(height: 1.h),
                   TextField(
                     controller: _descriptionController,
+                    style: const TextStyle(color: Colors.black87),
                     decoration: InputDecoration(
                       hintText: 'Add a brief description',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
                       prefixIcon: Padding(
                         padding: EdgeInsets.all(3.w),
                         child: CustomIconWidget(
                           iconName: 'description',
-                          color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                          color: const Color(0xFF5D4037),
                           size: 20,
                         ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF5D4037), width: 2),
                       ),
                     ),
                     maxLines: 3,
@@ -282,16 +215,17 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   // Time and Duration Row
                   Row(
                     children: [
-                      // Scheduled Time
+                      // Scheduled Time — always shown
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Scheduled Time',
-                              style: AppTheme.lightTheme.textTheme.titleSmall
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF2C1810),
                               ),
                             ),
                             SizedBox(height: 1.h),
@@ -301,28 +235,25 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 4.w, vertical: 2.h),
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppTheme.lightTheme.colorScheme.surface,
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppTheme
-                                        .lightTheme.colorScheme.outline
-                                        .withValues(alpha: 0.3),
-                                  ),
+                                      color: Colors.grey[300]!),
                                 ),
                                 child: Row(
                                   children: [
                                     CustomIconWidget(
                                       iconName: 'schedule',
-                                      color: AppTheme.lightTheme.colorScheme
-                                          .onSurfaceVariant,
+                                      color: const Color(0xFF5D4037),
                                       size: 20,
                                     ),
                                     SizedBox(width: 2.w),
                                     Text(
                                       _selectedTime.format(context),
-                                      style: AppTheme
-                                          .lightTheme.textTheme.bodyMedium,
+                                      style: TextStyle(
+                                        color: const Color(0xFF2C1810),
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -332,42 +263,95 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                         ),
                       ),
 
-                      SizedBox(width: 4.w),
-
-                      // Duration
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Duration',
-                              style: AppTheme.lightTheme.textTheme.titleSmall
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
+                      // Duration — only for timed categories
+                      if (_selectedCategory.hasDuration) ...[
+                        SizedBox(width: 4.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Duration',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2C1810),
+                                ),
                               ),
-                            ),
-                            SizedBox(height: 1.h),
-                            TextField(
-                              controller: _durationController,
-                              decoration: InputDecoration(
-                                hintText: '15 min',
-                                prefixIcon: Padding(
-                                  padding: EdgeInsets.all(3.w),
-                                  child: CustomIconWidget(
-                                    iconName: 'timer',
-                                    color: AppTheme.lightTheme.colorScheme
-                                        .onSurfaceVariant,
-                                    size: 20,
+                              SizedBox(height: 1.h),
+                              GestureDetector(
+                                onTap: () => _showDurationPicker(),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 4.w, vertical: 2.h),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: Colors.grey[300]!),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CustomIconWidget(
+                                        iconName: 'timer',
+                                        color: const Color(0xFF5D4037),
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 2.w),
+                                      Text(
+                                        _durationMinutes > 0
+                                            ? '$_durationMinutes min'
+                                            : 'Set duration',
+                                        style: TextStyle(
+                                          color: _durationMinutes > 0
+                                              ? const Color(0xFF2C1810)
+                                              : Colors.grey[400],
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              keyboardType: TextInputType.text,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
+
+                  // Hint for inevitable tasks
+                  if (!_selectedCategory.hasDuration) ...[
+                    SizedBox(height: 1.h),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 3.w, vertical: 1.h),
+                      decoration: BoxDecoration(
+                        color: _selectedCategory.color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: _selectedCategory.color,
+                          ),
+                          SizedBox(width: 2.w),
+                          Expanded(
+                            child: Text(
+                              _getInevitableHint(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _selectedCategory.color,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   SizedBox(height: 4.h),
                 ],
@@ -375,6 +359,242 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 2.w,
+        mainAxisSpacing: 1.5.h,
+        childAspectRatio: 2.2,
+      ),
+      itemCount: TaskCategory.all.length,
+      itemBuilder: (context, index) {
+        final category = TaskCategory.all[index];
+        final isSelected = _selectedCategoryId == category.id;
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedCategoryId = category.id;
+            });
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.8.h),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? category.color.withOpacity(0.15)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? category.color
+                    : Colors.grey[300]!,
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: category.color.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Row(
+              children: [
+                CustomIconWidget(
+                  iconName: category.icon,
+                  color: isSelected
+                      ? category.color
+                      : Colors.grey[600]!,
+                  size: 18,
+                ),
+                SizedBox(width: 1.w),
+                Expanded(
+                  child: Text(
+                    category.displayName,
+                    style: TextStyle(
+                      color: isSelected
+                          ? category.color
+                          : Colors.black87,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w400,
+                      fontSize: 11,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _getInevitableHint() {
+    switch (_selectedCategoryId) {
+      case 'wakeup':
+        return 'Duration not needed — we\'ll track when you actually woke up';
+      case 'hygiene':
+        return 'Duration not needed — just mark when done';
+      case 'nutrition':
+        return 'Duration not needed — mark after eating';
+      case 'sleep':
+        return 'Duration not needed — we\'ll track your sleep time';
+      default:
+        return 'This task doesn\'t need a duration';
+    }
+  }
+
+  void _showDurationPicker() {
+    int tempDuration = _durationMinutes > 0 ? _durationMinutes : 15;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFFFDF8F3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Set Duration',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C1810),
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Current value display
+                Text(
+                  '$tempDuration min',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF5D4037),
+                  ),
+                ),
+                SizedBox(height: 2.h),
+
+                // Slider
+                SliderTheme(
+                  data: SliderThemeData(
+                    activeTrackColor: const Color(0xFF5D4037),
+                    inactiveTrackColor:
+                        const Color(0xFF5D4037).withOpacity(0.15),
+                    thumbColor: const Color(0xFF5D4037),
+                    overlayColor:
+                        const Color(0xFF5D4037).withOpacity(0.1),
+                    trackHeight: 6,
+                  ),
+                  child: Slider(
+                    value: tempDuration.toDouble(),
+                    min: 5,
+                    max: 120,
+                    divisions: 23, // 5-min steps
+                    label: '$tempDuration min',
+                    onChanged: (value) {
+                      setDialogState(() {
+                        tempDuration = value.round();
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(height: 0.5.h),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('5 min',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey[500])),
+                    Text('120 min',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey[500])),
+                  ],
+                ),
+                SizedBox(height: 2.h),
+
+                // Preset buttons
+                Wrap(
+                  spacing: 2.w,
+                  runSpacing: 1.h,
+                  children: [5, 10, 15, 20, 30, 45, 60, 90].map((mins) {
+                    final isActive = tempDuration == mins;
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          tempDuration = mins;
+                        });
+                      },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 3.w, vertical: 1.h),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? const Color(0xFF5D4037)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isActive
+                                ? const Color(0xFF5D4037)
+                                : Colors.grey[300]!,
+                          ),
+                        ),
+                        child: Text(
+                          '${mins}m',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight:
+                                isActive ? FontWeight.w700 : FontWeight.w500,
+                            color: isActive ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _durationMinutes = tempDuration;
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF5D4037),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Confirm',
+                    style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -387,61 +607,24 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: AppTheme.lightTheme.colorScheme.copyWith(
-              primary: AppTheme.lightTheme.colorScheme.primary,
+              primary: const Color(0xFF5D4037),
               onPrimary: Colors.white,
-              surface: AppTheme.lightTheme.colorScheme.surface,
-              onSurface: AppTheme.lightTheme.colorScheme.onSurface,
+              surface: const Color(0xFFFDF8F3),
+              onSurface: const Color(0xFF2C1810),
             ),
             timePickerTheme: TimePickerThemeData(
-              backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+              backgroundColor: const Color(0xFFFDF8F3),
               hourMinuteShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              hourMinuteColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppTheme.lightTheme.colorScheme.primary;
-                }
-                return AppTheme.lightTheme.colorScheme.surfaceContainerHighest;
-              }),
-              hourMinuteTextColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return Colors.white;
-                }
-                return AppTheme.lightTheme.colorScheme.onSurface;
-              }),
-              dayPeriodShape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              dayPeriodColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.2);
-                }
-                return Colors.transparent;
-              }),
-              dayPeriodTextColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppTheme.lightTheme.colorScheme.primary;
-                }
-                return AppTheme.lightTheme.colorScheme.onSurfaceVariant;
-              }),
-              dialHandColor: AppTheme.lightTheme.colorScheme.primary,
-              dialBackgroundColor: AppTheme.lightTheme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              dialTextColor: WidgetStateColor.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return Colors.white;
-                }
-                return AppTheme.lightTheme.colorScheme.onSurface;
-              }),
-              entryModeIconColor: AppTheme.lightTheme.colorScheme.primary,
-              helpTextStyle: TextStyle(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
+              dialHandColor: const Color(0xFF5D4037),
+              dialBackgroundColor: const Color(0xFF5D4037).withOpacity(0.08),
+              entryModeIconColor: const Color(0xFF5D4037),
               cancelButtonStyle: TextButton.styleFrom(
-                foregroundColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                foregroundColor: Colors.grey[600],
               ),
               confirmButtonStyle: TextButton.styleFrom(
-                foregroundColor: AppTheme.lightTheme.colorScheme.primary,
+                foregroundColor: const Color(0xFF5D4037),
               ),
             ),
           ),
@@ -450,8 +633,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       },
     );
 
-    if (picked != null) {
-      debugPrint('📅 Time picked: ${picked.format(context)}');
+    if (picked != null && mounted) {
       setState(() {
         _selectedTime = picked;
       });
@@ -462,41 +644,43 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter a task title'),
-          backgroundColor: AppTheme.lightTheme.colorScheme.error,
+          content: const Text('Please enter a task title'),
+          backgroundColor: Colors.red[700],
         ),
       );
       return;
     }
 
-    if (_durationController.text.trim().isEmpty) {
+    // Only require duration for timed categories
+    if (_selectedCategory.hasDuration && _durationMinutes <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please enter task duration'),
-          backgroundColor: AppTheme.lightTheme.colorScheme.error,
+          content: const Text('Please set task duration'),
+          backgroundColor: Colors.red[700],
         ),
       );
       return;
     }
 
-    final selectedTaskType = _taskTypes.firstWhere(
-      (type) => type["type"] == _selectedType,
-    );
-
-    // Format time for storage (use 'time' key for consistency with task loading)
     final formattedTime = _selectedTime.format(context);
-    debugPrint('📅 Adding task with time: $formattedTime');
 
     final newTask = {
       "title": _titleController.text.trim(),
-      "type": _selectedType,
-      "duration": _durationController.text.trim(),
-      "time": formattedTime,  // Primary time field used by dashboard
-      "scheduledTime": formattedTime,  // Keep for backward compatibility
-      "icon": selectedTaskType["icon"],
+      "category": _selectedCategoryId,
+      "type": _selectedCategoryId, // backward compat
+      "duration": _selectedCategory.hasDuration
+          ? '$_durationMinutes min'
+          : null,
+      "duration_minutes": _selectedCategory.hasDuration
+          ? _durationMinutes
+          : null,
+      "time": formattedTime,
+      "scheduledTime": formattedTime,
+      "icon": _selectedCategory.icon,
       "description": _descriptionController.text.trim().isNotEmpty
           ? _descriptionController.text.trim()
-          : selectedTaskType["description"],
+          : null,
+      "is_inevitable": _selectedCategory.isInevitable,
     };
 
     widget.onTaskAdded(newTask);
@@ -504,7 +688,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Task added successfully!'),
+        content: const Text('Task added successfully!'),
         backgroundColor: AppTheme.getSuccessColor(true),
       ),
     );

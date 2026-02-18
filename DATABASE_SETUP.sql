@@ -59,14 +59,26 @@ CREATE TABLE IF NOT EXISTS public.admin_roles (
 CREATE TABLE IF NOT EXISTS public.routine_tracking (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  task_id UUID,
   activity_name TEXT NOT NULL,
+  scheduled_time TEXT,
+  actual_time TEXT,
   completed BOOLEAN DEFAULT FALSE,
   completed_at TIMESTAMPTZ,
+  actual_duration_minutes INTEGER,
+  completion_percent INTEGER DEFAULT 100,
+  difficulty_rating INTEGER,
+  quality_rating INTEGER,
   reason TEXT,
+  skip_reason TEXT,
   notes TEXT,
+  xp_earned INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'completed',
   tracking_date DATE NOT NULL,
   synced_at TIMESTAMPTZ DEFAULT NOW(),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, task_id, tracking_date)
 );
 
 -- ============================================
@@ -97,12 +109,21 @@ CREATE TABLE IF NOT EXISTS public.local_tasks (
   title TEXT NOT NULL,
   description TEXT,
   category TEXT DEFAULT 'dainik',
+  type TEXT,
   prahar TEXT DEFAULT 'purvahna',
   status TEXT DEFAULT 'pending',
   priority INTEGER DEFAULT 1,
   due_date TIMESTAMPTZ,
   is_completed BOOLEAN DEFAULT FALSE,
   time TEXT,
+  duration TEXT,
+  duration_minutes INTEGER,
+  icon TEXT,
+  is_inevitable BOOLEAN DEFAULT FALSE,
+  profile_source TEXT DEFAULT 'custom',
+  task_status TEXT DEFAULT 'pending',
+  status_updated_at TIMESTAMPTZ,
+  deadline_time TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

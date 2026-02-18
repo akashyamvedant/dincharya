@@ -76,7 +76,7 @@ class AppRoutes {
         audioPlayer: (context) => const AudioPlayer(),
         adminControlPanel: (context) => const AdminControlPanel(),
         localTasks: (context) => const LocalTasksScreen(),
-        profileSelection: (context) => const ProfileSelectionScreen(),
+        profileSelection: (context) => const ProfileSelectionScreen(isOnboarding: true),
         history: (context) => const HistoryScreen(),
         sessionsAdmin: (context) => const SessionsAdminScreen(),
         helpCenter: (context) => const HelpCenterScreen(),

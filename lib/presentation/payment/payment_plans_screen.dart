@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 import '../../models/payment_models.dart';
@@ -23,82 +22,81 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
     with TickerProviderStateMixin {
   final PaymentService _paymentService = PaymentService();
   late List<PaymentPlan> _plans;
-  late PricingTier _currentTier;
-  late LocalizedPrice _pricing;
   int _selectedPlanIndex = 1; // Default yearly (best value)
   bool _isProcessing = false;
+  bool _isLoading = true;
   late AnimationController _pulseController;
-
-  // Coupon state
-  final TextEditingController _couponController = TextEditingController();
-  String? _appliedCoupon;
-  bool _isCouponApplied = false;
 
   @override
   void initState() {
     super.initState();
     _paymentService.initialize();
-    
-    // Detect geo-tier and get localized plans
-    _currentTier = GeoPricing.detectTier();
-    _pricing = GeoPricing.getPricing(_currentTier);
+
+    // Start with local fallback plans (show immediately)
     _plans = PaymentPlan.getLocalizedPlans();
 
     _pulseController = AnimationController(
       duration: Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
+
+    // Load Google Play products in background
+    _loadGooglePlayProducts();
+  }
+
+  /// Load products from Google Play and update UI
+  Future<void> _loadGooglePlayProducts() async {
+    try {
+      // Wait a moment for PaymentService to fully initialize
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final googleProducts = _paymentService.products;
+      if (googleProducts.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _plans = PaymentPlan.fromGooglePlayProducts(googleProducts);
+            _isLoading = false;
+            // Ensure selected index is valid
+            if (_selectedPlanIndex >= _plans.length) {
+              _selectedPlanIndex = _plans.length - 1;
+            }
+          });
+          debugPrint('✅ UI updated with ${_plans.length} Google Play products');
+        }
+      } else {
+        // Products might still be loading, retry once
+        await Future.delayed(const Duration(seconds: 2));
+        await _paymentService.loadProducts();
+        final retryProducts = _paymentService.products;
+        if (retryProducts.isNotEmpty && mounted) {
+          setState(() {
+            _plans = PaymentPlan.fromGooglePlayProducts(retryProducts);
+            _isLoading = false;
+            if (_selectedPlanIndex >= _plans.length) {
+              _selectedPlanIndex = _plans.length - 1;
+            }
+          });
+          debugPrint('✅ UI updated after retry with ${_plans.length} products');
+        } else if (mounted) {
+          setState(() => _isLoading = false);
+          debugPrint('⚠️ Using local fallback pricing (Google Play products not available)');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading Google Play products: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _couponController.dispose();
-    _paymentService.dispose();
     super.dispose();
   }
 
   void _selectPlan(int index) {
     HapticFeedback.selectionClick();
     setState(() => _selectedPlanIndex = index);
-  }
-
-  void _applyCoupon() {
-    final code = _couponController.text.trim().toUpperCase();
-    if (code.isEmpty) {
-      _showErrorSnackbar('Please enter a coupon code');
-      return;
-    }
-
-    HapticFeedback.lightImpact();
-    setState(() {
-      _appliedCoupon = code;
-      _isCouponApplied = true;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Coupon "$code" will be applied at checkout'),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _removeCoupon() {
-    HapticFeedback.lightImpact();
-    setState(() {
-      _appliedCoupon = null;
-      _isCouponApplied = false;
-      _couponController.clear();
-    });
   }
 
   Future<void> _processPurchase() async {
@@ -108,54 +106,57 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      // Get user data from Supabase auth (not widget.userData which may be incomplete)
-      final currentUser = Supabase.instance.client.auth.currentUser;
-      final email = currentUser?.email ?? widget.userData['email'] ?? '';
-      final phone = currentUser?.phone ?? widget.userData['phone'] ?? '';
-      
-      // Try to get name from user metadata, then userData
-      String userName = '';
-      final metadata = currentUser?.userMetadata;
-      if (metadata != null) {
-        userName = metadata['full_name'] as String? ?? 
-                   metadata['name'] as String? ?? '';
-      }
-      if (userName.isEmpty) {
-        userName = widget.userData['full_name'] ?? widget.userData['name'] ?? 'User';
-      }
-
-      debugPrint('💳 Payment: email=$email, phone=$phone, name=$userName');
-
-      if (email.isEmpty) {
-        setState(() => _isProcessing = false);
-        _showErrorSnackbar('Please log in again to continue with payment.');
-        return;
-      }
-
       _paymentService.initiatePayment(
         plan: plan,
-        userEmail: email,
-        userPhone: phone.isNotEmpty ? phone : '9999999999',
-        userName: userName,
-        couponCode: _appliedCoupon,
+        userEmail: '', // Google Play handles user identity
+        userPhone: '',
+        userName: '',
         onResult: (result) {
           if (!mounted) return;
           setState(() => _isProcessing = false);
           if (result.success) {
             _showSuccessSheet(plan);
           } else {
-            _showErrorSnackbar(result.errorMessage ?? 'Payment failed');
+            if (result.errorCode != 'USER_CANCELLED') {
+              _showErrorSnackbar(result.errorMessage ?? 'Payment failed');
+            }
           }
         },
       );
 
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) {
+      // Safety timeout — in case callback never fires
+      await Future.delayed(const Duration(seconds: 30));
+      if (mounted && _isProcessing) {
         setState(() => _isProcessing = false);
       }
     } catch (e) {
       setState(() => _isProcessing = false);
       _showErrorSnackbar('Unable to process payment: ${e.toString()}');
+    }
+  }
+
+  Future<void> _restorePurchases() async {
+    HapticFeedback.lightImpact();
+    try {
+      await _paymentService.restorePurchases();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.refresh, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Checking for previous purchases...'),
+              ],
+            ),
+            backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      _showErrorSnackbar('Failed to restore purchases');
     }
   }
 
@@ -207,7 +208,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: _restorePurchases,
             child: Text(
               'Restore',
               style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
@@ -245,15 +246,30 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
             ),
             SizedBox(height: 4.h),
 
-            // Plan cards (supports 2 or 3 plans dynamically)
-            ...List.generate(_plans.length, (index) =>
-              _buildPlanCard(_plans[index], index),
-            ),
+            // Plan cards
+            if (_isLoading)
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 4.h),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(
+                      color: AppTheme.lightTheme.colorScheme.primary,
+                    ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Loading plans...',
+                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...List.generate(_plans.length, (index) =>
+                _buildPlanCard(_plans[index], index),
+              ),
             SizedBox(height: 2.h),
-
-            // Coupon code section
-            _buildCouponSection(),
-            SizedBox(height: 3.h),
 
             // Features list
             _buildFeaturesList(),
@@ -261,9 +277,6 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
 
             // Trust badges
             _buildTrustBadges(),
-
-            // Geo-pricing note
-            _buildGeoPricingNote(),
             SizedBox(height: 12.h),
           ],
         ),
@@ -271,169 +284,6 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
 
       // Bottom purchase button
       bottomNavigationBar: _buildPurchaseButton(_plans[_selectedPlanIndex]),
-    );
-  }
-
-  Widget _buildGeoPricingNote() {
-    if (_currentTier == PricingTier.india) return SizedBox.shrink();
-
-    return Padding(
-      padding: EdgeInsets.only(top: 2.h),
-      child: Container(
-        padding: EdgeInsets.all(3.w),
-        decoration: BoxDecoration(
-          color: Colors.blue.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.withOpacity(0.15)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.public, color: Colors.blue, size: 18),
-            SizedBox(width: 2.w),
-            Expanded(
-              child: Text(
-                'Prices shown in ${_pricing.currencyCode} for your region.',
-                style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-                  color: Colors.blue.shade700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCouponSection() {
-    return Container(
-      padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _isCouponApplied
-              ? Colors.green.withOpacity(0.5)
-              : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.2),
-          width: _isCouponApplied ? 2 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                _isCouponApplied
-                    ? Icons.local_offer
-                    : Icons.discount_outlined,
-                color: _isCouponApplied
-                    ? Colors.green
-                    : AppTheme.lightTheme.colorScheme.primary,
-                size: 20,
-              ),
-              SizedBox(width: 2.w),
-              Text(
-                _isCouponApplied ? 'Coupon Applied!' : 'Have a coupon code?',
-                style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: _isCouponApplied
-                      ? Colors.green
-                      : AppTheme.lightTheme.colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 1.5.h),
-          if (_isCouponApplied)
-            Container(
-              padding:
-                  EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 20),
-                  SizedBox(width: 2.w),
-                  Expanded(
-                    child: Text(
-                      '"$_appliedCoupon" will be validated at checkout',
-                      style:
-                          AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _removeCoupon,
-                    icon: Icon(Icons.close,
-                        color: Colors.red.shade400, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: BoxConstraints(),
-                  ),
-                ],
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _couponController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      hintText: 'Enter coupon code',
-                      hintStyle: AppTheme.lightTheme.textTheme.bodyMedium
-                          ?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onSurface
-                            .withOpacity(0.4),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 4.w, vertical: 1.5.h),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: AppTheme.lightTheme.colorScheme.outline
-                              .withOpacity(0.3),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: AppTheme.lightTheme.colorScheme.outline
-                              .withOpacity(0.3),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: AppTheme.lightTheme.colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 3.w),
-                ElevatedButton(
-                  onPressed: _applyCoupon,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        AppTheme.lightTheme.colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 4.w, vertical: 1.5.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text('Apply'),
-                ),
-              ],
-            ),
-        ],
-      ),
     );
   }
 
@@ -468,13 +318,22 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
     final isSelected = index == _selectedPlanIndex;
     final isYearly = plan.duration == 'year';
     final isLifetime = plan.duration == 'lifetime';
-    final currencySymbol = _pricing.currencySymbol;
 
-    // Monthly equivalent display
+    // Use Google Play's localized price if available, else fallback
+    final String displayPrice = plan.googlePlayPrice ??
+        '${_getCurrencySymbol(plan.currency)}${plan.price.toInt()}';
+
+    // Monthly equivalent for yearly
     String monthlyEquiv = '';
     if (isYearly) {
-      final monthlyPrice = (plan.price / 12).round();
-      monthlyEquiv = '$currencySymbol$monthlyPrice/month';
+      if (plan.googlePlayPrice != null) {
+        // Calculate from raw price
+        final monthlyPrice = (plan.price / 12).round();
+        monthlyEquiv = '${_getCurrencySymbol(plan.currency)}$monthlyPrice/month';
+      } else {
+        final monthlyPrice = (plan.price / 12).round();
+        monthlyEquiv = '${_getCurrencySymbol(plan.currency)}$monthlyPrice/month';
+      }
     }
 
     // Plan-specific tag
@@ -610,7 +469,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
 
             SizedBox(width: 2.w),
 
-            // Price — constrained to prevent overflow
+            // Price
             ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 25.w),
               child: Column(
@@ -620,7 +479,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerRight,
                     child: Text(
-                      '$currencySymbol${plan.price.toInt()}',
+                      displayPrice,
                       style: AppTheme.lightTheme.textTheme.headlineSmall
                           ?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -648,6 +507,18 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         ),
       ),
     );
+  }
+
+  /// Get currency symbol from code
+  String _getCurrencySymbol(String code) {
+    switch (code.toUpperCase()) {
+      case 'INR': return '₹';
+      case 'USD': return '\$';
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'JPY': return '¥';
+      default: return '$code ';
+    }
   }
 
   Widget _buildFeaturesList() {
@@ -729,7 +600,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
       children: [
         _buildTrustBadge(Icons.lock, 'Secure\nPayment'),
         _buildTrustBadge(Icons.replay, 'Cancel\nAnytime'),
-        _buildTrustBadge(Icons.verified_user, 'Trusted\nby 10K+'),
+        _buildTrustBadge(Icons.verified_user, 'Google Play\nProtected'),
       ],
     );
   }
@@ -762,8 +633,11 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
   }
 
   Widget _buildPurchaseButton(PaymentPlan plan) {
-    final currencySymbol = _pricing.currencySymbol;
     final isLifetime = plan.duration == 'lifetime';
+
+    // Use Google Play price or fallback
+    final priceDisplay = plan.googlePlayPrice ??
+        '${_getCurrencySymbol(plan.currency)}${plan.price.toInt()}';
 
     return Container(
       padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
@@ -818,8 +692,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                               SizedBox(width: 2.w),
                               Text(
                                 isLifetime
-                                    ? 'Get Lifetime Access • $currencySymbol${plan.price.toInt()}'
-                                    : 'Start Premium • $currencySymbol${plan.price.toInt()}/${plan.duration}',
+                                    ? 'Get Lifetime Access • $priceDisplay'
+                                    : 'Start Premium • $priceDisplay/${plan.duration}',
                                 style: AppTheme
                                     .lightTheme.textTheme.titleMedium
                                     ?.copyWith(
@@ -839,8 +713,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
           // Terms
           Text(
             isLifetime
-                ? 'One-time payment • Secure via Razorpay'
-                : 'Cancel anytime • Secure payment via Razorpay',
+                ? 'One-time payment • Secured by Google Play'
+                : 'Cancel anytime • Managed by Google Play',
             style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
               color: AppTheme.lightTheme.colorScheme.onSurface
                   .withOpacity(0.5),

@@ -1,290 +1,314 @@
 // lib/services/payment_service.dart
+//
+// Payment service using Google Play Billing via in_app_purchase package.
+// Razorpay code is preserved below (disabled) for future Alternative Billing.
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/payment_models.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import 'supabase_service.dart';
 import 'subscription_manager.dart';
-import '../core/utils/validators.dart';
 
 class PaymentService {
   static final PaymentService _instance = PaymentService._internal();
   factory PaymentService() => _instance;
   PaymentService._internal();
 
-  Razorpay? _razorpay;
+  // ── Google Play Billing ──
+  final InAppPurchase _iap = InAppPurchase.instance;
+  StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
+  bool _isAvailable = false;
   bool _isInitialized = false;
+
+  // Cached products from Google Play
+  List<ProductDetails> _products = [];
+  List<ProductDetails> get products => _products;
+  bool get isAvailable => _isAvailable;
+
+  // Callback for purchase results
   Function(PaymentResult)? _onPaymentResult;
   final SupabaseService _supabase = SupabaseService();
-  
-  // Store current plan being purchased
+
+  // Store current plan being purchased (for Supabase save)
   PaymentPlan? _currentPlan;
 
-  // Get Razorpay Key ID from .env file
-  static String get _razorpayKeyId => dotenv.env['RAZORPAY_KEY_ID'] ?? '';
-  
-  // Get Razorpay Key Secret from .env file (for signature verification)
-  static String get _razorpayKeySecret => dotenv.env['RAZORPAY_KEY_SECRET'] ?? '';
-  
+  // ── Google Play Product IDs ──
+  // These must match EXACTLY what you create in Play Console
+  static const Set<String> _subscriptionIds = {
+    'monthly_premium',
+    'yearly_premium',
+  };
+  static const Set<String> _oneTimeProductIds = {
+    'lifetime_premium',
+  };
+  static Set<String> get allProductIds => {
+    ..._subscriptionIds,
+    ..._oneTimeProductIds,
+  };
+
   static const String _companyName = 'DinCharya';
-  static const String _companyLogo =
-      'https://djaevixaqvwtuizbadds.supabase.co/storage/v1/object/public/app-assets/logo.png';
 
-  // Secure hash function for payment verification
-  // ignore: unused_element - kept for future payment security
-  String _hashPaymentData(String data) {
-    final bytes = utf8.encode(data);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
-  }
+  // ══════════════════════════════════════════════════════════════
+  // ██  INITIALIZATION
+  // ══════════════════════════════════════════════════════════════
 
-  void initialize() {
-    // Skip Razorpay initialization on web platform
-    if (kIsWeb) {
-      debugPrint(
-          'Payment service: Skipping Razorpay initialization on web platform');
+  /// Initialize Google Play Billing and start listening for purchases.
+  /// Call this once at app startup or when payment screen opens.
+  Future<void> initialize() async {
+    if (_isInitialized) {
+      debugPrint('💰 PaymentService already initialized');
       return;
     }
 
-    // Validate Razorpay credentials before initialization
-    if (_razorpayKeyId.isEmpty || _razorpayKeyId == 'YOUR_RAZORPAY_KEY_ID') {
-      debugPrint(
-          'Warning: Razorpay not configured. Payment features will be disabled.');
-      debugPrint(
-          'Get your Razorpay credentials from https://dashboard.razorpay.com/');
-      return; // Don't initialize if credentials are not set
+    // Skip on web platform
+    if (kIsWeb) {
+      debugPrint('💰 PaymentService: Skipping on web platform');
+      return;
     }
 
     try {
-      _razorpay = Razorpay();
-      _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-      _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-      _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+      _isAvailable = await _iap.isAvailable();
+      if (!_isAvailable) {
+        debugPrint('⚠️ Google Play Billing not available on this device');
+        return;
+      }
+
+      // Listen to purchase updates (this stream is critical!)
+      _purchaseSubscription = _iap.purchaseStream.listen(
+        _onPurchaseUpdate,
+        onDone: () {
+          debugPrint('💰 Purchase stream closed');
+          _purchaseSubscription?.cancel();
+        },
+        onError: (error) {
+          debugPrint('❌ Purchase stream error: $error');
+        },
+      );
+
+      // Load available products from Google Play
+      await loadProducts();
+
       _isInitialized = true;
-      debugPrint('Razorpay initialized successfully');
+      debugPrint('✅ Google Play Billing initialized successfully');
     } catch (e) {
-      debugPrint('Failed to initialize Razorpay: $e');
+      debugPrint('❌ Failed to initialize Google Play Billing: $e');
     }
   }
 
+  /// Clean up resources
   void dispose() {
+    _purchaseSubscription?.cancel();
+    _purchaseSubscription = null;
+    _isInitialized = false;
+    debugPrint('💰 PaymentService disposed');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ██  PRODUCTS
+  // ══════════════════════════════════════════════════════════════
+
+  /// Load products from Google Play Store.
+  /// Returns true if at least one product was found.
+  Future<bool> loadProducts() async {
     try {
-      _razorpay?.clear();
+      debugPrint('🔵 Loading products from Google Play...');
+      debugPrint('🔵 Product IDs: $allProductIds');
+
+      final ProductDetailsResponse response =
+          await _iap.queryProductDetails(allProductIds);
+
+      if (response.error != null) {
+        debugPrint('❌ Error loading products: ${response.error}');
+        return false;
+      }
+
+      if (response.notFoundIDs.isNotEmpty) {
+        debugPrint('⚠️ Products not found in Play Console: ${response.notFoundIDs}');
+        debugPrint('   → Make sure these products are created and ACTIVATED in Play Console');
+      }
+
+      _products = response.productDetails;
+      debugPrint('✅ Loaded ${_products.length} products from Google Play:');
+      for (final p in _products) {
+        debugPrint('   - ${p.id}: ${p.title} → ${p.price}');
+      }
+
+      return _products.isNotEmpty;
     } catch (e) {
-      debugPrint('Error disposing Razorpay: $e');
+      debugPrint('❌ Error querying products: $e');
+      return false;
     }
   }
 
+  /// Get a specific product by ID
+  ProductDetails? getProduct(String productId) {
+    try {
+      return _products.firstWhere((p) => p.id == productId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Check if a product is a subscription (vs one-time purchase)
+  static bool isSubscription(String productId) {
+    return _subscriptionIds.contains(productId);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ██  PURCHASE FLOW
+  // ══════════════════════════════════════════════════════════════
+
+  /// Initiate a purchase for a given plan.
+  /// This is the main entry point called from the UI.
+  /// Keeps the same API signature as the Razorpay version for compatibility.
   Future<void> initiatePayment({
     required PaymentPlan plan,
     required String userEmail,
     required String userPhone,
     required String userName,
     required Function(PaymentResult) onResult,
-    String? couponCode, // Optional coupon code for Razorpay offers
+    String? couponCode, // Ignored for Google Play (Google manages pricing)
   }) async {
     try {
       debugPrint('🔵 initiatePayment called for plan: ${plan.name}');
-      debugPrint('🔵 Email: $userEmail, Phone: $userPhone, Name: $userName');
-      debugPrint('🔵 Coupon Code: ${couponCode ?? "None"}');
-      debugPrint('🔵 Razorpay Key ID: ${_razorpayKeyId.isNotEmpty ? _razorpayKeyId.substring(0, 10) + "..." : "NOT SET"}');
-      debugPrint('🔵 Is Initialized: $_isInitialized');
-      
-      // Store current plan for use in success handler
+
+      // Store plan and callback
       _currentPlan = plan;
-      
-      // Input validation
-      if (!Validators.isValidEmail(userEmail)) {
-        debugPrint('❌ Email validation failed');
-        onResult(PaymentResult.failure(
-          errorMessage: 'Invalid email address',
-          errorCode: 'INVALID_EMAIL',
-        ));
-        return;
-      }
-
-      if (!Validators.isValidPhone(userPhone)) {
-        debugPrint('❌ Phone validation failed: $userPhone');
-        onResult(PaymentResult.failure(
-          errorMessage: 'Invalid phone number',
-          errorCode: 'INVALID_PHONE',
-        ));
-        return;
-      }
-
-      if (!Validators.isValidName(userName)) {
-        debugPrint('❌ Name validation failed: $userName');
-        onResult(PaymentResult.failure(
-          errorMessage: 'Invalid user name',
-          errorCode: 'INVALID_NAME',
-        ));
-        return;
-      }
-
-      if (!Validators.isValidAmount(plan.price)) {
-        debugPrint('❌ Amount validation failed: ${plan.price}');
-        onResult(PaymentResult.failure(
-          errorMessage: 'Invalid payment amount',
-          errorCode: 'INVALID_AMOUNT',
-        ));
-        return;
-      }
-
-      // Check if Razorpay is initialized
-      if (!_isInitialized) {
-        debugPrint('❌ Razorpay not initialized! Trying to initialize now...');
-        initialize();
-        if (!_isInitialized) {
-          debugPrint('❌ Still not initialized after retry');
-          onResult(PaymentResult.failure(
-            errorMessage: 'Payment service not available. Check Razorpay configuration.',
-            errorCode: 'SERVICE_UNAVAILABLE',
-          ));
-          return;
-        }
-      }
-
-      debugPrint('✅ Razorpay initialized, proceeding with payment...');
       _onPaymentResult = onResult;
 
-      // Generate receipt ID
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final receiptId = 'rcpt_${timestamp}';
-
-      final options = {
-        'key': _razorpayKeyId,
-        'amount': (plan.price * 100).toInt(), // Amount in paisa
-        'currency': plan.currency,
-        'name': _companyName,
-        'description': '${plan.name} Subscription',
-        'receipt': receiptId,
-        'image': _companyLogo,
-        'prefill': {
-          'contact': userPhone.isNotEmpty ? userPhone.trim() : null,
-          'email': userEmail.trim(),
-          'name': userName.isNotEmpty ? userName.trim() : null,
-        },
-        'theme': {
-          'color': '#8B4513', // DinCharya warm brown color
-        },
-        'notes': {
-          'plan_id': plan.id,
-          'plan_duration': plan.duration,
-          'user_email': userEmail.trim(),
-          'coupon_code': couponCode ?? '',
-          'timestamp': timestamp.toString(),
-        },
-        'retry': {'enabled': true, 'max_count': 3},
-        'send_sms_hash': true,
-        'remember_customer': true,
-        'timeout': 300, // 5 minutes
-      };
-
-      // Validate options before proceeding
-      if (!_validatePaymentOptions(options)) {
-        debugPrint('❌ Payment options validation failed');
+      if (!_isAvailable) {
+        debugPrint('❌ Google Play Billing not available');
         onResult(PaymentResult.failure(
-          errorMessage: 'Invalid payment configuration',
-          errorCode: 'INVALID_CONFIG',
+          errorMessage: 'Google Play Billing is not available on this device',
+          errorCode: 'SERVICE_UNAVAILABLE',
         ));
         return;
       }
 
-      debugPrint('✅ Opening Razorpay with options: $options');
-      _razorpay?.open(options);
+      // Find the matching Google Play product
+      final product = getProduct(plan.id);
+      if (product == null) {
+        debugPrint('❌ Product not found: ${plan.id}');
+        debugPrint('   Available products: ${_products.map((p) => p.id).toList()}');
+        onResult(PaymentResult.failure(
+          errorMessage: 'Product not available. Please try again later.',
+          errorCode: 'PRODUCT_NOT_FOUND',
+        ));
+        return;
+      }
+
+      // Determine purchase type
+      await _buyProduct(product, plan);
     } catch (e) {
-      debugPrint('Error initiating payment: $e');
+      debugPrint('❌ Error initiating purchase: $e');
       onResult(PaymentResult.failure(
-        errorMessage: 'Failed to initiate payment: ${e.toString()}',
+        errorMessage: 'Failed to initiate purchase: ${e.toString()}',
         errorCode: 'INITIATION_ERROR',
       ));
     }
   }
 
-  // Generate secure random string
-  // ignore: unused_element - kept for future security features
-  String _generateSecureRandom() {
-    final random = DateTime.now().microsecondsSinceEpoch % 10000;
-    return random.toString().padLeft(4, '0');
-  }
-
-  // Validate payment options
-  bool _validatePaymentOptions(Map<String, dynamic> options) {
+  /// Internal method to trigger Google Play purchase flow
+  Future<void> _buyProduct(ProductDetails product, PaymentPlan plan) async {
     try {
-      if (options['key'] == null || options['key'].toString().isEmpty) {
-        debugPrint('❌ Key is missing');
-        return false;
+      final PurchaseParam purchaseParam = PurchaseParam(
+        productDetails: product,
+      );
+
+      debugPrint('🔵 Starting Google Play purchase for: ${product.id}');
+
+      bool success;
+      if (isSubscription(product.id)) {
+        // Subscriptions are non-consumable by nature
+        success = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+      } else {
+        // Lifetime is a non-consumable one-time purchase
+        success = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
       }
-      if (options['amount'] == null || options['amount'] <= 0) {
-        debugPrint('❌ Amount is invalid: ${options['amount']}');
-        return false;
-      }
-      if (options['currency'] == null ||
-          options['currency'].toString().isEmpty) {
-        debugPrint('❌ Currency is missing');
-        return false;
-      }
-      if (options['name'] == null || options['name'].toString().isEmpty) {
-        debugPrint('❌ Name is missing');
-        return false;
-      }
-      debugPrint('✅ Payment options validated successfully');
-      return true;
+
+      debugPrint('🔵 Purchase initiated: $success');
+      // Actual result comes through _onPurchaseUpdate stream
     } catch (e) {
-      debugPrint('Error validating payment options: $e');
-      return false;
+      debugPrint('❌ Purchase error: $e');
+      _onPaymentResult?.call(PaymentResult.failure(
+        errorMessage: 'Purchase failed: ${e.toString()}',
+        errorCode: 'PURCHASE_ERROR',
+      ));
     }
   }
 
-  Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
+  // ══════════════════════════════════════════════════════════════
+  // ██  PURCHASE STREAM HANDLER
+  // ══════════════════════════════════════════════════════════════
+
+  /// Handle purchase updates from Google Play.
+  /// This is called for ALL purchase events — success, error, restore, pending.
+  void _onPurchaseUpdate(List<PurchaseDetails> purchaseDetailsList) {
+    for (final purchase in purchaseDetailsList) {
+      debugPrint('💰 Purchase update: ${purchase.productID} → ${purchase.status}');
+
+      switch (purchase.status) {
+        case PurchaseStatus.purchased:
+        case PurchaseStatus.restored:
+          _handleSuccessfulPurchase(purchase);
+          break;
+        case PurchaseStatus.error:
+          _handlePurchaseError(purchase);
+          break;
+        case PurchaseStatus.canceled:
+          _handlePurchaseCanceled(purchase);
+          break;
+        case PurchaseStatus.pending:
+          debugPrint('⏳ Purchase pending: ${purchase.productID}');
+          _showToast('Payment is being processed...', isSuccess: true);
+          break;
+      }
+    }
+  }
+
+  /// Handle successful purchase (or restore)
+  Future<void> _handleSuccessfulPurchase(PurchaseDetails purchase) async {
     try {
-      debugPrint('🎉 Payment success callback received!');
-      debugPrint('🎉 Payment ID: ${response.paymentId}');
+      debugPrint('🎉 Purchase successful: ${purchase.productID}');
+      debugPrint('   Purchase ID: ${purchase.purchaseID}');
+      debugPrint('   Status: ${purchase.status}');
 
-      // Validate response
-      if (response.paymentId == null || response.paymentId!.isEmpty) {
-        debugPrint('❌ Invalid payment response - no paymentId');
-        _onPaymentResult?.call(PaymentResult.failure(
-          errorMessage: 'Invalid payment response',
-          errorCode: 'INVALID_RESPONSE',
-        ));
-        return;
+      // ── IMPORTANT: Complete the purchase with Google Play ──
+      // This acknowledges the purchase and prevents auto-refund after 3 days
+      if (purchase.pendingCompletePurchase) {
+        await _iap.completePurchase(purchase);
+        debugPrint('✅ Purchase completed/acknowledged with Google Play');
       }
 
-      debugPrint('✅ Payment ID received: ${response.paymentId}');
-      debugPrint('✅ Order ID: ${response.orderId ?? "none"}');
-      debugPrint('✅ Signature: ${response.signature?.isNotEmpty == true ? "present" : "none"}');
-
-      // Note: Signature verification only works with server-side order creation
-      // For client-side checkout, we skip verification as orderId is not from Razorpay API
-      // The payment is still valid - verified by Razorpay's internal systems
-
-      final result = PaymentResult.success(
-        paymentId: response.paymentId!,
-        orderId: response.orderId ?? '',
-        signature: response.signature ?? '',
-      );
-
-      // Save payment details to database FIRST
+      // Save to Supabase
       try {
-        await _savePaymentDetails(response);
-        debugPrint('✅ Payment details saved successfully');
+        await _savePaymentToSupabase(purchase);
+        debugPrint('✅ Payment saved to Supabase');
       } catch (saveError) {
-        debugPrint('❌ Error saving payment: $saveError');
-        // Still mark as success - payment was made, just log the save error
+        debugPrint('❌ Error saving payment to Supabase: $saveError');
+        // Still mark as success — payment was made
       }
+
+      // Create result
+      final result = PaymentResult.success(
+        paymentId: purchase.purchaseID ?? '',
+        orderId: purchase.productID,
+        signature: '', // Google Play handles verification server-side
+      );
 
       _onPaymentResult?.call(result);
 
       // Show success toast
-      _showToast('Payment successful! Subscription activated.', isSuccess: true);
+      if (purchase.status == PurchaseStatus.purchased) {
+        _showToast('Payment successful! Subscription activated.', isSuccess: true);
+      } else if (purchase.status == PurchaseStatus.restored) {
+        _showToast('Purchase restored successfully!', isSuccess: true);
+      }
     } catch (e) {
-      debugPrint('❌ Error handling payment success: $e');
+      debugPrint('❌ Error handling purchase success: $e');
       _onPaymentResult?.call(PaymentResult.failure(
         errorMessage: 'Error processing payment: ${e.toString()}',
         errorCode: 'PROCESSING_ERROR',
@@ -292,99 +316,57 @@ class PaymentService {
     }
   }
 
-  void _handlePaymentError(PaymentFailureResponse response) {
+  /// Handle purchase error
+  void _handlePurchaseError(PurchaseDetails purchase) {
     try {
-      debugPrint('Payment error: ${response.message}');
+      debugPrint('❌ Purchase error: ${purchase.error}');
 
-      String errorMessage = 'Payment failed';
-      String errorCode = 'UNKNOWN_ERROR';
-
-      if (response.message != null && response.message!.isNotEmpty) {
-        errorMessage = response.message!;
-        // Extract error code if available
-        if (response.message!.contains('cancelled')) {
-          errorCode = 'USER_CANCELLED';
-        } else if (response.message!.contains('failed')) {
-          errorCode = 'PAYMENT_FAILED';
-        } else if (response.message!.contains('timeout')) {
-          errorCode = 'TIMEOUT';
-        }
+      // Complete the purchase to clear it from the queue
+      if (purchase.pendingCompletePurchase) {
+        _iap.completePurchase(purchase);
       }
 
+      final errorMessage = purchase.error?.message ?? 'Payment failed';
       final result = PaymentResult.failure(
         errorMessage: errorMessage,
-        errorCode: errorCode,
+        errorCode: purchase.error?.code ?? 'UNKNOWN_ERROR',
       );
 
       _onPaymentResult?.call(result);
-
-      // Show error toast
       _showToast(errorMessage, isSuccess: false);
     } catch (e) {
-      debugPrint('Error handling payment error: $e');
+      debugPrint('❌ Error handling purchase error: $e');
       _onPaymentResult?.call(PaymentResult.failure(
-        errorMessage: 'Error processing payment failure: ${e.toString()}',
+        errorMessage: 'Error processing payment failure',
         errorCode: 'PROCESSING_ERROR',
       ));
     }
   }
 
-  void _handleExternalWallet(ExternalWalletResponse response) {
-    try {
-      debugPrint('External wallet selected: ${response.walletName}');
-      // Handle external wallet selection if needed
-    } catch (e) {
-      debugPrint('Error handling external wallet: $e');
+  /// Handle purchase cancellation
+  void _handlePurchaseCanceled(PurchaseDetails purchase) {
+    debugPrint('🚫 Purchase canceled: ${purchase.productID}');
+
+    // Complete to clear from queue
+    if (purchase.pendingCompletePurchase) {
+      _iap.completePurchase(purchase);
     }
+
+    _onPaymentResult?.call(PaymentResult.failure(
+      errorMessage: 'Purchase was canceled',
+      errorCode: 'USER_CANCELLED',
+    ));
   }
 
-  // Verify payment signature using HMAC-SHA256
-  // ignore: unused_element - kept for payment verification
-  bool _verifyPaymentSignature(PaymentSuccessResponse response) {
-    try {
-      if (response.signature == null || response.signature!.isEmpty) {
-        return false;
-      }
-      
-      // Skip verification if key secret not configured
-      if (_razorpayKeySecret.isEmpty) {
-        debugPrint('⚠️ Skipping signature verification - key secret not configured');
-        return true;
-      }
+  // ══════════════════════════════════════════════════════════════
+  // ██  SUPABASE INTEGRATION
+  // ══════════════════════════════════════════════════════════════
 
-      // Create the expected signature using HMAC-SHA256
-      final data = '${response.orderId}|${response.paymentId}';
-      final key = utf8.encode(_razorpayKeySecret);
-      final hmac = Hmac(sha256, key);
-      final digest = hmac.convert(utf8.encode(data));
-      final expectedSignature = digest.toString();
-
-      return response.signature == expectedSignature;
-    } catch (e) {
-      debugPrint('Error verifying payment signature: $e');
-      return false;
-    }
-  }
-
-  void _showToast(String message, {required bool isSuccess}) {
-    try {
-      Fluttertoast.showToast(
-        msg: message,
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: isSuccess ? Colors.green : Colors.red,
-        textColor: Colors.white,
-      );
-    } catch (e) {
-      debugPrint('Error showing toast: $e');
-    }
-  }
-
-  /// Save payment to SUPABASE with actual plan data
-  Future<void> _savePaymentDetails(PaymentSuccessResponse response) async {
+  /// Save purchase to Supabase subscriptions table.
+  /// Reuses existing column structure for backward compatibility.
+  Future<void> _savePaymentToSupabase(PurchaseDetails purchase) async {
     try {
       final userId = _supabase.currentUser?.id;
-      
       if (userId == null) {
         debugPrint('⚠️ Cannot save payment: User not authenticated');
         return;
@@ -396,11 +378,12 @@ class PaymentService {
         return;
       }
 
-      // Use stored plan data or default to monthly
-      final plan = _currentPlan ?? PaymentPlan.availablePlans[0];
+      // Determine plan details
+      final plan = _currentPlan ?? _planFromProductId(purchase.productID);
+      final pricing = GeoPricing.getPricing(GeoPricing.detectTier());
       final amountInPaisa = (plan.price * 100).toInt();
-      
-      // Calculate expiry based on plan duration
+
+      // Calculate expiry
       final now = DateTime.now();
       final Duration expiryDuration;
       switch (plan.duration) {
@@ -415,8 +398,7 @@ class PaymentService {
       }
       final expiresAt = now.add(expiryDuration);
 
-      // Deactivate any existing active subscriptions first 
-      // (prevents duplicate active records)
+      // Deactivate existing active subscriptions (prevent duplicates)
       try {
         await client.from('subscriptions')
             .update({
@@ -431,42 +413,51 @@ class PaymentService {
         debugPrint('⚠️ Could not deactivate old subs (non-blocking): $e');
       }
 
-      // Save new subscription to Supabase
+      // Save new subscription
+      // Using existing razorpay_* columns for backward compatibility
+      // razorpay_payment_id → stores Google Play purchase ID
+      // razorpay_order_id → stores unique purchase ID (for dedup)
+      // razorpay_signature → stores purchase token for verification
       await client.from('subscriptions').insert({
         'user_id': userId,
         'plan_id': plan.id,
         'plan_name': plan.name,
         'status': 'active',
-        'razorpay_payment_id': response.paymentId,
-        'razorpay_order_id': response.orderId,
-        'razorpay_signature': response.signature,
+        'razorpay_payment_id': purchase.purchaseID ?? '',
+        'razorpay_order_id': purchase.purchaseID ?? 'gp_${DateTime.now().millisecondsSinceEpoch}',
+        'razorpay_signature': _extractPurchaseToken(purchase),
         'amount': amountInPaisa,
-        'currency': plan.currency,
+        'currency': pricing.currencyCode,
         'started_at': now.toIso8601String(),
         'expires_at': expiresAt.toIso8601String(),
         'is_trial': false,
       });
 
-      // Also save to audit log
-      await client.from('payment_audit_log').insert({
-        'user_id': userId,
-        'event_type': 'payment_success',
-        'razorpay_payment_id': response.paymentId,
-        'razorpay_order_id': response.orderId,
-        'amount': amountInPaisa,
-        'currency': plan.currency,
-        'status': 'success',
-        'metadata': {
-          'signature': response.signature,
-          'plan_id': plan.id,
-          'plan_name': plan.name,
-          'duration': plan.duration,
-        },
-      });
+      // Save to audit log
+      try {
+        await client.from('payment_audit_log').insert({
+          'user_id': userId,
+          'event_type': 'payment_success',
+          'razorpay_payment_id': purchase.purchaseID ?? '',
+          'razorpay_order_id': purchase.productID,
+          'amount': amountInPaisa,
+          'currency': pricing.currencyCode,
+          'status': 'success',
+          'metadata': {
+            'provider': 'google_play',
+            'purchase_token': _extractPurchaseToken(purchase),
+            'plan_id': plan.id,
+            'plan_name': plan.name,
+            'duration': plan.duration,
+          },
+        });
+      } catch (e) {
+        debugPrint('⚠️ Audit log save failed (non-blocking): $e');
+      }
 
       debugPrint('✅ Payment saved to Supabase: ${plan.name} expires ${expiresAt.toIso8601String()}');
-      
-      // Also update user_profiles table to keep subscription status in sync
+
+      // Update user_profiles
       try {
         final tierName = plan.duration == 'lifetime' ? 'lifetime'
             : plan.duration == 'year' ? 'yearly'
@@ -484,18 +475,56 @@ class PaymentService {
         debugPrint('⚠️ user_profiles update failed (non-blocking): $e');
       }
 
-      // Refresh SubscriptionManager cache so premium status takes effect immediately
+      // Refresh SubscriptionManager cache
       await SubscriptionManager().onPaymentSuccess();
       debugPrint('✅ SubscriptionManager cache refreshed after payment');
-      
-      // Clear current plan after saving
+
+      // Clear current plan
       _currentPlan = null;
     } catch (e) {
       debugPrint('❌ Error saving payment to Supabase: $e');
     }
   }
 
-  /// Check subscription from SUPABASE (not SharedPreferences!)
+  /// Extract purchase token from PurchaseDetails (platform-specific)
+  String _extractPurchaseToken(PurchaseDetails purchase) {
+    // The verificationData contains the purchase token for server verification
+    return purchase.verificationData.serverVerificationData;
+  }
+
+  /// Create a PaymentPlan from a product ID (fallback when _currentPlan is null)
+  PaymentPlan _planFromProductId(String productId) {
+    final plans = PaymentPlan.getLocalizedPlans();
+    try {
+      return plans.firstWhere((p) => p.id == productId);
+    } catch (_) {
+      // Fallback to monthly
+      return plans.first;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ██  RESTORE PURCHASES
+  // ══════════════════════════════════════════════════════════════
+
+  /// Restore previous purchases from Google Play.
+  /// Call this from "Restore Purchases" button.
+  Future<void> restorePurchases() async {
+    try {
+      debugPrint('🔄 Restoring purchases from Google Play...');
+      await _iap.restorePurchases();
+      // Results come through _onPurchaseUpdate stream
+    } catch (e) {
+      debugPrint('❌ Error restoring purchases: $e');
+      _showToast('Failed to restore purchases', isSuccess: false);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ██  SUBSCRIPTION QUERIES (unchanged — Supabase-based)
+  // ══════════════════════════════════════════════════════════════
+
+  /// Check if subscription is active (from Supabase)
   Future<bool> isSubscriptionActive() async {
     try {
       final userId = _supabase.currentUser?.id;
@@ -519,7 +548,7 @@ class PaymentService {
     }
   }
 
-  /// Get payment info from SUPABASE (not SharedPreferences!)
+  /// Get last payment info (from Supabase)
   Future<Map<String, dynamic>?> getLastPaymentInfo() async {
     try {
       final userId = _supabase.currentUser?.id;
@@ -539,8 +568,7 @@ class PaymentService {
         return {
           'payment_id': data[0]['razorpay_payment_id'],
           'order_id': data[0]['razorpay_order_id'],
-          'signature': data[0]['razorpay_signature'],
-          'provider': 'razorpay',
+          'provider': 'google_play',
           'status': data[0]['status'],
           'expires_at': data[0]['expires_at'],
         };
@@ -552,7 +580,7 @@ class PaymentService {
     }
   }
 
-  /// Cancel subscription in SUPABASE (not SharedPreferences!)
+  /// Cancel/clear subscription in Supabase
   Future<void> clearSubscription() async {
     try {
       final userId = _supabase.currentUser?.id;
@@ -561,7 +589,6 @@ class PaymentService {
       final client = await _supabase.client;
       if (client == null) return;
 
-      // Mark subscription as cancelled in Supabase
       await client
           .from('subscriptions')
           .update({
@@ -577,20 +604,79 @@ class PaymentService {
     }
   }
 
-  // Utility method to validate Razorpay credentials format
-  static bool validateRazorpayCredentials() {
-    return _razorpayKeyId.startsWith('rzp_') &&
-        _razorpayKeyId != 'YOUR_RAZORPAY_KEY_ID' &&
-        _razorpayKeyId.isNotEmpty;
+  // ══════════════════════════════════════════════════════════════
+  // ██  UTILITIES
+  // ══════════════════════════════════════════════════════════════
+
+  void _showToast(String message, {required bool isSuccess}) {
+    try {
+      Fluttertoast.showToast(
+        msg: message,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: isSuccess ? Colors.green : Colors.red,
+        textColor: Colors.white,
+      );
+    } catch (e) {
+      debugPrint('Error showing toast: $e');
+    }
   }
 
-  // Get Razorpay configuration status
-  static Map<String, dynamic> getRazorpayConfigStatus() {
+  /// Get billing status for debugging
+  static Map<String, dynamic> getBillingStatus() {
+    final instance = PaymentService();
     return {
-      'key_id_configured': _razorpayKeyId.isNotEmpty && _razorpayKeyId.startsWith('rzp_'),
-      'key_secret_configured': _razorpayKeySecret.isNotEmpty,
-      'company_logo_configured': _companyLogo != 'https://your-logo-url.com/logo.png',
-      'credentials_valid': validateRazorpayCredentials(),
+      'provider': 'google_play',
+      'is_available': instance._isAvailable,
+      'is_initialized': instance._isInitialized,
+      'products_loaded': instance._products.length,
+      'product_ids': instance._products.map((p) => p.id).toList(),
     };
   }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// ██  RAZORPAY CODE — DISABLED (kept for future Alternative Billing)
+// ══════════════════════════════════════════════════════════════════
+//
+// When Alternative Billing enrollment is resolved, un-comment this
+// and create a dual-provider system:
+//
+// import 'package:razorpay_flutter/razorpay_flutter.dart';
+// import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:crypto/crypto.dart';
+// import 'dart:convert';
+// import '../core/utils/validators.dart';
+//
+// === Razorpay configuration ===
+// static String get _razorpayKeyId => dotenv.env['RAZORPAY_KEY_ID'] ?? '';
+// static String get _razorpayKeySecret => dotenv.env['RAZORPAY_KEY_SECRET'] ?? '';
+//
+// === Razorpay initialization ===
+// Razorpay? _razorpay;
+// void _initRazorpay() {
+//   _razorpay = Razorpay();
+//   _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+//   _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+//   _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+// }
+//
+// === Razorpay payment options ===
+// final options = {
+//   'key': _razorpayKeyId,
+//   'amount': (plan.price * 100).toInt(),
+//   'currency': plan.currency,
+//   'name': _companyName,
+//   'description': '${plan.name} Subscription',
+//   'prefill': {'contact': userPhone, 'email': userEmail, 'name': userName},
+//   'theme': {'color': '#8B4513'},
+// };
+// _razorpay?.open(options);
+//
+// === Razorpay credential validation ===
+// static bool validateRazorpayCredentials() {
+//   return _razorpayKeyId.startsWith('rzp_') &&
+//       _razorpayKeyId != 'YOUR_RAZORPAY_KEY_ID' &&
+//       _razorpayKeyId.isNotEmpty;
+// }
+// ══════════════════════════════════════════════════════════════════

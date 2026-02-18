@@ -71,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen>
       ]);
 
       // Minimum splash duration (reduced for faster startup)
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       if (mounted) {
         _navigateToNextScreen();
@@ -106,34 +106,22 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       final authService = AuthService();
       final isLoggedIn = await authService.isUserLoggedIn();
-      final hasCompletedOnboarding = await authService.hasCompletedOnboarding();
 
       debugPrint('🎯 Splash Screen Navigation:');
       debugPrint('  - isLoggedIn: $isLoggedIn');
-      debugPrint('  - hasCompletedOnboarding: $hasCompletedOnboarding');
 
       if (isLoggedIn) {
-        if (hasCompletedOnboarding) {
         debugPrint('  - Navigating to: routine-dashboard');
-          Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
-        } else {
-          debugPrint('  - Navigating to: onboarding-flow');
-          Navigator.pushReplacementNamed(context, AppRoutes.onboardingFlow);
-        }
+        Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
       } else {
-        if (hasCompletedOnboarding) {
-          debugPrint('  - Navigating to: authentication-screen');
-          Navigator.pushReplacementNamed(
-              context, AppRoutes.authenticationScreen);
-        } else {
-        debugPrint('  - Navigating to: onboarding-flow');
-          Navigator.pushReplacementNamed(context, AppRoutes.onboardingFlow);
-        }
+        debugPrint('  - Navigating to: authentication-screen');
+        Navigator.pushReplacementNamed(
+            context, AppRoutes.authenticationScreen);
       }
     } catch (e) {
       debugPrint('Error determining navigation: $e');
-      debugPrint('  - Fallback to: onboarding-flow');
-      Navigator.pushReplacementNamed(context, AppRoutes.onboardingFlow);
+      debugPrint('  - Fallback to: authentication-screen');
+      Navigator.pushReplacementNamed(context, AppRoutes.authenticationScreen);
     }
   }
 

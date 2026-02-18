@@ -6,6 +6,7 @@ import '../../core/app_export.dart';
 import '../../core/utils/validators.dart';
 import '../../theme/app_theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/supabase_service.dart';
 import './widgets/auth_footer_widget.dart';
 import './widgets/auth_form_widget.dart';
 import './widgets/auth_header_widget.dart';
@@ -92,9 +93,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         // Success haptic feedback
         HapticFeedback.lightImpact();
 
-        // Navigate to dashboard
+        // Navigate based on whether user has lifestyle profile set
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/routine-dashboard');
+          await _navigateAfterAuth();
         }
       } else {
         setState(() {
@@ -147,9 +148,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         // Success haptic feedback
         HapticFeedback.lightImpact();
 
-        // Navigate to dashboard
+        // Navigate based on whether user has lifestyle profile set
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/routine-dashboard');
+          await _navigateAfterAuth();
         }
       } else {
         setState(() {
@@ -171,6 +172,39 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         _breathingController.stop();
         _breathingController.reset();
       }
+    }
+  }
+
+  /// Check if user has lifestyle profile set and navigate accordingly
+  Future<void> _navigateAfterAuth() async {
+    try {
+      final supabaseService = SupabaseService();
+      final userId = supabaseService.currentUser?.id;
+      if (userId != null) {
+        final client = await supabaseService.client;
+        if (client != null) {
+          // Check if user has any tasks created (indicates they completed lifestyle setup)
+          final tasksData = await client
+              .from('tasks')
+              .select('id')
+              .eq('user_id', userId)
+              .limit(1);
+          
+          final hasTasks = tasksData != null && (tasksData as List).isNotEmpty;
+          
+          if (hasTasks) {
+            // User has tasks - they've completed setup, go to dashboard
+            Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
+            return;
+          }
+        }
+      }
+      // No tasks = new user or never completed setup - go to profile selection
+      Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
+    } catch (e) {
+      debugPrint('Error checking lifestyle profile: $e');
+      // Default to profile selection for new users on error
+      Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
     }
   }
 

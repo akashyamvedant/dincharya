@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../models/task_categories.dart';
 import '../../../services/task_lifecycle_service.dart';
 import './animated_task_checkbox.dart';
 
@@ -183,7 +184,9 @@ class TaskCardWidget extends StatelessWidget {
                                   ),
                                   SizedBox(width: 1.w),
                                   Text(
-                                    '$scheduledTime • $duration',
+                                    TaskCategory.showDuration(task["category"] ?? task["type"]) && duration.isNotEmpty
+                                        ? '$scheduledTime • $duration'
+                                        : scheduledTime,
                                     style: AppTheme.lightTheme.textTheme.bodySmall
                                         ?.copyWith(
                                       color: AppTheme
@@ -721,47 +724,11 @@ class TaskCardWidget extends StatelessWidget {
   }
 
   Color _getTaskTypeColor() {
-    final String taskType = task["type"] ?? task["category"] ?? "";
-    switch (taskType.toLowerCase()) {
-      case 'meditation':
-        return AppTheme.lightTheme.colorScheme.tertiary;
-      case 'yoga':
-        return AppTheme.lightTheme.colorScheme.primary;
-      case 'breathing':
-      case 'pranayama':
-        return AppTheme.lightTheme.colorScheme.secondary;
-      case 'study':
-        return AppTheme.getWarningColor(true);
-      case 'journal':
-        return AppTheme.lightTheme.colorScheme.primaryContainer;
-      case 'exercise':
-        return Colors.orange;
-      case 'work':
-        return Colors.blue;
-      default:
-        return AppTheme.lightTheme.colorScheme.primary;
-    }
+    final String taskType = task["category"] ?? task["type"] ?? "";
+    return TaskCategory.getColor(taskType);
   }
 
   String _getIconForCategory(String? category) {
-    switch ((category ?? '').toLowerCase()) {
-      case 'meditation':
-        return 'self_improvement';
-      case 'yoga':
-        return 'fitness_center';
-      case 'breathing':
-      case 'pranayama':
-        return 'air';
-      case 'study':
-        return 'menu_book';
-      case 'journal':
-        return 'edit_note';
-      case 'exercise':
-        return 'directions_run';
-      case 'work':
-        return 'work';
-      default:
-        return 'task_alt';
-    }
+    return TaskCategory.getIcon(category);
   }
 }

@@ -195,20 +195,26 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        profile.name,
-                        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? AppTheme.lightTheme.colorScheme.primary
-                              : Colors.black87,
+                      Flexible(
+                        child: Text(
+                          profile.name,
+                          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? AppTheme.lightTheme.colorScheme.primary
+                                : Colors.black87,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       SizedBox(width: 2.w),
-                      Text(
-                        profile.nameHindi,
-                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                          color: Colors.black54,
+                      Flexible(
+                        child: Text(
+                          profile.nameHindi,
+                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            color: Colors.black54,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -229,19 +235,25 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                     children: [
                       Icon(Icons.wb_sunny, size: 14, color: Colors.orange),
                       SizedBox(width: 1.w),
-                      Text(
-                        'Wake: ${_formatTime(profile.wakeTime)}',
-                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                          color: Colors.black54,
+                      Flexible(
+                        child: Text(
+                          'Wake: ${_formatTime(profile.wakeTime)}',
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                            color: Colors.black54,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       SizedBox(width: 3.w),
                       Icon(Icons.bedtime, size: 14, color: Colors.indigo),
                       SizedBox(width: 1.w),
-                      Text(
-                        'Sleep: ${_formatTime(profile.sleepTime)}',
-                        style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                          color: Colors.black54,
+                      Flexible(
+                        child: Text(
+                          'Sleep: ${_formatTime(profile.sleepTime)}',
+                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                            color: Colors.black54,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],

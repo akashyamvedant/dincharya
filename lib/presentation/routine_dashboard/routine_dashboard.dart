@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart'; // For generating unique IDs
 
 import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
+import '../../models/task_categories.dart';
 import '../../services/supabase_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/routine_tracking_service.dart';
@@ -14,6 +15,7 @@ import '../../services/app_tour_service.dart';
 import './widgets/add_task_bottom_sheet.dart';
 import './widgets/edit_task_bottom_sheet.dart';
 import './widgets/empty_routine_widget.dart';
+import './widgets/missed_task_feedback_dialog.dart';
 import './widgets/routine_header_widget.dart';
 import './widgets/task_card_widget.dart';
 import './widgets/activity_tracking_dialog.dart';
@@ -1173,6 +1175,18 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     if (userId == null) return;
 
     final updatedStatus = !isCompleted; // Toggle: if completed, mark incomplete and vice versa
+    
+    // ── CHECK FOR MISSED INEVITABLE TASKS BEFORE COMPLETING ──
+    if (updatedStatus && mounted) {
+      // Only check when COMPLETING (not uncompleting)
+      final missedTasks = _getMissedInevitableTasks(taskId);
+      for (final missedTask in missedTasks) {
+        if (!mounted) break;
+        final proceed = await MissedTaskFeedbackDialog.show(context, missedTask);
+        if (!proceed) return; // User dismissed, don't complete
+      }
+    }
+    
     final updates = {
       'is_completed': updatedStatus, // Send boolean, not int
       'updated_at': DateTime.now().toIso8601String(),
@@ -1238,6 +1252,83 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     }
   }
 
+  /// Find missed inevitable tasks that are scheduled BEFORE the task being completed.
+  /// These are tasks like Wake Up, Eating, Sleep that the user does regardless.
+  List<Map<String, dynamic>> _getMissedInevitableTasks(String currentTaskId) {
+    // Find the current task to get its time
+    final currentTask = _todayTasks.firstWhere(
+      (t) => t['id'] == currentTaskId,
+      orElse: () => {},
+    );
+    if (currentTask.isEmpty) return [];
+
+    final currentTimeStr = currentTask['time'] ?? '';
+    final currentMinutes = _timeToMinutes(currentTimeStr);
+    if (currentMinutes < 0) return [];
+
+    final missed = <Map<String, dynamic>>[];
+
+    for (final task in _todayTasks) {
+      if (task['id'] == currentTaskId) continue;
+
+      // Check if task is incomplete
+      final isCompleted = task['is_completed'] == true || task['is_completed'] == 1;
+      if (isCompleted) continue;
+
+      // Check if task is inevitable (wakeup, eating, sleep, hygiene)
+      final categoryId = task['category'] ?? task['type'] ?? '';
+      if (!TaskCategory.isInevitableCategory(categoryId)) continue;
+
+      // Check if task is scheduled BEFORE the current task
+      final taskTimeStr = task['time'] ?? '';
+      final taskMinutes = _timeToMinutes(taskTimeStr);
+      if (taskMinutes < 0 || taskMinutes >= currentMinutes) continue;
+
+      // Check if task status is missed or overdue
+      final status = task['task_status'] ?? '';
+      final isMissedOrOverdue = status == TaskStatus.missed ||
+          status == TaskStatus.overdue ||
+          status == TaskStatus.skipped ||
+          status == ''; // No status = not yet handled
+
+      if (isMissedOrOverdue) {
+        missed.add(task);
+      }
+    }
+
+    // Sort by scheduled time (earliest first)
+    missed.sort((a, b) {
+      final aMin = _timeToMinutes(a['time'] ?? '');
+      final bMin = _timeToMinutes(b['time'] ?? '');
+      return aMin.compareTo(bMin);
+    });
+
+    return missed;
+  }
+
+  /// Convert time string like "6:00 AM" or "14:30" to minutes since midnight
+  int _timeToMinutes(String timeStr) {
+    try {
+      if (timeStr.isEmpty) return -1;
+      
+      final upper = timeStr.toUpperCase().trim();
+      final isPM = upper.contains('PM');
+      final isAM = upper.contains('AM');
+      
+      final cleaned = upper.replaceAll(RegExp(r'[APM\s]'), '');
+      final parts = cleaned.split(':');
+      int hour = int.parse(parts[0]);
+      int minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+
+      if (isPM && hour != 12) hour += 12;
+      if (isAM && hour == 12) hour = 0;
+
+      return hour * 60 + minute;
+    } catch (e) {
+      return -1;
+    }
+  }
+
   void _onTaskEdit(String taskId) {
     // Find the task to edit
     final task = _todayTasks.firstWhere(
@@ -1263,7 +1354,12 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                 'title': updatedTask['title'],
                 'description': updatedTask['description'],
                 'category': updatedTask['category'],
+                'type': updatedTask['type'],
                 'time': updatedTask['time'],
+                'icon': updatedTask['icon'],
+                'duration': updatedTask['duration'],
+                'duration_minutes': updatedTask['duration_minutes'],
+                'is_inevitable': updatedTask['is_inevitable'],
                 'updated_at': DateTime.now().toIso8601String(),
               });
               await _loadTasks();

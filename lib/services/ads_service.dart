@@ -65,31 +65,51 @@ class AdsService {
       await _initializeAdMob();
       debugPrint('✅ AdMob SDK ready');
       
-      // Mark as initialized so ads can start loading
+      // SECOND: Request UMP consent (GDPR/privacy compliance)
+      debugPrint('📢 Checking UMP consent status...');
+      await _requestConsentIfRequired();
+      debugPrint('✅ UMP consent check complete');
+      
+      // Mark as initialized FIRST so shouldShowAds returns true
       _isInitialized = true;
-      
-      // SECOND: Pre-load ALL ads (don't wait for premium check)
-      debugPrint('📢 Pre-loading ads...');
-      
-      // Load ads in parallel for faster loading
-      await Future.wait([
-        loadInterstitialAd(),
-        loadRewardedAd(),
-        loadAppOpenAd(),
-      ]);
-      
-      debugPrint('✅ All ads pre-loaded');
       
       // THIRD: Sync premium status from SubscriptionManager
       await _syncPremiumStatus();
       
       debugPrint('✅ AdsService fully initialized');
       if (!_initCompleter.isCompleted) _initCompleter.complete();
+      
+      // FOURTH: Pre-load full-screen ads with a delay
+      // In release mode, the SDK needs time to warm up after initialize()
+      // Banner/Native ads work because they load lazily when screens mount
+      // Interstitial/Rewarded/AppOpen load immediately — need delay to succeed
+      _preloadFullScreenAds();
     } catch (e) {
       debugPrint('❌ AdsService init error: $e');
       _isInitialized = true; // Continue without blocking
       if (!_initCompleter.isCompleted) _initCompleter.complete();
     }
+  }
+  
+  /// Pre-load full-screen ads with a delay to let SDK warm up
+  /// This runs AFTER initialize() completes, not blocking the app
+  void _preloadFullScreenAds() async {
+    // Wait 2 seconds for SDK to fully warm up (critical for release mode)
+    await Future.delayed(const Duration(seconds: 2));
+    
+    if (!shouldShowAds) {
+      debugPrint('👑 Premium user — skipping ad pre-load');
+      return;
+    }
+    
+    debugPrint('📢 Pre-loading full-screen ads (delayed)...');
+    
+    // Load each ad type independently — don't let one failure block others
+    try { await loadInterstitialAd(); } catch (e) { debugPrint('⚠️ Interstitial pre-load error: $e'); }
+    try { await loadRewardedAd(); } catch (e) { debugPrint('⚠️ Rewarded pre-load error: $e'); }
+    try { await loadAppOpenAd(); } catch (e) { debugPrint('⚠️ App Open pre-load error: $e'); }
+    
+    debugPrint('✅ Full-screen ads pre-load initiated');
   }
   
   // Sync premium status from SubscriptionManager
@@ -121,6 +141,12 @@ class AdsService {
     _rewardedAd = null;
     _appOpenAd?.dispose();
     _appOpenAd = null;
+    _appOpenAdLoadTime = null;
+    // Dispose ALL placement-based rewarded ads
+    for (final ad in _rewardedAds.values) {
+      ad.dispose();
+    }
+    _rewardedAds.clear();
   }
   
   // Refresh premium status (call after subscription changes)
@@ -188,39 +214,92 @@ class AdsService {
       debugPrint('❌ Failed to initialize AdMob: $e');
     }
   }
-
-  // ==================== BANNER AD ====================
   
-  Future<BannerAd?> loadBannerAd({AdSize size = AdSize.banner}) async {
-    if (!shouldShowAds) return null;
-
+  // UMP Consent Framework — GDPR/Privacy compliance
+  // Required for EU/EEA/UK users and US state privacy laws
+  // Without this, Google may block or reduce ad serving
+  Future<void> _requestConsentIfRequired() async {
     try {
-      _bannerAd?.dispose();
-      _bannerAd = BannerAd(
-        adUnitId: AdConstants.bannerAdId,
-        size: size,
-        request: const AdRequest(),
-        listener: BannerAdListener(
-          onAdLoaded: (ad) => debugPrint('✅ Banner ad loaded'),
-          onAdFailedToLoad: (ad, error) {
-            debugPrint('❌ Banner failed: $error');
-            ad.dispose();
-            _bannerAd = null;
-          },
-        ),
+      // Set consent parameters
+      final params = ConsentRequestParameters(
+        // Use debug settings only in debug mode
+        consentDebugSettings: kDebugMode 
+          ? ConsentDebugSettings(
+              debugGeography: DebugGeography.debugGeographyEea,
+              // testIdentifiers: ['YOUR_TEST_DEVICE_HASH'],
+            )
+          : null,
       );
-
-      await _bannerAd!.load();
-      return _bannerAd;
+      
+      // Request consent info update
+      final completer = Completer<void>();
+      
+      ConsentInformation.instance.requestConsentInfoUpdate(
+        params,
+        () async {
+          // Success — check if form is available and needed
+          debugPrint('📋 Consent status: ${await ConsentInformation.instance.getConsentStatus()}');
+          
+          if (await ConsentInformation.instance.isConsentFormAvailable()) {
+            // Load and show the consent form if needed
+            final status = await ConsentInformation.instance.getConsentStatus();
+            if (status == ConsentStatus.required) {
+              debugPrint('📋 Consent required — loading form...');
+              ConsentForm.loadConsentForm(
+                (consentForm) {
+                  consentForm.show((formError) {
+                    if (formError != null) {
+                      debugPrint('⚠️ Consent form error: ${formError.message}');
+                    } else {
+                      debugPrint('✅ Consent form completed');
+                    }
+                    if (!completer.isCompleted) completer.complete();
+                  });
+                },
+                (formError) {
+                  debugPrint('⚠️ Failed to load consent form: ${formError.message}');
+                  if (!completer.isCompleted) completer.complete();
+                },
+              );
+            } else {
+              debugPrint('✅ Consent already obtained or not required (status: $status)');
+              if (!completer.isCompleted) completer.complete();
+            }
+          } else {
+            debugPrint('ℹ️ Consent form not available (likely non-EEA region)');
+            if (!completer.isCompleted) completer.complete();
+          }
+        },
+        (formError) {
+          // Failed to get consent info — proceed anyway (non-blocking)
+          debugPrint('⚠️ Consent info update failed: ${formError.message}');
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+      
+      // Wait for consent flow to complete (with timeout)
+      await completer.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('⏱️ Consent check timed out — proceeding without');
+        },
+      );
     } catch (e) {
-      debugPrint('❌ Error loading banner: $e');
-      return null;
+      // Non-blocking — don't prevent ads from loading if consent fails
+      debugPrint('⚠️ Consent check error: $e');
     }
   }
+
+  // ==================== BANNER AD ====================
+  // NOTE: BannerAdWidget creates its own BannerAd instances per-placement.
+  // No centralized banner loading needed here.
   
   BannerAd? get bannerAd => _bannerAd;
 
   // ==================== INTERSTITIAL AD ====================
+  
+  /// Max retry attempts for loading full-screen ads
+  static const int _maxLoadRetries = 3;
   
   Future<void> loadInterstitialAd([InterstitialPlacement? placement]) async {
     debugPrint('📢 loadInterstitialAd called for ${placement?.name ?? "default"}');
@@ -230,28 +309,57 @@ class AdsService {
       return;
     }
 
-    try {
-      final adUnitId = placement != null 
-          ? AdConstants.getInterstitialAdId(placement)
-          : AdConstants.interstitialAdId;
-      
-      await InterstitialAd.load(
-        adUnitId: adUnitId,
-        request: const AdRequest(),
-        adLoadCallback: InterstitialAdLoadCallback(
-          onAdLoaded: (ad) {
-            _interstitialAd = ad;
-            debugPrint('✅ Interstitial ad loaded for ${placement?.name ?? "default"}');
+    final adUnitId = placement != null 
+        ? AdConstants.getInterstitialAdId(placement)
+        : AdConstants.interstitialAdId;
+    
+    // Retry loop with exponential backoff
+    for (int attempt = 1; attempt <= _maxLoadRetries; attempt++) {
+      try {
+        final completer = Completer<bool>();
+        
+        await InterstitialAd.load(
+          adUnitId: adUnitId,
+          request: const AdRequest(),
+          adLoadCallback: InterstitialAdLoadCallback(
+            onAdLoaded: (ad) {
+              _interstitialAd = ad;
+              debugPrint('✅ Interstitial loaded (attempt $attempt) for ${placement?.name ?? "default"}');
+              if (!completer.isCompleted) completer.complete(true);
+            },
+            onAdFailedToLoad: (error) {
+              debugPrint('❌ Interstitial failed (attempt $attempt): code=${error.code}, domain=${error.domain}, message=${error.message}');
+              _interstitialAd = null;
+              if (!completer.isCompleted) completer.complete(false);
+            },
+          ),
+        );
+        
+        // Wait for the callback (with timeout)
+        final success = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⏱️ Interstitial load timed out (attempt $attempt)');
+            return false;
           },
-          onAdFailedToLoad: (error) {
-            debugPrint('❌ Interstitial failed: $error');
-            _interstitialAd = null;
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('❌ Error loading interstitial: $e');
+        );
+        
+        if (success) return; // Ad loaded successfully
+        
+        // Wait before retry (exponential backoff: 3s, 6s, 12s)
+        if (attempt < _maxLoadRetries) {
+          final delay = Duration(seconds: 3 * attempt);
+          debugPrint('🔄 Retrying interstitial in ${delay.inSeconds}s...');
+          await Future.delayed(delay);
+        }
+      } catch (e) {
+        debugPrint('❌ Interstitial load exception (attempt $attempt): $e');
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      }
     }
+    debugPrint('⚠️ Interstitial: All $_maxLoadRetries attempts failed for ${placement?.name ?? "default"}');
   }
 
   // Show interstitial with frequency capping
@@ -327,27 +435,53 @@ class AdsService {
       return;
     }
 
-    try {
-      final adUnitId = AdConstants.getRewardedAdId(placement);
-      debugPrint('🎯 Loading rewarded ad: ${placement.name} with ID: $adUnitId');
-      
-      await RewardedAd.load(
-        adUnitId: adUnitId,
-        request: const AdRequest(),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          onAdLoaded: (ad) {
-            _rewardedAds[placement] = ad;
-            debugPrint('✅ Rewarded [${placement.name}] loaded');
+    final adUnitId = AdConstants.getRewardedAdId(placement);
+    debugPrint('🎯 Loading rewarded ad: ${placement.name} with ID: $adUnitId');
+    
+    for (int attempt = 1; attempt <= _maxLoadRetries; attempt++) {
+      try {
+        final completer = Completer<bool>();
+        
+        await RewardedAd.load(
+          adUnitId: adUnitId,
+          request: const AdRequest(),
+          rewardedAdLoadCallback: RewardedAdLoadCallback(
+            onAdLoaded: (ad) {
+              _rewardedAds[placement] = ad;
+              debugPrint('✅ Rewarded [${placement.name}] loaded (attempt $attempt)');
+              if (!completer.isCompleted) completer.complete(true);
+            },
+            onAdFailedToLoad: (error) {
+              debugPrint('❌ Rewarded [${placement.name}] failed (attempt $attempt): code=${error.code}, domain=${error.domain}, message=${error.message}');
+              _rewardedAds.remove(placement);
+              if (!completer.isCompleted) completer.complete(false);
+            },
+          ),
+        );
+        
+        final success = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            debugPrint('⏱️ Rewarded [${placement.name}] timed out (attempt $attempt)');
+            return false;
           },
-          onAdFailedToLoad: (error) {
-            debugPrint('❌ Rewarded [${placement.name}] failed: $error');
-            _rewardedAds.remove(placement);
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('❌ Error loading rewarded [${placement.name}]: $e');
+        );
+        
+        if (success) return;
+        
+        if (attempt < _maxLoadRetries) {
+          final delay = Duration(seconds: 3 * attempt);
+          debugPrint('🔄 Retrying rewarded [${placement.name}] in ${delay.inSeconds}s...');
+          await Future.delayed(delay);
+        }
+      } catch (e) {
+        debugPrint('❌ Rewarded [${placement.name}] exception (attempt $attempt): $e');
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      }
     }
+    debugPrint('⚠️ Rewarded [${placement.name}]: All $_maxLoadRetries attempts failed');
   }
   
   /// Check if rewarded ad is ready for specific placement
@@ -399,24 +533,44 @@ class AdsService {
       return;
     }
 
-    try {
-      await RewardedAd.load(
-        adUnitId: AdConstants.rewardedAdId,
-        request: const AdRequest(),
-        rewardedAdLoadCallback: RewardedAdLoadCallback(
-          onAdLoaded: (ad) {
-            _rewardedAd = ad;
-            debugPrint('✅ Rewarded ad loaded (legacy)');
-          },
-          onAdFailedToLoad: (error) {
-            debugPrint('❌ Rewarded failed: $error');
-            _rewardedAd = null;
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('❌ Error loading rewarded: $e');
+    for (int attempt = 1; attempt <= _maxLoadRetries; attempt++) {
+      try {
+        final completer = Completer<bool>();
+        
+        await RewardedAd.load(
+          adUnitId: AdConstants.rewardedAdId,
+          request: const AdRequest(),
+          rewardedAdLoadCallback: RewardedAdLoadCallback(
+            onAdLoaded: (ad) {
+              _rewardedAd = ad;
+              debugPrint('✅ Rewarded (legacy) loaded (attempt $attempt)');
+              if (!completer.isCompleted) completer.complete(true);
+            },
+            onAdFailedToLoad: (error) {
+              debugPrint('❌ Rewarded (legacy) failed (attempt $attempt): code=${error.code}, domain=${error.domain}, message=${error.message}');
+              _rewardedAd = null;
+              if (!completer.isCompleted) completer.complete(false);
+            },
+          ),
+        );
+        
+        final success = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => false,
+        );
+        if (success) return;
+        
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      } catch (e) {
+        debugPrint('❌ Rewarded (legacy) exception (attempt $attempt): $e');
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      }
     }
+    debugPrint('⚠️ Rewarded (legacy): All $_maxLoadRetries attempts failed');
   }
 
   bool get isRewardedAdReady => _rewardedAd != null;
@@ -484,26 +638,46 @@ class AdsService {
       _appOpenAdLoadTime = null;
     }
 
-    try {
-      await AppOpenAd.load(
-        adUnitId: AdConstants.appOpenAdId,
-        request: const AdRequest(),
-        adLoadCallback: AppOpenAdLoadCallback(
-          onAdLoaded: (ad) {
-            _appOpenAd = ad;
-            _appOpenAdLoadTime = DateTime.now();  // Track load time for expiry
-            debugPrint('✅ App Open ad loaded');
-          },
-          onAdFailedToLoad: (error) {
-            debugPrint('❌ App Open failed: $error');
-            _appOpenAd = null;
-            _appOpenAdLoadTime = null;
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('❌ Error loading App Open: $e');
+    for (int attempt = 1; attempt <= _maxLoadRetries; attempt++) {
+      try {
+        final completer = Completer<bool>();
+        
+        await AppOpenAd.load(
+          adUnitId: AdConstants.appOpenAdId,
+          request: const AdRequest(),
+          adLoadCallback: AppOpenAdLoadCallback(
+            onAdLoaded: (ad) {
+              _appOpenAd = ad;
+              _appOpenAdLoadTime = DateTime.now();
+              debugPrint('✅ App Open loaded (attempt $attempt)');
+              if (!completer.isCompleted) completer.complete(true);
+            },
+            onAdFailedToLoad: (error) {
+              debugPrint('❌ App Open failed (attempt $attempt): code=${error.code}, domain=${error.domain}, message=${error.message}');
+              _appOpenAd = null;
+              _appOpenAdLoadTime = null;
+              if (!completer.isCompleted) completer.complete(false);
+            },
+          ),
+        );
+        
+        final success = await completer.future.timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => false,
+        );
+        if (success) return;
+        
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      } catch (e) {
+        debugPrint('❌ App Open exception (attempt $attempt): $e');
+        if (attempt < _maxLoadRetries) {
+          await Future.delayed(Duration(seconds: 3 * attempt));
+        }
+      }
     }
+    debugPrint('⚠️ App Open: All $_maxLoadRetries attempts failed');
   }
 
   Future<void> showAppOpenAd() async {
@@ -537,14 +711,7 @@ class AdsService {
   // ==================== CLEANUP ====================
   
   void dispose() {
-    _bannerAd?.dispose();
-    _interstitialAd?.dispose();
-    _rewardedAd?.dispose();
-    _appOpenAd?.dispose();
-    _bannerAd = null;
-    _interstitialAd = null;
-    _rewardedAd = null;
-    _appOpenAd = null;
+    _disposeAllAds();
   }
 }
 

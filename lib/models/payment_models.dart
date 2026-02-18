@@ -1,8 +1,10 @@
 // lib/models/payment_models.dart
 
+
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 /// Country pricing tier classification
 enum PricingTier {
@@ -186,6 +188,7 @@ class PaymentPlan {
   final String duration;
   final List<String> features;
   final bool isPopular;
+  final String? googlePlayPrice; // Localized price string from Google Play
 
   const PaymentPlan({
     required this.id,
@@ -195,16 +198,95 @@ class PaymentPlan {
     required this.duration,
     required this.features,
     this.isPopular = false,
+    this.googlePlayPrice,
   });
 
-  /// Get localized plans based on user's geo-tier
+  // ── Google Play Product IDs ──
+  // Must match exactly what's created in Play Console
+  static const String monthlyProductId = 'monthly_premium';
+  static const String yearlyProductId = 'yearly_premium';
+  static const String lifetimeProductId = 'lifetime_premium';
+
+  static const Set<String> allProductIds = {
+    monthlyProductId,
+    yearlyProductId,
+    lifetimeProductId,
+  };
+
+  /// Create a PaymentPlan from a Google Play ProductDetails.
+  /// Uses Google's localized pricing (auto geo-priced).
+  factory PaymentPlan.fromProductDetails(ProductDetails product) {
+    String duration;
+    bool isPopular = false;
+    List<String> features = _premiumFeatures;
+
+    switch (product.id) {
+      case monthlyProductId:
+        duration = 'month';
+        break;
+      case yearlyProductId:
+        duration = 'year';
+        isPopular = true;
+        features = [
+          ..._premiumFeatures,
+          'Save vs monthly billing',
+        ];
+        break;
+      case lifetimeProductId:
+        duration = 'lifetime';
+        features = [
+          ..._premiumFeatures,
+          'One-time payment — yours forever',
+          'All future updates included',
+        ];
+        break;
+      default:
+        duration = 'month';
+    }
+
+    // Extract numeric price from raw price (micros/1,000,000)
+    final double price = product.rawPrice;
+
+    return PaymentPlan(
+      id: product.id,
+      name: product.title,
+      price: price,
+      currency: product.currencyCode,
+      duration: duration,
+      features: features,
+      isPopular: isPopular,
+      googlePlayPrice: product.price, // e.g., "₹199.00", "$9.99"
+    );
+  }
+
+  /// Build list of PaymentPlans from Google Play ProductDetails.
+  /// Falls back to local pricing if Google Play products aren't loaded.
+  static List<PaymentPlan> fromGooglePlayProducts(List<ProductDetails> products) {
+    if (products.isEmpty) {
+      debugPrint('⚠️ No Google Play products — using local fallback pricing');
+      return getLocalizedPlans();
+    }
+
+    // Sort: monthly → yearly → lifetime
+    final sorted = List<ProductDetails>.from(products);
+    const order = [monthlyProductId, yearlyProductId, lifetimeProductId];
+    sorted.sort((a, b) {
+      final ai = order.indexOf(a.id);
+      final bi = order.indexOf(b.id);
+      return (ai == -1 ? 99 : ai).compareTo(bi == -1 ? 99 : bi);
+    });
+
+    return sorted.map((p) => PaymentPlan.fromProductDetails(p)).toList();
+  }
+
+  /// Get localized plans based on user's geo-tier (fallback pricing)
   static List<PaymentPlan> getLocalizedPlans() {
     final tier = GeoPricing.detectTier();
     final pricing = GeoPricing.getPricing(tier);
 
     return [
       PaymentPlan(
-        id: 'monthly_premium',
+        id: monthlyProductId,
         name: 'Monthly Premium',
         price: pricing.monthlyPrice,
         currency: pricing.currencyCode,
@@ -212,7 +294,7 @@ class PaymentPlan {
         features: _premiumFeatures,
       ),
       PaymentPlan(
-        id: 'yearly_premium',
+        id: yearlyProductId,
         name: 'Yearly Premium',
         price: pricing.yearlyPrice,
         currency: pricing.currencyCode,
@@ -225,7 +307,7 @@ class PaymentPlan {
       ),
       if (pricing.lifetimePrice != null)
         PaymentPlan(
-          id: 'lifetime_premium',
+          id: lifetimeProductId,
           name: 'Lifetime Access',
           price: pricing.lifetimePrice!,
           currency: pricing.currencyCode,

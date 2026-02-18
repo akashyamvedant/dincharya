@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_export.dart';
 import '../../payment/payment_plans_screen.dart';
@@ -500,7 +501,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '₹${plan.price.toInt()}',
+                            '${GeoPricing.getPricing(GeoPricing.detectTier()).currencySymbol}${plan.price.toInt()}',
                             style: TextStyle(
                               fontSize: 22.sp,
                               fontWeight: FontWeight.bold,
@@ -519,11 +520,11 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                'Save ₹389',
+                                'Save ~33%',
                                 style: TextStyle(
                                   color: Colors.green,
                                   fontSize: 8.sp,
@@ -773,7 +774,10 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Cancel Subscription?'),
-        content: Text('You will lose access to all premium features. Are you sure?'),
+        content: Text(
+          'To cancel your subscription, you need to manage it through Google Play Store. '
+          'This will open your Play Store subscriptions page.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -782,14 +786,26 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
-              await _paymentService.clearSubscription();
-              _checkSubscriptionStatus();
+              // Open Google Play subscriptions management page
+              // Users MUST cancel through Play Store for Google Play Billing
+              final url = Uri.parse(
+                'https://play.google.com/store/account/subscriptions?package=com.akashyam.dincharya',
+              );
+              try {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              } catch (e) {
+                // Fallback: open generic subscriptions page
+                await launchUrl(
+                  Uri.parse('https://play.google.com/store/account/subscriptions'),
+                  mode: LaunchMode.externalApplication,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: Text('Cancel'),
+            child: Text('Open Play Store'),
           ),
         ],
       ),

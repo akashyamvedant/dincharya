@@ -438,7 +438,7 @@ class AuthFormWidget extends StatelessWidget {
 
           // Google Sign In button
           SizedBox(
-            height: 7.h,
+            height: 6.h,
             child: OutlinedButton.icon(
               onPressed: isLoading ? null : onGoogleSignIn,
               style: OutlinedButton.styleFrom(
@@ -465,7 +465,7 @@ class AuthFormWidget extends StatelessWidget {
             ),
           ),
 
-          const Spacer(),
+          SizedBox(height: 2.h),
         ],
       ),
     );

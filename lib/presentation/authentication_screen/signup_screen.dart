@@ -105,13 +105,13 @@ class _SignUpScreenState extends State<SignUpScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome to DinCharya! Let\'s get started.'),
+              content: Text('Welcome to DinCharya! Let\'s set up your lifestyle.'),
               backgroundColor: AppTheme.lightTheme.colorScheme.primary,
             ),
           );
 
-          // Navigate to dashboard (user is auto-logged in)
-          Navigator.pushReplacementNamed(context, '/routine-dashboard');
+          // Navigate to lifestyle selection (new user needs to pick lifestyle)
+          Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
         }
       } else {
         setState(() {
@@ -152,9 +152,9 @@ class _SignUpScreenState extends State<SignUpScreen>
         // Success haptic feedback
         HapticFeedback.lightImpact();
 
-        // Navigate to dashboard
+        // Navigate to lifestyle selection (new user)
         if (mounted) {
-          Navigator.pushReplacementNamed(context, '/routine-dashboard');
+          Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
         }
       } else {
         setState(() {

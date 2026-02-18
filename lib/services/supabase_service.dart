@@ -376,7 +376,12 @@ class SupabaseService {
         'title': taskData['title'].toString().trim(),
         'description': taskData['description']?.toString().trim() ?? '',
         'category': taskData['category']?.toString().trim(),
+        'type': taskData['type']?.toString().trim(),
         'time': taskData['time']?.toString().trim(),
+        'duration': taskData['duration']?.toString().trim(),
+        'duration_minutes': taskData['duration_minutes'],
+        'icon': taskData['icon']?.toString().trim(),
+        'is_inevitable': taskData['is_inevitable'],
         'due_date': taskData['due_date'],
         'priority': taskData['priority'],
         'status': taskData['status'],
@@ -428,6 +433,19 @@ class SupabaseService {
         } else if (key == 'category' &&
             Validators.isValidString(value.toString(), maxLength: 100)) {
           sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'type' &&
+            Validators.isValidString(value.toString(), maxLength: 100)) {
+          sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'duration' &&
+            Validators.isValidString(value.toString(), maxLength: 50)) {
+          sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'duration_minutes' && value is int) {
+          sanitizedUpdates[key] = value;
+        } else if (key == 'icon' &&
+            Validators.isValidString(value.toString(), maxLength: 100)) {
+          sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'is_inevitable' && value is bool) {
+          sanitizedUpdates[key] = value;
         } else if (key == 'status' &&
             Validators.isValidString(value.toString(), maxLength: 50)) {
           sanitizedUpdates[key] = value.toString().trim();

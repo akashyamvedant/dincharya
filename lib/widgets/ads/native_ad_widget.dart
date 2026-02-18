@@ -95,9 +95,47 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Don't show anything if not loaded
+    // Show loading skeleton while ad is loading (prevents content jump)
     if (!_isLoaded || _nativeAd == null) {
-      return const SizedBox.shrink();
+      return Container(
+        width: MediaQuery.of(context).size.width - 32,
+        height: 120,
+        margin: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDF8F3),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B4513).withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: const Color(0xFF8B4513).withValues(alpha: 0.3),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Loading...',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: const Color(0xFF8B4513).withValues(alpha: 0.3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     // Get screen width for explicit sizing
@@ -121,7 +159,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B4513).withOpacity(0.08),
+            color: const Color(0xFF8B4513).withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

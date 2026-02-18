@@ -19,7 +19,7 @@ class Validators {
   }
 
   static bool isValidPhone(String phone) {
-    // Allow empty phone for payment (Razorpay will use user's phone)
+    // Allow empty phone (Google Play handles user identity)
     if (phone.isEmpty) return true;
     // Accept Indian phone: 10 digits, optionally with +91 prefix
     final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
@@ -27,16 +27,12 @@ class Validators {
   }
 
   static bool isValidName(String name) {
-    // Allow empty name for payment (Razorpay will handle)
+    // Allow empty name (Google Play handles user identity)
     if (name.isEmpty) return true;
     return name.length <= 100;
   }
 
   static bool isValidAmount(double amount) {
     return amount > 0 && amount <= 100000; // Max 1 lakh INR
-  }
-
-  static bool isValidRazorpayKey(String key) {
-     return key.isNotEmpty && key.startsWith('rzp_') && key != 'YOUR_RAZORPAY_KEY_ID';
   }
 }

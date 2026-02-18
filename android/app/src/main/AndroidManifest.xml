@@ -7,6 +7,9 @@
     <!-- Basic permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    
+    <!-- Google Play Billing for in-app purchases -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
 
     <!-- NOTE: Storage permissions removed to comply with Google Play Photo/Video policy.
          App uses Android system photo picker for one-time image access (profile photo, journal).

@@ -286,17 +286,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     try {
       final authService = AuthService();
       final isLoggedIn = await authService.isUserLoggedIn();
-      final hasCompletedOnboarding = await authService.hasCompletedOnboarding();
 
       setState(() {
-        if (isLoggedIn && hasCompletedOnboarding) {
-          // User is logged in and has completed onboarding - go to dashboard
+        if (isLoggedIn) {
+          // User is logged in - go directly to dashboard
           _initialRoute = AppRoutes.routineDashboard;
-        } else if (isLoggedIn && !hasCompletedOnboarding) {
-          // User is logged in but hasn't completed onboarding - go to onboarding
-          _initialRoute = AppRoutes.onboardingFlow;
         } else {
-          // New user (not logged in) - start with splash screen for better UX
+          // New user (not logged in) - start with splash screen → auth
           _initialRoute = AppRoutes.splashScreen;
         }
       });

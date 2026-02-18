@@ -1079,10 +1079,12 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                               ],
                             ),
                           ),
+                      
+                        // Banner Ad - inside scroll area so it doesn't clip
+                        const BannerAdWidget(placement: BannerPlacement.journal),
+                        
+                        SizedBox(height: 1.h),
                       ]))),
-          
-          // Banner Ad at bottom
-          const BannerAdWidget(placement: BannerPlacement.journal),
         ]),
         bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,

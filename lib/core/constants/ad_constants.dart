@@ -260,17 +260,19 @@ class AdConstants {
   }
 
   // ════════════════════════════════════════════════════════════════
-  // FREQUENCY CAPPING - AdMob Policy Compliant
-  // Google recommends: 1 interstitial per hour per user (minimum)
-  // We use conservative settings to avoid policy violations
+  // FREQUENCY CAPPING - AdMob 2026 Policy Compliant
+  // Google recommends: max 1 interstitial per hour per user
+  // Wellness apps should be even more conservative to avoid
+  // negative reviews and user churn
   // ════════════════════════════════════════════════════════════════
   
   /// Show interstitial after this many user actions (natural transitions)
-  static const int interstitialFrequency = 3;
+  /// 5 actions = good balance between revenue and user experience
+  static const int interstitialFrequency = 5;
   
   /// Minimum seconds between interstitial ads (any placement)
-  /// Google recommends 1 per hour - we use 2 minutes as safe balance
-  static const int minSecondsBetweenInterstitials = 120;
+  /// 5 minutes (300s) = safe for wellness app category
+  static const int minSecondsBetweenInterstitials = 300;
   
   /// App Open ad expiry in hours (Google policy: max 4 hours)
   static const int appOpenAdExpiryHours = 4;

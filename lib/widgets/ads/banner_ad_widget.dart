@@ -51,16 +51,20 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     }
 
     // Get adaptive ad size based on screen width
+    // Uses the latest AdMob API (replaces deprecated getCurrentOrientationAnchoredAdaptiveBannerAdSize)
     if (widget.useAdaptiveSize && widget.adSize == null) {
       final width = MediaQuery.of(context).size.width.truncate();
-      _adSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
+      _adSize = await AdSize.getAnchoredAdaptiveBannerAdSize(
+        Orientation.portrait,
+        width,
+      );
       if (_adSize == null) {
         debugPrint('❌ Banner [${widget.placement.name}]: Unable to get adaptive size');
-        // Fallback to standard banner
-        _adSize = AdSize.banner;
+        // Fallback to large banner (320x100) — ~40% higher eCPM than standard (320x50)
+        _adSize = AdSize.largeBanner;
       }
     } else {
-      _adSize = widget.adSize ?? AdSize.banner;
+      _adSize = widget.adSize ?? AdSize.largeBanner;
     }
 
     try {
@@ -104,9 +108,17 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Don't show anything if not loaded
+    // Show a subtle placeholder while ad is loading (reserves space, prevents content jump)
     if (!_isLoaded || _bannerAd == null || _adSize == null) {
-      return const SizedBox.shrink();
+      return Container(
+        width: double.infinity,
+        height: 60,
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDF8F3),
+          borderRadius: BorderRadius.circular(12),
+        ),
+      );
     }
 
     // Full-width themed container — centers the ad properly
@@ -118,7 +130,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B4513).withOpacity(0.08),
+            color: const Color(0xFF8B4513).withValues(alpha: 0.08),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -136,7 +148,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
                 'Ad',
                 style: TextStyle(
                   fontSize: 10,
-                  color: const Color(0xFF8B4513).withOpacity(0.4),
+                  color: const Color(0xFF8B4513).withValues(alpha: 0.4),
                   fontWeight: FontWeight.w500,
                 ),
               ),

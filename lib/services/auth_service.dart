@@ -147,7 +147,6 @@ class AuthService {
       if (response.user != null) {
         // Save login state securely
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('has_completed_onboarding', true);
 
         // Store hashed user info for security
         final hashedUserId = _hashData(response.user!.id);
@@ -262,7 +261,6 @@ class AuthService {
 
                 // Save login state securely
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('has_completed_onboarding', true);
 
                 // Store hashed user info for security
                 final hashedUserId = _hashData(response.user!.id);
@@ -382,7 +380,6 @@ class AuthService {
         // Auto-login: Save session state
         try {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('has_completed_onboarding', true);
           
           // Store hashed user info for security
           final hashedUserId = _hashData(response.user!.id);

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../core/app_export.dart';
+import '../presentation/payment/payment_plans_screen.dart';
 import '../services/subscription_manager.dart';
 
 /// Show a soft paywall bottom sheet. Returns true if user chose to navigate to upgrade.
@@ -127,7 +128,13 @@ class _PremiumPaywallSheet extends StatelessWidget {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context, true);
-                Navigator.pushNamed(context, AppRoutes.paymentPlans);
+                // Navigate with MaterialPageRoute since PaymentPlansScreen needs userData
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PaymentPlansScreen(userData: const {}),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFFDAA520),
