@@ -52,7 +52,7 @@ class _PremiumPaywallSheet extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.fromLTRB(6.w, 3.h, 6.w, 5.h),
@@ -97,9 +97,9 @@ class _PremiumPaywallSheet extends StatelessWidget {
           Text(
             '🔒 $featureName',
             textAlign: TextAlign.center,
-            style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.h),
@@ -108,18 +108,18 @@ class _PremiumPaywallSheet extends StatelessWidget {
           Text(
             description,
             textAlign: TextAlign.center,
-            style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.7),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               height: 1.5,
             ),
           ),
           SizedBox(height: 3.h),
 
           // Premium benefits compact list
-          _buildBenefitRow(Icons.smart_toy, 'Unlimited AI Guide conversations'),
-          _buildBenefitRow(Icons.self_improvement, 'Premium guided sessions'),
-          _buildBenefitRow(Icons.analytics, 'Advanced analytics & insights'),
-          _buildBenefitRow(Icons.block, 'Ad-free experience'),
+          _buildBenefitRow(context, Icons.smart_toy, 'Unlimited AI Guide conversations'),
+          _buildBenefitRow(context, Icons.self_improvement, 'Premium guided sessions'),
+          _buildBenefitRow(context, Icons.analytics, 'Advanced analytics & insights'),
+          _buildBenefitRow(context, Icons.block, 'Ad-free experience'),
           SizedBox(height: 3.h),
 
           // Upgrade button
@@ -152,7 +152,7 @@ class _PremiumPaywallSheet extends StatelessWidget {
                   SizedBox(width: 2.w),
                   Text(
                     'Upgrade to Premium',
-                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -168,8 +168,8 @@ class _PremiumPaywallSheet extends StatelessWidget {
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Maybe Later',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.5),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
               ),
             ),
           ),
@@ -178,7 +178,7 @@ class _PremiumPaywallSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildBenefitRow(IconData benefitIcon, String text) {
+  Widget _buildBenefitRow(BuildContext context, IconData benefitIcon, String text) {
     return Padding(
       padding: EdgeInsets.only(bottom: 1.h),
       child: Row(
@@ -188,8 +188,8 @@ class _PremiumPaywallSheet extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),

@@ -14,7 +14,7 @@ class PracticeStatsRow extends StatelessWidget {
     required this.sessionsCount,
   });
 
-  static const Color primaryBrown = Color(0xFF8B4513);
+
 
   @override
   Widget build(BuildContext context) {
@@ -22,11 +22,11 @@ class PracticeStatsRow extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 4.w),
       padding: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 2.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: primaryBrown.withOpacity(0.06),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -36,20 +36,23 @@ class PracticeStatsRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildStat(
+            context: context,
             icon: Icons.timer_outlined,
-            iconColor: const Color(0xFF8B4513),
+            iconColor: Theme.of(context).colorScheme.primary,
             value: '${totalMinutes}',
             label: 'min this week',
           ),
-          _divider(),
+          _divider(context),
           _buildStat(
+            context: context,
             icon: Icons.local_fire_department_rounded,
             iconColor: const Color(0xFFFF5722),
             value: '$streak',
             label: 'day streak',
           ),
-          _divider(),
+          _divider(context),
           _buildStat(
+            context: context,
             icon: Icons.check_circle_outline_rounded,
             iconColor: const Color(0xFF4A7C59),
             value: '$sessionsCount',
@@ -61,6 +64,7 @@ class PracticeStatsRow extends StatelessWidget {
   }
 
   Widget _buildStat({
+    required BuildContext context,
     required IconData icon,
     required Color iconColor,
     required String value,
@@ -73,23 +77,23 @@ class PracticeStatsRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: iconColor, size: 18),
-            const SizedBox(width: 4),
+             SizedBox(width: 4),
             Text(
               value,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 2),
+         SizedBox(height: 2),
         Text(
           label,
           style: TextStyle(
             fontSize: 11,
-            color: const Color(0xFF6B4423).withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -97,11 +101,11 @@ class PracticeStatsRow extends StatelessWidget {
     );
   }
 
-  Widget _divider() {
+  Widget _divider(BuildContext context) {
     return Container(
       height: 30,
       width: 1,
-      color: Colors.grey.shade200,
+      color: Theme.of(context).colorScheme.outline,
     );
   }
 }

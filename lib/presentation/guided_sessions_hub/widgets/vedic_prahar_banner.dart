@@ -69,8 +69,8 @@ class VedicPraharBanner extends StatelessWidget {
                         children: [
                           Text(
                             prahar.nameHindi,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.surface,
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                             ),
@@ -118,8 +118,8 @@ class VedicPraharBanner extends StatelessWidget {
                         ),
                         child: Text(
                           rec.suggestedAction,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.surface,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -151,7 +151,7 @@ class VedicPraharBanner extends StatelessWidget {
           recommendation: 'Brahma Muhurta — the divine hour. Ideal for deep meditation and spiritual practice.',
           suggestedAction: '🧘 Start Deep Meditation',
           category: 'meditation',
-          color: const Color(0xFF3E2723),
+          color: const Color(0xFF2C1810),
           colorEnd: const Color(0xFF5D4037),
         );
       case 'pratah':
@@ -169,7 +169,7 @@ class VedicPraharBanner extends StatelessWidget {
           recommendation: 'Pitta dosha rises. Focus on productive work, light yoga for breaks.',
           suggestedAction: '💪 Quick Yoga Break',
           category: 'yoga',
-          color: const Color(0xFF8B4513),
+          color: const Color(0xFF5D4037),
           colorEnd: const Color(0xFFCD853F),
         );
       case 'madhyahna':
@@ -188,7 +188,7 @@ class VedicPraharBanner extends StatelessWidget {
           suggestedAction: '💪 Grounding Yoga',
           category: 'yoga',
           color: const Color(0xFF6B3410),
-          colorEnd: const Color(0xFF8B4513),
+          colorEnd: const Color(0xFF5D4037),
         );
       case 'sandhya':
         return _PraharRecommendation(
@@ -196,8 +196,8 @@ class VedicPraharBanner extends StatelessWidget {
           recommendation: 'Sandhya Kaal — the sacred transition. Evening meditation calms the mind.',
           suggestedAction: '🧘 Evening Meditation',
           category: 'meditation',
-          color: const Color(0xFF4E342E),
-          colorEnd: const Color(0xFF6D4C41),
+          color: const Color(0xFF2C1810),
+          colorEnd: const Color(0xFF5D4037),
         );
       case 'ratri':
         return _PraharRecommendation(
@@ -206,7 +206,7 @@ class VedicPraharBanner extends StatelessWidget {
           suggestedAction: '🎵 Sleep Soundscape',
           category: 'meditation',
           color: const Color(0xFF2C1810),
-          colorEnd: const Color(0xFF3E2723),
+          colorEnd: const Color(0xFF2C1810),
         );
       default:
         return _PraharRecommendation(

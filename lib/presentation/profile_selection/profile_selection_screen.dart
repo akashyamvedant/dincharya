@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -30,7 +30,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: widget.isOnboarding ? null : AppBar(
         title: const Text('Choose Your Path'),
         centerTitle: true,
@@ -47,23 +47,23 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                     SizedBox(height: 2.h),
                     Text(
                       '🧘 अपना मार्ग चुनें',
-                      style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     SizedBox(height: 1.h),
                   ],
                   Text(
                     'Choose Your Lifestyle',
-                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   SizedBox(height: 1.h),
                   Text(
                     'Select the lifestyle that best matches your daily routine',
-                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.black54,
                     ),
                     textAlign: TextAlign.center,
@@ -101,7 +101,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       ? null
                       : _saveAndContinue,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     padding: EdgeInsets.symmetric(vertical: 2.h),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -113,7 +113,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: AppTheme.lightTheme.colorScheme.onPrimary,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
                         )
                       : Text(
@@ -121,7 +121,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
-                            color: AppTheme.lightTheme.colorScheme.onPrimary,
+                            color: Theme.of(context).colorScheme.onPrimary,
                           ),
                         ),
                 ),
@@ -148,19 +148,19 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
           color: isSelected 
-              ? AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1)
-              : AppTheme.lightTheme.colorScheme.surface,
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.primary
+                ? Color(0xFF8B4513)
                 : Colors.grey.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -174,8 +174,8 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                    ? Color(0xFF8B4513)
+                    : Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: CustomIconWidget(
@@ -183,7 +183,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                 size: 32,
                 color: isSelected
                     ? Colors.white
-                    : AppTheme.lightTheme.colorScheme.primary,
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             SizedBox(width: 4.w),
@@ -198,10 +198,10 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       Flexible(
                         child: Text(
                           profile.name,
-                          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: isSelected
-                                ? AppTheme.lightTheme.colorScheme.primary
+                                ? Color(0xFF8B4513)
                                 : Colors.black87,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -211,7 +211,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       Flexible(
                         child: Text(
                           profile.nameHindi,
-                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.black54,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -222,7 +222,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                   SizedBox(height: 0.5.h),
                   Text(
                     profile.description,
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.black54,
                       height: 1.3,
                     ),
@@ -238,7 +238,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       Flexible(
                         child: Text(
                           'Wake: ${_formatTime(profile.wakeTime)}',
-                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: Colors.black54,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -250,7 +250,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                       Flexible(
                         child: Text(
                           'Sleep: ${_formatTime(profile.sleepTime)}',
-                          style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: Colors.black54,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -267,7 +267,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -297,12 +297,12 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
           color: isSelected 
-              ? AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.1)
-              : AppTheme.lightTheme.colorScheme.surface,
+              ? Theme.of(context).colorScheme.tertiary.withOpacity(0.1)
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.tertiary
+                ? Theme.of(context).colorScheme.tertiary
                 : Colors.grey.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
@@ -313,8 +313,8 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.lightTheme.colorScheme.tertiary
-                    : AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.1),
+                    ? Theme.of(context).colorScheme.tertiary
+                    : Theme.of(context).colorScheme.tertiary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: CustomIconWidget(
@@ -322,7 +322,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                 size: 32,
                 color: isSelected
                     ? Colors.white
-                    : AppTheme.lightTheme.colorScheme.tertiary,
+                    : Theme.of(context).colorScheme.tertiary,
               ),
             ),
             SizedBox(width: 4.w),
@@ -332,17 +332,17 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                 children: [
                   Text(
                     'Custom Routine',
-                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: isSelected
-                          ? AppTheme.lightTheme.colorScheme.tertiary
+                          ? Theme.of(context).colorScheme.tertiary
                           : Colors.black87,
                     ),
                   ),
                   SizedBox(height: 0.5.h),
                   Text(
                     'Build your own unique routine based on your needs',
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.black54,
                     ),
                   ),
@@ -353,7 +353,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.tertiary,
+                  color: Theme.of(context).colorScheme.tertiary,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -426,7 +426,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Profile "${selectedProfile?.name ?? 'Custom'}" selected!'),
-            backgroundColor: AppTheme.getSuccessColor(true),
+            backgroundColor: AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
           ),
         );
 

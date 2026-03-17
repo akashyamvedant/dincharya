@@ -29,6 +29,8 @@ import '../presentation/soundscape/soundscape_screen.dart';
 import '../presentation/session_history/session_history_screen.dart';
 import '../presentation/program_detail/program_detail_screen.dart';
 import '../presentation/ai_guide/ai_guide_screen.dart';
+import '../presentation/community/community_chat_screen.dart';
+import '../presentation/alarm_ring/alarm_ring_screen.dart';
 
 class AppRoutes {
   static const String splashScreen = '/splash-screen';
@@ -60,6 +62,8 @@ class AppRoutes {
   static const String aiGuide = '/ai-guide';
   static const String myTickets = '/my-tickets';
   static const String ticketDetail = '/ticket-detail';
+  static const String community = '/community';
+  static const String alarmRing = '/alarm-ring';
 
   static Map<String, WidgetBuilder> get routes => {
         splashScreen: (context) => const SplashScreen(),
@@ -87,10 +91,24 @@ class AppRoutes {
         soundscape: (context) => const SoundscapeScreen(),
         sessionHistory: (context) => const SessionHistoryScreen(),
         aiGuide: (context) => const AiGuideScreen(),
+        community: (context) => const CommunityChatScreen(),
       };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case alarmRing:
+        final payload = settings.arguments as String?;
+        if (payload != null) {
+          return MaterialPageRoute(
+            builder: (context) => AlarmRingScreen.fromPayload(payload),
+          );
+        }
+        return MaterialPageRoute(
+          builder: (context) => const AlarmRingScreen(
+            taskId: '',
+            taskTitle: 'Wake Up',
+          ),
+        );
       case paymentPlans:
         final userData = settings.arguments as Map<String, dynamic>?;
         if (userData != null) {

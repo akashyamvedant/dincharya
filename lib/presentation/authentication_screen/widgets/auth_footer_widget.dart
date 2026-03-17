@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -25,15 +25,15 @@ class AuthFooterWidget extends StatelessWidget {
             Expanded(
               child: Container(
                 height: 1,
-                color: AppTheme.lightTheme.dividerColor,
+                color: Theme.of(context).dividerColor,
               ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Text(
                 'OR',
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -41,7 +41,7 @@ class AuthFooterWidget extends StatelessWidget {
             Expanded(
               child: Container(
                 height: 1,
-                color: AppTheme.lightTheme.dividerColor,
+                color: Theme.of(context).dividerColor,
               ),
             ),
           ],
@@ -54,10 +54,10 @@ class AuthFooterWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.lightTheme.dividerColor,
+                color: Theme.of(context).dividerColor,
                 width: 1,
               ),
             ),
@@ -65,8 +65,8 @@ class AuthFooterWidget extends StatelessWidget {
               children: [
                 Text(
                   'New to DinCharya?',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 SizedBox(height: 2.h),
@@ -77,7 +77,7 @@ class AuthFooterWidget extends StatelessWidget {
                     onPressed: onCreateAccount,
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -89,15 +89,15 @@ class AuthFooterWidget extends StatelessWidget {
                       children: [
                         CustomIconWidget(
                           iconName: 'person_add',
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         ),
                         SizedBox(width: 2.w),
                         Text(
                           'Create Account',
-                          style: AppTheme.lightTheme.textTheme.titleMedium
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.primary,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -112,10 +112,10 @@ class AuthFooterWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.lightTheme.dividerColor,
+                color: Theme.of(context).dividerColor,
                 width: 1,
               ),
             ),
@@ -123,8 +123,8 @@ class AuthFooterWidget extends StatelessWidget {
               children: [
                 Text(
                   'Already have an account?',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 SizedBox(height: 2.h),
@@ -135,7 +135,7 @@ class AuthFooterWidget extends StatelessWidget {
                     onPressed: onSignIn,
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -147,15 +147,15 @@ class AuthFooterWidget extends StatelessWidget {
                       children: [
                         CustomIconWidget(
                           iconName: 'person',
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         ),
                         SizedBox(width: 2.w),
                         Text(
                           'Sign In',
-                          style: AppTheme.lightTheme.textTheme.titleMedium
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.primary,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -173,8 +173,8 @@ class AuthFooterWidget extends StatelessWidget {
         // Help text
         Text(
           'By continuing, you agree to our Terms of Service\nand Privacy Policy',
-          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           textAlign: TextAlign.center,
         ),

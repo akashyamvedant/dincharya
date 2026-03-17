@@ -4,10 +4,13 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../core/constants/ad_constants.dart';
 import '../../services/ads_service.dart';
+import '../../services/subscription_manager.dart';
 
 /// Reusable Banner Ad Widget with placement support
-/// Uses adaptive banner sizing per AdMob 2025 best practices
-/// Reference: https://developers.google.com/admob/flutter/banner/adaptive
+/// Uses adaptive banner sizing per AdMob 2026 best practices
+///
+/// REACTIVE: Listens to SubscriptionManager — if user buys premium mid-session,
+/// the loaded ad is disposed immediately without requiring app restart.
 class BannerAdWidget extends StatefulWidget {
   final AdSize? adSize;
   final BannerPlacement placement;
@@ -17,7 +20,7 @@ class BannerAdWidget extends StatefulWidget {
     super.key,
     this.adSize,
     this.placement = BannerPlacement.journal,
-    this.useAdaptiveSize = true, // Default to adaptive sizing
+    this.useAdaptiveSize = true,
   });
 
   @override
@@ -28,20 +31,36 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   AdSize? _adSize;
+  final SubscriptionManager _subManager = SubscriptionManager();
 
   @override
   void initState() {
     super.initState();
-    // Delay to ensure context is available
+    // Listen for premium status changes (e.g., user buys premium mid-session)
+    _subManager.addListener(_onPremiumStatusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadBannerAd();
     });
   }
 
+  /// React to premium status changes — dispose ad immediately
+  void _onPremiumStatusChanged() {
+    if (_subManager.isPremium && _bannerAd != null) {
+      debugPrint('👑 Banner [${widget.placement.name}]: Premium activated — disposing ad');
+      _bannerAd?.dispose();
+      if (mounted) {
+        setState(() {
+          _bannerAd = null;
+          _isLoaded = false;
+        });
+      }
+    }
+  }
+
   Future<void> _loadBannerAd() async {
     final adsService = AdsService();
     
-    // Wait for AdsService initialization (replaces fragile 2-second delay)
+    // Wait for AdsService initialization
     await adsService.waitForInitialization;
     
     // Check if we should show ads
@@ -50,26 +69,30 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       return;
     }
 
-    // Get adaptive ad size based on screen width
-    // Uses the latest AdMob API (replaces deprecated getCurrentOrientationAnchoredAdaptiveBannerAdSize)
+    if (!mounted) return;
+
+    // Get adaptive ad size based on AVAILABLE width
     if (widget.useAdaptiveSize && widget.adSize == null) {
-      final width = MediaQuery.of(context).size.width.truncate();
+      final screenWidth = MediaQuery.of(context).size.width;
+      final availableWidth = screenWidth.truncate();
+      
       _adSize = await AdSize.getAnchoredAdaptiveBannerAdSize(
         Orientation.portrait,
-        width,
+        availableWidth,
       );
       if (_adSize == null) {
-        debugPrint('❌ Banner [${widget.placement.name}]: Unable to get adaptive size');
-        // Fallback to large banner (320x100) — ~40% higher eCPM than standard (320x50)
+        debugPrint('❌ Banner [${widget.placement.name}]: Unable to get adaptive size, using largeBanner');
         _adSize = AdSize.largeBanner;
       }
     } else {
       _adSize = widget.adSize ?? AdSize.largeBanner;
     }
 
+    if (!mounted) return;
+
     try {
       final adUnitId = AdConstants.getBannerAdId(widget.placement);
-      debugPrint('🎯 Banner [${widget.placement.name}]: Loading adaptive size ${_adSize!.width}x${_adSize!.height}');
+      debugPrint('🎯 Banner [${widget.placement.name}]: Loading size ${_adSize!.width}x${_adSize!.height}');
       
       _bannerAd = BannerAd(
         adUnitId: adUnitId,
@@ -83,14 +106,19 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
             }
           },
           onAdFailedToLoad: (ad, error) {
-            debugPrint('❌ Banner [${widget.placement.name}]: Failed - ${error.message}');
+            debugPrint('❌ Banner [${widget.placement.name}]: Failed - code=${error.code}, domain=${error.domain}, message=${error.message}');
             ad.dispose();
-            _bannerAd = null;
+            if (mounted) {
+              setState(() {
+                _bannerAd = null;
+                _isLoaded = false;
+              });
+            }
           },
           onAdOpened: (ad) => debugPrint('🎯 Banner [${widget.placement.name}]: Opened'),
           onAdClosed: (ad) => debugPrint('🎯 Banner [${widget.placement.name}]: Closed'),
           onAdClicked: (ad) => debugPrint('👆 Banner [${widget.placement.name}]: Clicked'),
-          onAdImpression: (ad) => debugPrint('👀 Banner [${widget.placement.name}]: Impression'),
+          onAdImpression: (ad) => debugPrint('👀 Banner [${widget.placement.name}]: ✅ IMPRESSION RECORDED'),
         ),
       );
 
@@ -102,73 +130,28 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   void dispose() {
+    _subManager.removeListener(_onPremiumStatusChanged);
     _bannerAd?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Show a subtle placeholder while ad is loading (reserves space, prevents content jump)
     if (!_isLoaded || _bannerAd == null || _adSize == null) {
-      return Container(
-        width: double.infinity,
-        height: 60,
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFDF8F3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-      );
+      return const SizedBox(height: 4);
     }
 
-    // Full-width themed container — centers the ad properly
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDF8F3),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B4513).withValues(alpha: 0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Subtle "Ad" indicator — AdMob policy compliance
-          Padding(
-            padding: const EdgeInsets.only(top: 6, right: 10),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'Ad',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: const Color(0xFF8B4513).withValues(alpha: 0.4),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          // AdWidget with correct height, centered
-          SizedBox(
-            width: _adSize!.width.toDouble(),
-            height: _adSize!.height.toDouble(),
-            child: AdWidget(ad: _bannerAd!),
-          ),
-          const SizedBox(height: 4),
-        ],
+    return SafeArea(
+      child: SizedBox(
+        width: _adSize!.width.toDouble(),
+        height: _adSize!.height.toDouble(),
+        child: AdWidget(ad: _bannerAd!),
       ),
     );
   }
 }
 
 /// Adaptive Banner Ad Widget - Auto-sizes to screen width
-/// Best for top/bottom placement per AdMob 2025 guidelines
 class AdaptiveBannerAdWidget extends StatelessWidget {
   final BannerPlacement placement;
   

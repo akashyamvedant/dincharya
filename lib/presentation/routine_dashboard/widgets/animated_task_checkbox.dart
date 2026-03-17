@@ -125,7 +125,7 @@ class _AnimatedTaskCheckboxState extends State<AnimatedTaskCheckbox>
   @override
   Widget build(BuildContext context) {
     final completedColor = widget.completedColor ?? 
-        AppTheme.lightTheme.colorScheme.primary;
+        Color(0xFF8B4513);
     
     return GestureDetector(
       onTap: _handleTap,
@@ -198,13 +198,13 @@ class _AnimatedTaskCheckboxState extends State<AnimatedTaskCheckbox>
           CircularProgressIndicator(
             value: widget.progress,
             strokeWidth: 3,
-            backgroundColor: AppTheme.lightTheme.colorScheme.outline
+            backgroundColor: Theme.of(context).colorScheme.outline
                 .withOpacity(0.3),
             valueColor: AlwaysStoppedAnimation<Color>(completedColor),
           ),
           Text(
             '${(widget.progress * 100).toInt()}%',
-            style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
               fontSize: 8.sp,
               fontWeight: FontWeight.w600,
             ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -38,10 +38,10 @@ class ContinueSessionCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF8B4513).withOpacity(0.2)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B4513).withOpacity(0.08),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -66,12 +66,12 @@ class ContinueSessionCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8B4513).withOpacity(0.1),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.play_circle_fill_rounded,
-                        color: Color(0xFF8B4513),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 24,
                       ),
                     ),
@@ -85,7 +85,7 @@ class ContinueSessionCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 11.sp,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8B4513),
+                              color: Theme.of(context).colorScheme.primary,
                               letterSpacing: 0.3,
                             ),
                           ),
@@ -94,7 +94,7 @@ class ContinueSessionCard extends StatelessWidget {
                             '$posMin:${posSec.toString().padLeft(2, '0')} / ${totalMin} min  •  ${_getCategoryEmoji(category)} ${_capitalize(category)}',
                             style: TextStyle(
                               fontSize: 10.sp,
-                              color: const Color(0xFF5D4037).withOpacity(0.7),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                             ),
                           ),
                         ],
@@ -104,21 +104,21 @@ class ContinueSessionCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B4513), Color(0xFFA0522D)],
+                        gradient: LinearGradient(
+                          colors: [Theme.of(context).colorScheme.primary, Color(0xFFA0522D)],
                         ),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF8B4513).withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.play_arrow_rounded,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         size: 22,
                       ),
                     ),
@@ -133,7 +133,7 @@ class ContinueSessionCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -144,7 +144,7 @@ class ContinueSessionCard extends StatelessWidget {
                     titleHindi,
                     style: TextStyle(
                       fontSize: 11.sp,
-                      color: const Color(0xFF5D4037),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -159,8 +159,8 @@ class ContinueSessionCard extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 6,
-                    backgroundColor: const Color(0xFF8B4513).withOpacity(0.1),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF8B4513)),
+                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation(Theme.of(context).colorScheme.primary),
                   ),
                 ),
                 SizedBox(height: 0.5.h),
@@ -171,7 +171,7 @@ class ContinueSessionCard extends StatelessWidget {
                       '${(progress * 100).toInt()}% completed',
                       style: TextStyle(
                         fontSize: 9.sp,
-                        color: const Color(0xFF5D4037).withOpacity(0.6),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
                       ),
                     ),
                     Text(
@@ -179,7 +179,7 @@ class ContinueSessionCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 9.sp,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF8B4513),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],

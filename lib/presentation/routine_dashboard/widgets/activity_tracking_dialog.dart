@@ -103,7 +103,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFFFDF8F3), // Light cream background
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Light cream background
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
       ),
@@ -121,13 +121,13 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                   Container(
                     padding: EdgeInsets.all(2.w),
                     decoration: BoxDecoration(
-                      color: AppTheme.lightTheme.colorScheme.primary
+                      color: Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       _isCompleted ? Icons.check_circle : Icons.access_time,
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 24,
                     ),
                   ),
@@ -138,17 +138,17 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                       children: [
                         Text(
                           widget.activityName,
-                          style: AppTheme.lightTheme.textTheme.titleLarge
+                          style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         Text(
                           'Scheduled: ${widget.scheduledTime}',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                          style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
-                            color: Colors.black54,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -162,9 +162,9 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
               // Completion Status
               Text(
                 'Did you complete this activity?',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
 
@@ -180,11 +180,11 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                         decoration: BoxDecoration(
                           color: _isCompleted
                               ? Colors.green.withValues(alpha: 0.1)
-                              : Colors.grey[100],
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color:
-                                _isCompleted ? Colors.green : Colors.grey[300]!,
+                                _isCompleted ? Colors.green : Theme.of(context).colorScheme.outline,
                             width: 2,
                           ),
                         ),
@@ -195,7 +195,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                               Icons.check_circle,
                               color: _isCompleted
                                   ? Colors.green
-                                  : Colors.grey[400],
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                               size: 20,
                             ),
                             SizedBox(width: 2.w),
@@ -204,7 +204,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                               style: TextStyle(
                                 color: _isCompleted
                                     ? Colors.green
-                                    : Colors.black54,
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -222,11 +222,11 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                         decoration: BoxDecoration(
                           color: !_isCompleted
                               ? Colors.red.withValues(alpha: 0.1)
-                              : Colors.grey[100],
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color:
-                                !_isCompleted ? Colors.red : Colors.grey[300]!,
+                                !_isCompleted ? Colors.red : Theme.of(context).colorScheme.outline,
                             width: 2,
                           ),
                         ),
@@ -236,7 +236,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                             Icon(
                               Icons.cancel,
                               color:
-                                  !_isCompleted ? Colors.red : Colors.grey[400],
+                                  !_isCompleted ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
                               size: 20,
                             ),
                             SizedBox(width: 2.w),
@@ -244,7 +244,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                               'No',
                               style: TextStyle(
                                 color:
-                                    !_isCompleted ? Colors.red : Colors.black54,
+                                    !_isCompleted ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -262,9 +262,9 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
               if (_isCompleted) ...[
                 Text(
                   'What time did you actually complete it?',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 2.h),
@@ -273,22 +273,22 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                   child: Container(
                     padding: EdgeInsets.all(3.w),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.access_time, color: Colors.grey[600]),
+                        Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         SizedBox(width: 2.w),
                         Text(
                           _actualTime != null
                               ? DateFormat('HH:mm').format(_actualTime!)
                               : 'Select time',
                           style:
-                              AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
                             color: _actualTime != null
-                                ? Colors.black87
-                                : Colors.grey[600],
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -302,9 +302,9 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
               if (!_isCompleted) ...[
                 Text(
                   'What was the reason?',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 2.h),
@@ -320,22 +320,22 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                                   horizontal: 3.w, vertical: 1.h),
                               decoration: BoxDecoration(
                                 color: _selectedReason == reason
-                                    ? AppTheme.lightTheme.colorScheme.primary
+                                    ? Theme.of(context).colorScheme.primary
                                         .withValues(alpha: 0.1)
-                                    : Colors.grey[100],
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: _selectedReason == reason
-                                      ? AppTheme.lightTheme.colorScheme.primary
-                                      : Colors.grey[300]!,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.outline,
                                 ),
                               ),
                               child: Text(
                                 reason,
                                 style: TextStyle(
                                   color: _selectedReason == reason
-                                      ? AppTheme.lightTheme.colorScheme.primary
-                                      : Colors.black54,
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -349,32 +349,32 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
               // Notes
               Text(
                 'Additional notes (optional)',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               SizedBox(height: 2.h),
               TextField(
                 maxLines: 3,
-                style: TextStyle(color: Colors.black87),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 decoration: InputDecoration(
                   hintText: 'Add any notes about this activity...',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       width: 2,
                     ),
                   ),
@@ -388,9 +388,9 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
               if (_suggestions.isNotEmpty) ...[
                 Text(
                   '💡 Suggestions for improvement:',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 2.h),
@@ -398,7 +398,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                       margin: EdgeInsets.only(bottom: 1.h),
                       padding: EdgeInsets.all(3.w),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.05),
+                        color: Colors.blue.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                             color: Colors.blue.withValues(alpha: 0.2)),
@@ -408,7 +408,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                         children: [
                           Text(
                             suggestion['title'] ?? '',
-                            style: AppTheme.lightTheme.textTheme.titleSmall
+                            style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.blue[700],
@@ -417,9 +417,9 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                           SizedBox(height: 0.5.h),
                           Text(
                             suggestion['description'] ?? '',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
-                              color: Colors.black54,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -437,7 +437,7 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -448,9 +448,8 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
                     child: ElevatedButton(
                       onPressed: _saveTracking,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            AppTheme.lightTheme.colorScheme.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         padding: EdgeInsets.symmetric(vertical: 2.h),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -477,6 +476,32 @@ class _ActivityTrackingDialogState extends State<ActivityTrackingDialog> {
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              hourMinuteTextColor: Theme.of(context).colorScheme.onSurface,
+              dialHandColor: Theme.of(context).colorScheme.primary,
+              dialBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              dayPeriodTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodBorderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+              entryModeIconColor: Theme.of(context).colorScheme.primary,
+              helpTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (time != null) {

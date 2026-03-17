@@ -472,7 +472,7 @@ class _EnhancedJournalScreenState extends State<EnhancedJournalScreen> {
           icon: CustomIconWidget(
             iconName: 'schedule',
             color: _currentBottomIndex == 0
-                ? Theme.of(context).colorScheme.primary
+                ? Color(0xFF8B4513)
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 24,
           ),
@@ -482,7 +482,7 @@ class _EnhancedJournalScreenState extends State<EnhancedJournalScreen> {
           icon: CustomIconWidget(
             iconName: 'self_improvement',
             color: _currentBottomIndex == 1
-                ? Theme.of(context).colorScheme.primary
+                ? Color(0xFF8B4513)
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 24,
           ),
@@ -492,7 +492,7 @@ class _EnhancedJournalScreenState extends State<EnhancedJournalScreen> {
           icon: CustomIconWidget(
             iconName: 'book',
             color: _currentBottomIndex == 2
-                ? Theme.of(context).colorScheme.primary
+                ? Color(0xFF8B4513)
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 24,
           ),
@@ -502,7 +502,7 @@ class _EnhancedJournalScreenState extends State<EnhancedJournalScreen> {
           icon: CustomIconWidget(
             iconName: 'person',
             color: _currentBottomIndex == 3
-                ? Theme.of(context).colorScheme.primary
+                ? Color(0xFF8B4513)
                 : Theme.of(context).colorScheme.onSurfaceVariant,
             size: 24,
           ),

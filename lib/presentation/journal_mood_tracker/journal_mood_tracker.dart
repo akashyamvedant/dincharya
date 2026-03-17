@@ -412,6 +412,14 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
       await _supabaseService.createJournalEntry(entryData);
       await _loadJournalEntries();
       
+      // Clear form after successful save for fresh entry
+      setState(() {
+        _journalController.clear();
+        _selectedMood = '😊';
+        _wordCount = 0;
+        _writingStartTime = null;
+      });
+      
       // Clear attachments after successful save
       _clearAttachments();
       
@@ -422,7 +430,7 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Entry saved! ${imageUrls.length} photos, ${audioUrl != null ? "1 audio" : "0 audio"}'),
-            backgroundColor: AppTheme.lightTheme.primaryColor,
+            backgroundColor: Theme.of(context).primaryColor,
           ),
         );
       }
@@ -563,7 +571,7 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
           style: Theme.of(context)
               .textTheme
               .titleMedium
-              ?.copyWith(color: AppTheme.lightTheme.primaryColor)),
+              ?.copyWith(color: Theme.of(context).primaryColor)),
       SizedBox(height: 0.5.h),
       Text(label, style: Theme.of(context).textTheme.bodySmall),
     ]);
@@ -637,9 +645,9 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                 children: [
                   Text(
                     '📊 Your Mood Insights',
-                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF8B4513),
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   SizedBox(height: 3.h),
@@ -664,7 +672,7 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                   Container(
                     padding: EdgeInsets.all(3.w),
                     decoration: BoxDecoration(
-                      color: Color(0xFF8B4513).withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -678,7 +686,7 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                                 : entryCount > 0 
                                     ? 'Keep writing! Consistency builds a powerful habit.'
                                     : 'Start journaling today to track your mood journey!',
-                            style: AppTheme.lightTheme.textTheme.bodyMedium,
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ),
                       ],
@@ -699,7 +707,7 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
       width: 40.w,
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -711,18 +719,18 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
       ),
       child: Column(
         children: [
-          Icon(icon, color: Color(0xFF8B4513), size: 24),
+          Icon(icon, color: Theme.of(context).colorScheme.primary, size: 24),
           SizedBox(height: 1.h),
           Text(
             value,
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             title,
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -732,9 +740,9 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
 
   @override
   Widget build(BuildContext context) {
-    const warmBrown = Color(0xFF8B4513);
-    const warmAmber = Color(0xFFD4A574);
-    const warmCream = Color(0xFFFFF8F0);
+    final warmBrown = Theme.of(context).colorScheme.primary;
+    final warmAmber = Theme.of(context).colorScheme.secondary;
+    final warmCream = Theme.of(context).scaffoldBackgroundColor;
     
     return Scaffold(
         backgroundColor: warmCream,
@@ -764,18 +772,18 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                 children: [
                   Text(
                     'Journal',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: warmBrown,
                       fontWeight: FontWeight.w800,
-                      fontSize: 15.sp,
+                      fontSize: 20.sp,
                       letterSpacing: 0.3,
                     ),
                   ),
                   Text(
                     'Your daily reflection',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: warmBrown.withOpacity(0.5),
-                      fontSize: 11.sp,
+                      fontSize: 12.sp,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1019,15 +1027,15 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                             margin: EdgeInsets.only(bottom: 2.h),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
-                                colors: [const Color(0xFF8B4513).withOpacity(0.08), const Color(0xFFD4A574).withOpacity(0.04)],
+                                colors: [warmBrown.withOpacity(0.08), warmAmber.withOpacity(0.04)],
                               ),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFF8B4513).withOpacity(0.2)),
+                              border: Border.all(color: warmBrown.withOpacity(0.2)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('New Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8B4513))),
+                                Text('New Attachments', style: TextStyle(fontWeight: FontWeight.bold, color: warmBrown)),
                                 SizedBox(height: 1.h),
                                 Wrap(
                                   spacing: 2.w,
@@ -1089,9 +1097,9 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
         bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             currentIndex: 2, // Journal tab active
-            backgroundColor: Colors.white,
-            selectedItemColor: warmBrown,
-            unselectedItemColor: Colors.grey[600],
+            backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+            selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor ?? warmBrown,
+            unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor ?? Colors.grey[600],
             onTap: (index) {
               switch (index) {
                 case 0:
@@ -1110,20 +1118,20 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
             },
             items: [
               BottomNavigationBarItem(
-                  icon: Icon(Icons.schedule, color: Colors.grey[600], size: 24),
-                  activeIcon: Icon(Icons.schedule, color: warmBrown, size: 24),
+                  icon: Icon(Icons.schedule, color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor, size: 24),
+                  activeIcon: Icon(Icons.schedule, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   label: 'Routine'),
               BottomNavigationBarItem(
-                  icon: Icon(Icons.self_improvement, color: Colors.grey[600], size: 24),
-                  activeIcon: Icon(Icons.self_improvement, color: warmBrown, size: 24),
+                  icon: Icon(Icons.self_improvement, color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor, size: 24),
+                  activeIcon: Icon(Icons.self_improvement, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   label: 'Guided'),
               BottomNavigationBarItem(
-                  icon: Icon(Icons.book, color: warmBrown, size: 24),
-                  activeIcon: Icon(Icons.book, color: warmBrown, size: 24),
+                  icon: Icon(Icons.book, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
+                  activeIcon: Icon(Icons.book, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   label: 'Journal'),
               BottomNavigationBarItem(
-                  icon: Icon(Icons.person, color: Colors.grey[600], size: 24),
-                  activeIcon: Icon(Icons.person, color: warmBrown, size: 24),
+                  icon: Icon(Icons.person, color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor, size: 24),
+                  activeIcon: Icon(Icons.person, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   label: 'Me'),
             ]));
   }

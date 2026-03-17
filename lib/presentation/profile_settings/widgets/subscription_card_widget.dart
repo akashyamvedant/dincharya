@@ -29,6 +29,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
   int _selectedPlanIndex = 1; // Default to yearly (best value)
   late PageController _pageController;
   late AnimationController _shimmerController;
+  List<PaymentPlan> _plans = []; // Loaded from Google Play or local fallback
 
   static const Color warmBrown = Color(0xFF8B4513);
   static const Color warmAmber = Color(0xFFD4A574);
@@ -37,6 +38,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
   @override
   void initState() {
     super.initState();
+    _plans = PaymentPlan.getLocalizedPlans(); // Immediate fallback
     _pageController = PageController(
       viewportFraction: 0.85,
       initialPage: _selectedPlanIndex,
@@ -46,6 +48,40 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
       vsync: this,
     )..repeat();
     _checkSubscriptionStatus();
+    _loadGooglePlayPlans();
+  }
+
+  /// Load plans from Google Play products, fallback to local pricing
+  Future<void> _loadGooglePlayPlans() async {
+    try {
+      await _paymentService.initialize();
+      await Future.delayed(const Duration(milliseconds: 500));
+      final googleProducts = _paymentService.products;
+      if (googleProducts.isNotEmpty && mounted) {
+        setState(() {
+          _plans = PaymentPlan.fromGooglePlayProducts(googleProducts);
+          if (_selectedPlanIndex >= _plans.length) {
+            _selectedPlanIndex = _plans.length - 1;
+          }
+        });
+        debugPrint('✅ SubscriptionCard: loaded ${_plans.length} Google Play products');
+      } else {
+        // Retry once
+        await Future.delayed(const Duration(seconds: 2));
+        await _paymentService.loadProducts();
+        final retryProducts = _paymentService.products;
+        if (retryProducts.isNotEmpty && mounted) {
+          setState(() {
+            _plans = PaymentPlan.fromGooglePlayProducts(retryProducts);
+            if (_selectedPlanIndex >= _plans.length) {
+              _selectedPlanIndex = _plans.length - 1;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ SubscriptionCard: using local fallback pricing: $e');
+    }
   }
 
   @override
@@ -209,7 +245,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                                   style: TextStyle(
                                     fontSize: 16.sp,
                                     fontWeight: FontWeight.bold,
-                                    color: warmBrown,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 SizedBox(width: 2.w),
@@ -235,7 +271,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                               'Enjoy all premium features!',
                               style: TextStyle(
                                 fontSize: 11.sp,
-                                color: warmBrown.withOpacity(0.7),
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                               ),
                             ),
                           ],
@@ -263,7 +299,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                           Text(
                             'Manage Subscription',
                             style: TextStyle(
-                              color: warmBrown,
+                              color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12.sp,
                             ),
@@ -282,7 +318,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
   }
 
   Widget _buildUpgradeCard() {
-    final plans = PaymentPlan.availablePlans;
+    final plans = _plans;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w),
@@ -327,14 +363,14 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.bold,
-                          color: warmBrown,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       Text(
                         'Unlock all features',
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: warmBrown.withOpacity(0.7),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                         ),
                       ),
                     ],
@@ -412,7 +448,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : warmBrown,
+            color: isSelected ? Colors.white : Theme.of(context).colorScheme.primary,
             fontSize: 9.sp,
             fontWeight: FontWeight.w600,
           ),
@@ -473,7 +509,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                             style: TextStyle(
                               fontSize: 14.sp,
                               fontWeight: FontWeight.bold,
-                              color: warmBrown,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                           if (plan.isPopular) ...[
@@ -501,37 +537,45 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            '${GeoPricing.getPricing(GeoPricing.detectTier()).currencySymbol}${plan.price.toInt()}',
+                            plan.googlePlayPrice ?? '${GeoPricing.getPricing(GeoPricing.detectTier()).currencySymbol}${plan.price.toInt()}',
                             style: TextStyle(
                               fontSize: 22.sp,
                               fontWeight: FontWeight.bold,
-                              color: warmBrown,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                           Text(
-                            '/${plan.duration}',
+                            plan.duration == 'lifetime' ? '' : '/${plan.duration}',
                             style: TextStyle(
                               fontSize: 11.sp,
-                              color: warmBrown.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
                             ),
                           ),
                           if (isYearly) ...[
                             SizedBox(width: 2.w),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
-                              decoration: BoxDecoration(
-                                color: Colors.green.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                'Save ~33%',
-                                style: TextStyle(
-                                  color: Colors.green,
-                                  fontSize: 8.sp,
-                                  fontWeight: FontWeight.w600,
+                            Builder(builder: (context) {
+                              // Calculate actual savings vs monthly plan
+                              final monthlyPlan = _plans.where((p) => p.duration == 'month').firstOrNull;
+                              final savingsPercent = monthlyPlan != null
+                                  ? ((1 - (plan.price / 12) / monthlyPlan.price) * 100).round()
+                                  : 0;
+                              if (savingsPercent <= 0) return SizedBox.shrink();
+                              return Container(
+                                padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                              ),
-                            ),
+                                child: Text(
+                                  'Save $savingsPercent%',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontSize: 8.sp,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }),
                           ],
                         ],
                       ),
@@ -555,7 +599,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                     SizedBox(width: 1.w),
                     Text(
                       feature,
-                      style: TextStyle(fontSize: 9.sp, color: warmBrown.withOpacity(0.7)),
+                      style: TextStyle(fontSize: 9.sp, color: Theme.of(context).colorScheme.primary.withOpacity(0.7)),
                     ),
                   ],
                 )).toList(),
@@ -579,7 +623,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                   child: Text(
                     isSelected ? 'Subscribe Now' : 'Select Plan',
                     style: TextStyle(
-                      color: isSelected ? Colors.white : warmBrown,
+                      color: isSelected ? Colors.white : Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
                       fontSize: 11.sp,
                     ),
@@ -647,7 +691,7 @@ class _SubscriptionCardWidgetState extends State<SubscriptionCardWidget>
                               style: TextStyle(
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.bold,
-                                color: warmBrown,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                             Text(

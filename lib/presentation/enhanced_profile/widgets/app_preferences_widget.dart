@@ -1,4 +1,4 @@
-// lib/presentation/enhanced_profile/widgets/app_preferences_widget.dart
+﻿// lib/presentation/enhanced_profile/widgets/app_preferences_widget.dart
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:shared_preferences/shared_preferences.dart';

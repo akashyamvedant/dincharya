@@ -77,11 +77,11 @@ class RoutineHeaderWidget extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             offset: const Offset(0, 2),
             blurRadius: 8,
           ),
@@ -98,8 +98,8 @@ class RoutineHeaderWidget extends StatelessWidget {
               Flexible(
                 child: Text(
                   formattedDate,
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -108,51 +108,42 @@ class RoutineHeaderWidget extends StatelessWidget {
               
               SizedBox(width: 2.w),
               
-              // Compact Profile Button
-              GestureDetector(
-                onTap: onProfileTap ?? () {},
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
-                        AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.1),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CustomIconWidget(
-                        iconName: _getProfileIcon(selectedProfile),
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 18,
-                      ),
-                      SizedBox(width: 1.5.w),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 25.w),
-                        child: Text(
-                          _getProfileDisplayName(selectedProfile),
-                          style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(width: 1.w),
-                      Icon(
-                        Icons.keyboard_arrow_down,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                        size: 16,
-                      ),
+              // Static Profile Label (read-only, no navigation)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      Theme.of(context).colorScheme.tertiary.withOpacity(0.1),
                     ],
                   ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CustomIconWidget(
+                      iconName: _getProfileIcon(selectedProfile),
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 18,
+                    ),
+                    SizedBox(width: 1.5.w),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: 25.w),
+                      child: Text(
+                        _getProfileDisplayName(selectedProfile),
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -164,40 +155,43 @@ class RoutineHeaderWidget extends StatelessWidget {
           Row(
             children: [
               // Streak Badge
-              _buildStreakBadge(),
+              _buildStreakBadge(context),
               SizedBox(width: 3.w),
               // XP Level Badge
-              _buildXPBadge(level),
+              _buildXPBadge(level, context),
               SizedBox(width: 3.w),
               // Weekly completion
-              _buildWeeklyBadge(),
+              _buildWeeklyBadge(context),
             ],
           ),
           
           SizedBox(height: 1.h),
           
           // Row 3: Weekly Dots (Mon-Sun)
-          _buildWeeklyDots(),
+          _buildWeeklyDots(context),
         ],
       ),
     );
   }
 
-  Widget _buildStreakBadge() {
+  Widget _buildStreakBadge(BuildContext context) {
     final bool hasStreak = streakCount > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Expanded(
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
         decoration: BoxDecoration(
           gradient: hasStreak
-              ? const LinearGradient(
-                  colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+              ? LinearGradient(
+                  colors: isDark
+                      ? [const Color(0xFF4A2800), const Color(0xFF3D2000)]
+                      : [const Color(0xFFFFF3E0), const Color(0xFFFFE0B2)],
                 )
               : null,
-          color: hasStreak ? null : Colors.grey.shade100,
+          color: hasStreak ? null : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: hasStreak ? const Color(0xFFFF8F00).withOpacity(0.3) : Colors.grey.shade300,
+            color: hasStreak ? Color(0xFFFF8F00).withOpacity(0.3) : Theme.of(context).colorScheme.outline.withOpacity(0.3),
           ),
         ),
         child: Row(
@@ -214,7 +208,7 @@ class RoutineHeaderWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.bold,
-                  color: hasStreak ? const Color(0xFFE65100) : Colors.grey,
+                  color: hasStreak ? Color(0xFFE65100) : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -225,7 +219,7 @@ class RoutineHeaderWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildXPBadge(UserLevel level) {
+  Widget _buildXPBadge(UserLevel level, BuildContext context) {
     final progress = level.progressInLevel(totalXP);
     return Expanded(
       child: Container(
@@ -269,7 +263,7 @@ class RoutineHeaderWidget extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 4,
-                backgroundColor: Colors.grey.shade200,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation(level.color),
               ),
             ),
@@ -279,7 +273,7 @@ class RoutineHeaderWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyBadge() {
+  Widget _buildWeeklyBadge(BuildContext context) {
     final pct = (weeklyCompletion * 100).toInt();
     final isGood = pct >= 70;
     return Expanded(
@@ -311,7 +305,7 @@ class RoutineHeaderWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.bold,
-                  color: isGood ? Colors.green.shade700 : Colors.orange.shade700,
+                  color: isGood ? Colors.green : Colors.orange,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -322,7 +316,7 @@ class RoutineHeaderWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildWeeklyDots() {
+  Widget _buildWeeklyDots(BuildContext context) {
     final now = DateTime.now();
     final todayWeekday = now.weekday; // 1 = Monday
     final dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -330,7 +324,7 @@ class RoutineHeaderWidget extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -347,7 +341,7 @@ class RoutineHeaderWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12.sp,
                   fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
-                  color: isToday ? const Color(0xFF8B4513) : Colors.grey,
+                  color: isToday ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               SizedBox(height: 0.3.h),
@@ -358,14 +352,14 @@ class RoutineHeaderWidget extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: isCompleted
                       ? Colors.green
-                      : (isPast ? Colors.red.shade100 : Colors.grey.shade200),
+                      : (isPast ? Colors.red.shade100.withOpacity(0.3) : Theme.of(context).colorScheme.surfaceContainerHighest),
                   border: isToday
-                      ? Border.all(color: const Color(0xFF8B4513), width: 2)
+                      ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
                       : null,
                   boxShadow: isToday
                       ? [
                           BoxShadow(
-                            color: const Color(0xFF8B4513).withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                             blurRadius: 4,
                           ),
                         ]

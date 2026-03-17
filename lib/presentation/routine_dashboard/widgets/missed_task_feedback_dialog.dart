@@ -62,7 +62,7 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
     final category = TaskCategory.findById(categoryId);
 
     return Dialog(
-      backgroundColor: const Color(0xFFFDF8F3),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       insetPadding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 5.h),
       child: SingleChildScrollView(
@@ -92,19 +92,19 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Missed Task',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF2C1810),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         Text(
                           'Quick feedback helps track habits',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -119,7 +119,7 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
               Container(
                 padding: EdgeInsets.all(3.w),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: Colors.red.shade100,
@@ -146,10 +146,10 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                         children: [
                           Text(
                             taskTitle,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: Color(0xFF2C1810),
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -186,12 +186,12 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
               SizedBox(height: 2.5.h),
 
               // Actual time picker
-              const Text(
+              Text(
                 'When did you actually do it?',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               SizedBox(height: 1.h),
@@ -201,25 +201,25 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                   padding:
                       EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF5D4037)),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.schedule,
-                        color: Color(0xFF5D4037),
+                        color: Theme.of(context).colorScheme.primary,
                         size: 20,
                       ),
                       SizedBox(width: 2.w),
                       Text(
                         _actualTime.format(context),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF5D4037),
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ],
@@ -230,12 +230,12 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
               SizedBox(height: 2.5.h),
 
               // Reason chips
-              const Text(
+              Text(
                 'Reason (optional)',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               SizedBox(height: 1.h),
@@ -257,13 +257,13 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                           horizontal: 3.w, vertical: 1.h),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? const Color(0xFF5D4037)
-                            : Colors.white,
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
-                              ? const Color(0xFF5D4037)
-                              : Colors.grey[300]!,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outline,
                         ),
                       ),
                       child: Row(
@@ -274,7 +274,7 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                             size: 14,
                             color: isSelected
                                 ? Colors.white
-                                : Colors.grey[600],
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           SizedBox(width: 1.w),
                           Text(
@@ -283,7 +283,7 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                               fontSize: 12,
                               color: isSelected
                                   ? Colors.white
-                                  : Colors.black87,
+                                  : Theme.of(context).colorScheme.onSurface,
                               fontWeight: isSelected
                                   ? FontWeight.w600
                                   : FontWeight.w400,
@@ -302,24 +302,24 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
               TextField(
                 controller: _notesController,
                 maxLines: 2,
-                style: const TextStyle(color: Colors.black87, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: 'Any notes? (optional)',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                        color: Color(0xFF5D4037), width: 2),
+                    borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.primary, width: 2),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                       horizontal: 3.w, vertical: 1.5.h),
@@ -337,7 +337,7 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                       child: Text(
                         'Skip',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -349,25 +349,25 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
                     child: ElevatedButton(
                       onPressed: _isSaving ? null : _saveFeedback,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5D4037),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         padding: EdgeInsets.symmetric(vertical: 1.5.h),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: _isSaving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Save & Continue',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -389,10 +389,25 @@ class _MissedTaskFeedbackDialogState extends State<MissedTaskFeedbackDialog> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: const Color(0xFF5D4037),
-                  surface: const Color(0xFFFDF8F3),
-                ),
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              hourMinuteTextColor: Theme.of(context).colorScheme.onSurface,
+              dialHandColor: Theme.of(context).colorScheme.primary,
+              dialBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              dayPeriodTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodBorderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+              entryModeIconColor: Theme.of(context).colorScheme.primary,
+              helpTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
           ),
           child: child!,
         );

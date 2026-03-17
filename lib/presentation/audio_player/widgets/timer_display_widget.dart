@@ -27,11 +27,11 @@ class TimerDisplayWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
         decoration: BoxDecoration(
-          color: AppTheme.darkTheme.colorScheme.surface.withValues(alpha: 0.9),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(20.0),
           border: Border.all(
             color:
-                AppTheme.darkTheme.colorScheme.outline.withValues(alpha: 0.3),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
             width: 1.0,
           ),
         ),
@@ -49,8 +49,8 @@ class TimerDisplayWidget extends StatelessWidget {
             SizedBox(height: 0.5.h),
             Text(
               '/ ${_formatTime(totalTime)}',
-              style: AppTheme.darkTheme.textTheme.bodySmall?.copyWith(
-                color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

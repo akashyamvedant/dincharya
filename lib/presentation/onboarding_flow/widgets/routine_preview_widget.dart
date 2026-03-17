@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -42,9 +42,9 @@ class RoutinePreviewWidget extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.lightTheme.colorScheme.primary
+                    Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.1),
-                    AppTheme.lightTheme.colorScheme.secondary
+                    Theme.of(context).colorScheme.secondary
                         .withValues(alpha: 0.1),
                   ],
                 ),
@@ -54,13 +54,13 @@ class RoutinePreviewWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'check_circle',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 64,
                   ),
                   SizedBox(height: 1.h),
                   CustomIconWidget(
                     iconName: 'auto_awesome',
-                    color: AppTheme.lightTheme.colorScheme.secondary,
+                    color: Theme.of(context).colorScheme.secondary,
                     size: 32,
                   ),
                 ],
@@ -73,9 +73,9 @@ class RoutinePreviewWidget extends StatelessWidget {
           // Headline
           Text(
             'Your Personalized Routine',
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -85,7 +85,7 @@ class RoutinePreviewWidget extends StatelessWidget {
           // Description
           Text(
             'Based on your preferences, we\'ve created a perfect routine for you, ${userName.isNotEmpty ? userName : 'there'}!',
-            style: AppTheme.lightTheme.textTheme.bodyLarge,
+            style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),
 
@@ -96,11 +96,11 @@ class RoutinePreviewWidget extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.primary
+              color: Theme.of(context).colorScheme.primary
                   .withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.lightTheme.colorScheme.primary
+                color: Theme.of(context).colorScheme.primary
                     .withValues(alpha: 0.2),
               ),
             ),
@@ -109,16 +109,16 @@ class RoutinePreviewWidget extends StatelessWidget {
               children: [
                 Text(
                   'Profile Summary',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 SizedBox(height: 1.h),
-                _buildSummaryRow('Age Group', ageGroup),
-                _buildSummaryRow('Wake Time', wakeTime.format(context)),
-                _buildSummaryRow('Sleep Time', sleepTime.format(context)),
-                _buildSummaryRow('Goals', goals.join(', ')),
+                _buildSummaryRow(context, 'Age Group', ageGroup),
+                _buildSummaryRow(context, 'Wake Time', wakeTime.format(context)),
+                _buildSummaryRow(context, 'Sleep Time', sleepTime.format(context)),
+                _buildSummaryRow(context, 'Goals', goals.join(', ')),
               ],
             ),
           ),
@@ -128,7 +128,7 @@ class RoutinePreviewWidget extends StatelessWidget {
           // Routine preview
           Text(
             'Your Daily Routine',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -142,7 +142,7 @@ class RoutinePreviewWidget extends StatelessWidget {
             separatorBuilder: (context, index) => SizedBox(height: 2.h),
             itemBuilder: (context, index) {
               final routine = generatedRoutine[index];
-              return _buildRoutineCard(routine);
+              return _buildRoutineCard(context, routine);
             },
           ),
 
@@ -153,11 +153,11 @@ class RoutinePreviewWidget extends StatelessWidget {
             width: double.infinity,
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.secondary
+              color: Theme.of(context).colorScheme.secondary
                   .withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.lightTheme.colorScheme.secondary
+                color: Theme.of(context).colorScheme.secondary
                     .withValues(alpha: 0.2),
               ),
             ),
@@ -165,15 +165,15 @@ class RoutinePreviewWidget extends StatelessWidget {
               children: [
                 CustomIconWidget(
                   iconName: 'info',
-                  color: AppTheme.lightTheme.colorScheme.secondary,
+                  color: Theme.of(context).colorScheme.secondary,
                   size: 24,
                 ),
                 SizedBox(width: 3.w),
                 Expanded(
                   child: Text(
                     'You can customize this routine anytime from your dashboard',
-                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.secondary,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.secondary,
                     ),
                   ),
                 ),
@@ -187,7 +187,7 @@ class RoutinePreviewWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value) {
+  Widget _buildSummaryRow(BuildContext context, String label, String value) {
     return Padding(
       padding: EdgeInsets.only(bottom: 0.5.h),
       child: Row(
@@ -197,7 +197,7 @@ class RoutinePreviewWidget extends StatelessWidget {
             width: 25.w,
             child: Text(
               '$label:',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -205,7 +205,7 @@ class RoutinePreviewWidget extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: AppTheme.lightTheme.textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
         ],
@@ -213,19 +213,19 @@ class RoutinePreviewWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildRoutineCard(Map<String, dynamic> routine) {
+  Widget _buildRoutineCard(BuildContext context, Map<String, dynamic> routine) {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -237,15 +237,15 @@ class RoutinePreviewWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.primary
+              color: Theme.of(context).colorScheme.primary
                   .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               routine['time'] as String,
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -255,7 +255,7 @@ class RoutinePreviewWidget extends StatelessWidget {
           // Icon
           CustomIconWidget(
             iconName: routine['icon'] as String,
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
             size: 24,
           ),
 
@@ -268,7 +268,7 @@ class RoutinePreviewWidget extends StatelessWidget {
               children: [
                 Text(
                   routine['title'] as String,
-                  style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -276,7 +276,7 @@ class RoutinePreviewWidget extends StatelessWidget {
                   SizedBox(height: 0.5.h),
                   Text(
                     routine['description'] as String,
-                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ],
@@ -288,14 +288,14 @@ class RoutinePreviewWidget extends StatelessWidget {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.secondary
+                color: Theme.of(context).colorScheme.secondary
                     .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
                 routine['duration'] as String,
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.secondary,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.secondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),

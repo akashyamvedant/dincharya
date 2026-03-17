@@ -92,7 +92,7 @@ class _LogoAnimationWidgetState extends State<LogoAnimationWidget>
                 child: Center(
                   child: CustomIconWidget(
                     iconName: 'self_improvement',
-                    color: AppTheme.lightTheme.primaryColor,
+                    color: Theme.of(context).primaryColor,
                     size: widget.size * 0.3,
                   ),
                 ),

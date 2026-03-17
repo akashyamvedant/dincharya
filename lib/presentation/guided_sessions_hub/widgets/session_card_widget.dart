@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -31,7 +31,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
   bool _isPressed = false;
 
   // App's Primary Color
-  static const Color primaryBrown = Color(0xFF8B4513);
+  // Theme.of(context).colorScheme.primary resolved via Theme in build method
   // ignore: unused_field - kept for theme consistency
   static const Color lightBrown = Color(0xFFFFF8F0);
 
@@ -69,11 +69,11 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
         margin: EdgeInsets.only(bottom: 2.h),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: primaryBrown.withOpacity(_isPressed ? 0.15 : 0.08),
+                color: Theme.of(context).colorScheme.primary.withOpacity(_isPressed ? 0.15 : 0.08),
                 blurRadius: _isPressed ? 20 : 15,
                 offset: Offset(0, _isPressed ? 8 : 5),
                 spreadRadius: _isPressed ? 2 : 0,
@@ -127,14 +127,14 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                           _buildBadge(
                             icon: _getCategoryIcon(category),
                             label: category.toUpperCase(),
-                            color: primaryBrown,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           SizedBox(width: 8),
                           // Duration badge
                           _buildBadge(
                             icon: Icons.access_time_rounded,
                             label: duration,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           Spacer(),
                           // Favorite heart
@@ -144,7 +144,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                               child: Container(
                                 padding: EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
@@ -155,7 +155,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                                 ),
                                 child: Icon(
                                   widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                  color: widget.isFavorite ? Colors.red : Colors.grey[600],
+                                  color: widget.isFavorite ? Colors.red : Theme.of(context).colorScheme.onSurfaceVariant,
                                   size: 18,
                                 ),
                               ),
@@ -175,11 +175,11 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                       child: Container(
                         padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: primaryBrown,
+                          color: Theme.of(context).colorScheme.primary,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: primaryBrown.withOpacity(0.4),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
                               blurRadius: 12,
                               offset: Offset(0, 4),
                             ),
@@ -187,7 +187,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                         ),
                         child: Icon(
                           Icons.play_arrow_rounded,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           size: 24,
                         ),
                       ),
@@ -206,12 +206,12 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_getMediaTypeIcon(mediaType), color: Colors.white, size: 14),
+                            Icon(_getMediaTypeIcon(mediaType), color: Theme.of(context).colorScheme.surface, size: 14),
                             SizedBox(width: 4),
                             Text(
                               mediaType.toUpperCase(),
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.5,
@@ -243,7 +243,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                     Text(
                       title,
                       style: TextStyle(
-                        color: Color(0xFF2C1810),
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 20, // Bigger
                         fontWeight: FontWeight.bold,
                         height: 1.2,
@@ -258,13 +258,13 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
                           children: [
-                            Icon(Icons.person_outline, size: 13, color: Color(0xFF8B4513)),
+                            Icon(Icons.person_outline, size: 13, color: Theme.of(context).colorScheme.primary),
                             SizedBox(width: 4),
                             Text(
                               'by $instructor',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF8B4513).withOpacity(0.7),
+                                color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -278,7 +278,7 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                     Text(
                       description,
                       style: TextStyle(
-                        color: Color(0xFF6B4423),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14, // Bigger
                         height: 1.5,
                       ),
@@ -298,14 +298,14 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                             Text(
                               'Difficulty: ',
                               style: TextStyle(
-                                color: Color(0xFF6B4423),
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             ...List.generate(5, (index) => Icon(
                               index < difficulty ? Icons.star_rounded : Icons.star_outline_rounded,
-                              color: index < difficulty ? Color(0xFFFFB800) : Colors.grey[300],
+                              color: index < difficulty ? Color(0xFFFFB800) : Theme.of(context).colorScheme.outline,
                               size: 18,
                             )),
                           ],
@@ -315,18 +315,18 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                           decoration: BoxDecoration(
-                            color: primaryBrown,
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(25),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                              Icon(Icons.play_arrow_rounded, color: Theme.of(context).colorScheme.surface, size: 18),
                               SizedBox(width: 4),
                               Text(
                                 'Start',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                 ),

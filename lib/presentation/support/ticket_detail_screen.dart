@@ -15,10 +15,10 @@ class TicketDetailScreen extends StatefulWidget {
 class _TicketDetailScreenState extends State<TicketDetailScreen> {
   final Color warmBackground = const Color(0xFFFDF8F3);
   final Color softPeach = const Color(0xFFFAF0E6);
-  final Color lightBrown = const Color(0xFFD4A574);
+  final Color lightBrown = Color(0xFFD4A574);
   final Color darkBrown = const Color(0xFF2C1810);
-  final Color accentBrown = const Color(0xFF8B4513);
-  final Color warmCream = const Color(0xFFFFF8F0);
+  final Color accentBrown = Color(0xFF8B4513);
+  final Color warmCream = Color(0xFFFFF8F0);
 
   final SupabaseService _supabaseService = SupabaseService();
   final TextEditingController _replyController = TextEditingController();
@@ -127,12 +127,12 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     final statusConfig = _getStatusConfig(status);
 
     return Scaffold(
-      backgroundColor: warmBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: softPeach,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: darkBrown, size: 22),
+          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.onSurface, size: 22),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -141,7 +141,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             Text(
               'Ticket Details',
               style: TextStyle(
-                color: darkBrown,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 17.sp,
                 fontWeight: FontWeight.bold,
               ),
@@ -226,7 +226,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: lightBrown.withOpacity(0.15)),
         boxShadow: [
@@ -247,7 +247,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               gradient: LinearGradient(
                 colors: [
                   (statusConfig['color'] as Color).withOpacity(0.08),
-                  Colors.white,
+                  Theme.of(context).colorScheme.surface,
                 ],
               ),
               borderRadius: const BorderRadius.only(
@@ -268,7 +268,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     style: TextStyle(
                       fontSize: 17.sp,
                       fontWeight: FontWeight.w800,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -380,7 +380,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             _ticket['message'] ?? '',
             style: TextStyle(
               fontSize: 14.sp,
-              color: darkBrown.withOpacity(0.8),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
               height: 1.6,
             ),
           ),
@@ -403,7 +403,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           style: TextStyle(
             fontSize: 13.sp,
             fontWeight: FontWeight.w700,
-            color: darkBrown.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
         ),
         SizedBox(width: 2.w),
@@ -471,7 +471,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                         end: Alignment.bottomRight,
                       )
                     : LinearGradient(
-                        colors: [Colors.white, Colors.grey.shade50],
+                        colors: [Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.surfaceContainerHighest],
                       ),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
@@ -492,7 +492,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 message,
                 style: TextStyle(
                   fontSize: 14.sp,
-                  color: isUser ? Colors.white : darkBrown.withOpacity(0.85),
+                  color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
                   height: 1.5,
                 ),
               ),
@@ -508,7 +508,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 _formatTime(createdAt),
                 style: TextStyle(
                   fontSize: 9.sp,
-                  color: darkBrown.withOpacity(0.35),
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.35),
                 ),
               ),
             ),
@@ -554,7 +554,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13.sp,
-                color: darkBrown.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                 height: 1.5,
               ),
             ),
@@ -568,7 +568,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     return Container(
       padding: EdgeInsets.fromLTRB(3.w, 1.5.h, 3.w, MediaQuery.of(context).padding.bottom + 1.5.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
           top: BorderSide(color: lightBrown.withOpacity(0.15)),
         ),
@@ -586,7 +586,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               decoration: BoxDecoration(
-                color: warmCream,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: lightBrown.withOpacity(0.2)),
               ),
@@ -597,13 +597,13 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 textInputAction: TextInputAction.newline,
                 style: TextStyle(
                   fontSize: 14.sp,
-                  color: darkBrown,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Reply लिखें...',
                   hintStyle: TextStyle(
                     fontSize: 14.sp,
-                    color: darkBrown.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
                   ),
                   border: InputBorder.none,
                   contentPadding: EdgeInsets.symmetric(vertical: 1.5.h),

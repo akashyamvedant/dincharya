@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -19,11 +19,11 @@ class ProfileHeaderWidget extends StatelessWidget {
         return AlertDialog(
           title: Text(
             'Edit Profile',
-            style: AppTheme.lightTheme.textTheme.titleMedium,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
           content: Text(
             'Profile editing functionality will be implemented here.',
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           actions: [
             TextButton(
@@ -42,12 +42,11 @@ class ProfileHeaderWidget extends StatelessWidget {
       width: double.infinity,
       margin: EdgeInsets.symmetric(horizontal: 2.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -68,7 +67,7 @@ class ProfileHeaderWidget extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         width: 3,
                       ),
                     ),
@@ -91,16 +90,16 @@ class ProfileHeaderWidget extends StatelessWidget {
                       width: 8.w,
                       height: 8.w,
                       decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                          color: Theme.of(context).scaffoldBackgroundColor,
                           width: 2,
                         ),
                       ),
                       child: CustomIconWidget(
                         iconName: 'edit',
-                        color: AppTheme.lightTheme.colorScheme.onPrimary,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         size: 16,
                       ),
                     ),
@@ -114,7 +113,7 @@ class ProfileHeaderWidget extends StatelessWidget {
             // User Name
             Text(
               userData["name"] as String,
-              style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -125,8 +124,8 @@ class ProfileHeaderWidget extends StatelessWidget {
             // Join Date
             Text(
               'Member since ${userData["joinDate"]}',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
                     .withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
@@ -138,10 +137,10 @@ class ProfileHeaderWidget extends StatelessWidget {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                 ),
               ),
@@ -150,13 +149,13 @@ class ProfileHeaderWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'email',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 16,
                   ),
                   SizedBox(width: 2.w),
                   Text(
                     userData["email"] as String,
-                    style: AppTheme.lightTheme.textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),

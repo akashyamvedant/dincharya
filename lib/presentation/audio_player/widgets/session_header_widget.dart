@@ -27,8 +27,8 @@ class SessionHeaderWidget extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppTheme.darkTheme.textTheme.titleMedium?.copyWith(
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                   maxLines: 1,
@@ -37,8 +37,8 @@ class SessionHeaderWidget extends StatelessWidget {
                 SizedBox(height: 0.5.h),
                 Text(
                   instructor,
-                  style: AppTheme.darkTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -55,13 +55,13 @@ class SessionHeaderWidget extends StatelessWidget {
             child: Container(
               padding: EdgeInsets.all(2.w),
               decoration: BoxDecoration(
-                color: AppTheme.darkTheme.colorScheme.surface
+                color: Theme.of(context).colorScheme.surface
                     .withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: CustomIconWidget(
                 iconName: 'close',
-                color: AppTheme.darkTheme.colorScheme.onSurface,
+                color: Theme.of(context).colorScheme.onSurface,
                 size: 20,
               ),
             ),

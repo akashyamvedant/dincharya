@@ -3,6 +3,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../models/task_categories.dart';
+import '../../../services/alarm_service.dart';
+import 'session_picker_sheet.dart';
 
 class AddTaskBottomSheet extends StatefulWidget {
   final Function(Map<String, dynamic>) onTaskAdded;
@@ -23,6 +25,11 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   String _selectedCategoryId = 'meditation';
   TimeOfDay _selectedTime = TimeOfDay.now();
   int _durationMinutes = 15;
+  bool _alarmEnabled = true;
+  String _selectedAlarmSound = 'gentle_morning';
+  String? _linkedSessionId;
+  String? _linkedSessionTitle;
+  int? _linkedSessionDuration;
 
   TaskCategory get _selectedCategory =>
       TaskCategory.findById(_selectedCategoryId);
@@ -39,7 +46,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
     return Container(
       height: 85.h,
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF8F3),
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -50,7 +57,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             width: 12.w,
             height: 0.5.h,
             decoration: BoxDecoration(
-              color: const Color(0xFF5D4037).withOpacity(0.3),
+              color: Theme.of(context).colorScheme.outline,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -66,7 +73,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   child: Text(
                     'Cancel',
                     style: TextStyle(
-                      color: const Color(0xFF5D4037).withOpacity(0.7),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 15,
                     ),
                   ),
@@ -76,7 +83,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 TextButton(
@@ -84,7 +91,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   child: Text(
                     'Add',
                     style: TextStyle(
-                      color: const Color(0xFF5D4037),
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -95,14 +102,19 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ),
 
           Divider(
-            color: const Color(0xFF5D4037).withOpacity(0.1),
+            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
             height: 1,
           ),
 
           // Content
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(4.w),
+              padding: EdgeInsets.only(
+                left: 4.w,
+                right: 4.w,
+                top: 4.w,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 4.w,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -112,7 +124,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2C1810),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 1.5.h),
@@ -127,38 +139,38 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2C1810),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 1.h),
                   TextField(
                     controller: _titleController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: 'Enter task title',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       prefixIcon: Padding(
                         padding: EdgeInsets.all(3.w),
                         child: CustomIconWidget(
                           iconName: 'title',
-                          color: const Color(0xFF5D4037),
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         ),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF5D4037), width: 2),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary, width: 2),
                       ),
                     ),
                     textCapitalization: TextCapitalization.words,
@@ -172,38 +184,38 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2C1810),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 1.h),
                   TextField(
                     controller: _descriptionController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: 'Add a brief description',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                       prefixIcon: Padding(
                         padding: EdgeInsets.all(3.w),
                         child: CustomIconWidget(
                           iconName: 'description',
-                          color: const Color(0xFF5D4037),
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         ),
                       ),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF5D4037), width: 2),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary, width: 2),
                       ),
                     ),
                     maxLines: 3,
@@ -225,7 +237,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2C1810),
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             SizedBox(height: 1.h),
@@ -235,23 +247,23 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                 padding: EdgeInsets.symmetric(
                                     horizontal: 4.w, vertical: 2.h),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                      color: Colors.grey[300]!),
+                                      color: Theme.of(context).colorScheme.outline),
                                 ),
                                 child: Row(
                                   children: [
                                     CustomIconWidget(
                                       iconName: 'schedule',
-                                      color: const Color(0xFF5D4037),
+                                      color: Theme.of(context).colorScheme.primary,
                                       size: 20,
                                     ),
                                     SizedBox(width: 2.w),
                                     Text(
                                       _selectedTime.format(context),
                                       style: TextStyle(
-                                        color: const Color(0xFF2C1810),
+                                        color: Theme.of(context).colorScheme.onSurface,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -275,7 +287,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF2C1810),
+                                  color: Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               SizedBox(height: 1.h),
@@ -285,16 +297,16 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                   padding: EdgeInsets.symmetric(
                                       horizontal: 4.w, vertical: 2.h),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: Theme.of(context).colorScheme.surface,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color: Colors.grey[300]!),
+                                        color: Theme.of(context).colorScheme.outline),
                                   ),
                                   child: Row(
                                     children: [
                                       CustomIconWidget(
                                         iconName: 'timer',
-                                        color: const Color(0xFF5D4037),
+                                        color: Theme.of(context).colorScheme.primary,
                                         size: 20,
                                       ),
                                       SizedBox(width: 2.w),
@@ -304,8 +316,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                                             : 'Set duration',
                                         style: TextStyle(
                                           color: _durationMinutes > 0
-                                              ? const Color(0xFF2C1810)
-                                              : Colors.grey[400],
+                                              ? Theme.of(context).colorScheme.onSurface
+                                              : Theme.of(context).colorScheme.onSurfaceVariant,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -353,6 +365,18 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     ),
                   ],
 
+                  // Alarm settings — only for wakeup category
+                  if (_selectedCategoryId == 'wakeup') ...[
+                    SizedBox(height: 2.h),
+                    _buildAlarmSection(),
+                  ],
+
+                  // Guided Session linking — for meditation, yoga, pranayama
+                  if (_selectedCategory.hasGuidedSessions) ...[
+                    SizedBox(height: 2.h),
+                    _buildGuidedSessionSection(),
+                  ],
+
                   SizedBox(height: 4.h),
                 ],
               ),
@@ -382,6 +406,11 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           onTap: () {
             setState(() {
               _selectedCategoryId = category.id;
+              // Reset linked session when category changes
+              // (session may not be valid for new category)
+              _linkedSessionId = null;
+              _linkedSessionTitle = null;
+              _linkedSessionDuration = null;
             });
           },
           child: AnimatedContainer(
@@ -390,12 +419,12 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
             decoration: BoxDecoration(
               color: isSelected
                   ? category.color.withOpacity(0.15)
-                  : Colors.white,
+                  : Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected
                     ? category.color
-                    : Colors.grey[300]!,
+                    : Theme.of(context).colorScheme.outline,
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: isSelected
@@ -414,7 +443,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   iconName: category.icon,
                   color: isSelected
                       ? category.color
-                      : Colors.grey[600]!,
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                   size: 18,
                 ),
                 SizedBox(width: 1.w),
@@ -424,7 +453,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                     style: TextStyle(
                       color: isSelected
                           ? category.color
-                          : Colors.black87,
+                          : Theme.of(context).colorScheme.onSurface,
                       fontWeight:
                           isSelected ? FontWeight.w700 : FontWeight.w400,
                       fontSize: 11,
@@ -438,6 +467,275 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ),
         );
       },
+    );
+  }
+  Widget _buildGuidedSessionSection() {
+    final color = _selectedCategory.color;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Link Guided Session (Optional)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        SizedBox(height: 1.h),
+        GestureDetector(
+          onTap: () async {
+            final result = await showModalBottomSheet<Map<String, dynamic>>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                ),
+                child: SessionPickerSheet(
+                  category: _selectedCategoryId,
+                  currentSessionId: _linkedSessionId,
+                ),
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                if (result['unlink'] == true) {
+                  _linkedSessionId = null;
+                  _linkedSessionTitle = null;
+                  _linkedSessionDuration = null;
+                } else {
+                  _linkedSessionId = result['id'] as String?;
+                  _linkedSessionTitle = result['title'] as String?;
+                  _linkedSessionDuration = result['duration'] as int?;
+                }
+              });
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+            decoration: BoxDecoration(
+              color: _linkedSessionId != null
+                  ? color.withOpacity(0.06)
+                  : Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _linkedSessionId != null
+                    ? color.withOpacity(0.3)
+                    : Theme.of(context).colorScheme.outline,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _linkedSessionId != null
+                        ? Icons.play_circle_filled
+                        : Icons.add_circle_outline,
+                    color: color,
+                    size: 22,
+                  ),
+                ),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: _linkedSessionId != null
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _linkedSessionTitle ?? 'Session',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_linkedSessionDuration != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  '${(_linkedSessionDuration! ~/ 60)} min • Tap to change',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
+                      : Text(
+                          'Tap to choose a guided session',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                ),
+                if (_linkedSessionId != null)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _linkedSessionId = null;
+                        _linkedSessionTitle = null;
+                        _linkedSessionDuration = null;
+                      });
+                    },
+                    child: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  )
+                else
+                  Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlarmSection() {
+    return Container(
+      padding: EdgeInsets.all(3.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF57F17).withOpacity(0.08),
+            const Color(0xFFFF8F00).withOpacity(0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF57F17).withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Alarm toggle row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _alarmEnabled
+                      ? const Color(0xFFF57F17).withOpacity(0.15)
+                      : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _alarmEnabled ? Icons.alarm_on_rounded : Icons.alarm_off_rounded,
+                  color: _alarmEnabled ? Color(0xFFF57F17) : Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 3.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wake Up Alarm',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      _alarmEnabled
+                          ? 'Alarm will ring at scheduled time'
+                          : 'Only notification will be sent',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _alarmEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _alarmEnabled = value;
+                  });
+                },
+                activeColor: const Color(0xFFF57F17),
+                activeTrackColor: const Color(0xFFF57F17).withOpacity(0.3),
+              ),
+            ],
+          ),
+
+          // Sound picker — only shown when alarm is enabled
+          if (_alarmEnabled) ...[
+            SizedBox(height: 1.5.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.music_note_rounded,
+                    color: const Color(0xFFF57F17),
+                    size: 18,
+                  ),
+                  SizedBox(width: 2.w),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedAlarmSound,
+                        isExpanded: true,
+                        dropdownColor: Theme.of(context).scaffoldBackgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                        elevation: 4,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        icon: Icon(
+                          Icons.expand_more_rounded,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
+                        items: AlarmService.availableSounds.map((sound) {
+                          return DropdownMenuItem<String>(
+                            value: sound.id,
+                            child: Text(sound.displayName),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedAlarmSound = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -458,21 +756,23 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
 
   void _showDurationPicker() {
     int tempDuration = _durationMinutes > 0 ? _durationMinutes : 15;
+    final customController = TextEditingController();
+    bool isCustomMode = false;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            backgroundColor: const Color(0xFFFDF8F3),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
+            title: Text(
               'Set Duration',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             content: Column(
@@ -484,87 +784,184 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF5D4037),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 SizedBox(height: 2.h),
 
-                // Slider
-                SliderTheme(
-                  data: SliderThemeData(
-                    activeTrackColor: const Color(0xFF5D4037),
-                    inactiveTrackColor:
-                        const Color(0xFF5D4037).withOpacity(0.15),
-                    thumbColor: const Color(0xFF5D4037),
-                    overlayColor:
-                        const Color(0xFF5D4037).withOpacity(0.1),
-                    trackHeight: 6,
+                // Slider (capped at 120)
+                if (!isCustomMode) ...[
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: Theme.of(context).colorScheme.primary,
+                      inactiveTrackColor:
+                          Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                      thumbColor: Theme.of(context).colorScheme.primary,
+                      overlayColor:
+                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      trackHeight: 6,
+                    ),
+                    child: Slider(
+                      value: tempDuration.clamp(5, 120).toDouble(),
+                      min: 5,
+                      max: 120,
+                      divisions: 23,
+                      label: '$tempDuration min',
+                      onChanged: (value) {
+                        setDialogState(() {
+                          tempDuration = value.round();
+                        });
+                      },
+                    ),
                   ),
-                  child: Slider(
-                    value: tempDuration.toDouble(),
-                    min: 5,
-                    max: 120,
-                    divisions: 23, // 5-min steps
-                    label: '$tempDuration min',
+                  SizedBox(height: 0.5.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('5 min',
+                          style: TextStyle(
+                              fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      Text('120 min',
+                          style: TextStyle(
+                              fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                ],
+
+                // Custom time input
+                if (isCustomMode) ...[
+                  TextField(
+                    controller: customController,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter minutes (e.g. 180)',
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      suffixText: 'min',
+                      suffixStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary, width: 2),
+                      ),
+                    ),
                     onChanged: (value) {
-                      setDialogState(() {
-                        tempDuration = value.round();
-                      });
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed > 0) {
+                        setDialogState(() {
+                          tempDuration = parsed;
+                        });
+                      }
                     },
                   ),
-                ),
-                SizedBox(height: 0.5.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('5 min',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                    Text('120 min',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                  ],
-                ),
-                SizedBox(height: 2.h),
+                  SizedBox(height: 2.h),
+                ],
 
-                // Preset buttons
+                // Preset buttons + Custom button
                 Wrap(
                   spacing: 2.w,
                   runSpacing: 1.h,
-                  children: [5, 10, 15, 20, 30, 45, 60, 90].map((mins) {
-                    final isActive = tempDuration == mins;
-                    return GestureDetector(
+                  children: [
+                    ...[5, 10, 15, 20, 30, 45, 60, 90].map((mins) {
+                      final isActive = tempDuration == mins && !isCustomMode;
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            tempDuration = mins;
+                            isCustomMode = false;
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 3.w, vertical: 1.h),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                          child: Text(
+                            '${mins}m',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight:
+                                  isActive ? FontWeight.w700 : FontWeight.w500,
+                              color: isActive ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    // Custom button
+                    GestureDetector(
                       onTap: () {
                         setDialogState(() {
-                          tempDuration = mins;
+                          isCustomMode = !isCustomMode;
+                          if (isCustomMode) {
+                            customController.text = tempDuration.toString();
+                          }
                         });
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(
                             horizontal: 3.w, vertical: 1.h),
                         decoration: BoxDecoration(
-                          color: isActive
-                              ? const Color(0xFF5D4037)
-                              : Colors.white,
+                          color: isCustomMode
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isActive
-                                ? const Color(0xFF5D4037)
-                                : Colors.grey[300]!,
+                            color: isCustomMode
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
                           ),
                         ),
-                        child: Text(
-                          '${mins}m',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight:
-                                isActive ? FontWeight.w700 : FontWeight.w500,
-                            color: isActive ? Colors.white : Colors.black87,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit,
+                              size: 13,
+                              color: isCustomMode ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            SizedBox(width: 1.w),
+                            Text(
+                              'Custom',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isCustomMode
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isCustomMode
+                                    ? Colors.white
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -573,7 +970,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
               ElevatedButton(
@@ -584,13 +981,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D4037),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Confirm',
-                    style: TextStyle(color: Colors.white)),
+                child: Text('Confirm',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
               ),
             ],
           );
@@ -606,25 +1003,26 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: AppTheme.lightTheme.colorScheme.copyWith(
-              primary: const Color(0xFF5D4037),
-              onPrimary: Colors.white,
-              surface: const Color(0xFFFDF8F3),
-              onSurface: const Color(0xFF2C1810),
-            ),
             timePickerTheme: TimePickerThemeData(
-              backgroundColor: const Color(0xFFFDF8F3),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              hourMinuteTextColor: Theme.of(context).colorScheme.onSurface,
               hourMinuteShape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              dialHandColor: const Color(0xFF5D4037),
-              dialBackgroundColor: const Color(0xFF5D4037).withOpacity(0.08),
-              entryModeIconColor: const Color(0xFF5D4037),
+              dialHandColor: Theme.of(context).colorScheme.primary,
+              dialBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              dayPeriodTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodBorderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+              entryModeIconColor: Theme.of(context).colorScheme.primary,
+              helpTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               cancelButtonStyle: TextButton.styleFrom(
-                foregroundColor: Colors.grey[600],
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               confirmButtonStyle: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF5D4037),
+                foregroundColor: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -681,6 +1079,9 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
           ? _descriptionController.text.trim()
           : null,
       "is_inevitable": _selectedCategory.isInevitable,
+      "alarm_enabled": _selectedCategoryId == 'wakeup' ? _alarmEnabled : false,
+      "alarm_sound": _selectedCategoryId == 'wakeup' ? _selectedAlarmSound : null,
+      "linked_session_id": _selectedCategory.hasGuidedSessions ? _linkedSessionId : null,
     };
 
     widget.onTaskAdded(newTask);
@@ -688,8 +1089,8 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Task added successfully!'),
-        backgroundColor: AppTheme.getSuccessColor(true),
+        content: Text('Task added successfully!'),
+        backgroundColor: AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
       ),
     );
   }

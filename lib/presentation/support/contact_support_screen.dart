@@ -14,9 +14,9 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
   // App theme colors
   final Color warmBackground = const Color(0xFFFDF8F3);
   final Color softPeach = const Color(0xFFFAF0E6);
-  final Color lightBrown = const Color(0xFFD4A574);
+  final Color lightBrown = Color(0xFFD4A574);
   final Color darkBrown = const Color(0xFF2C1810);
-  final Color accentBrown = const Color(0xFF8B4513);
+  final Color accentBrown = Color(0xFF8B4513);
 
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -152,18 +152,18 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: warmBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: softPeach,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: darkBrown, size: 24),
+          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.onSurface, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Contact Support',
           style: TextStyle(
-            color: darkBrown,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 22.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -206,14 +206,14 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
                     style: TextStyle(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.bold,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     'अपने tickets का status देखें',
                     style: TextStyle(
                       fontSize: 12.sp,
-                      color: darkBrown.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
                 ],
@@ -282,7 +282,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
                     style: TextStyle(
                       fontSize: 28.sp,
                       fontWeight: FontWeight.bold,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 2.h),
@@ -300,7 +300,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
                           'आपका message successfully submit हो गया!',
                           style: TextStyle(
                             fontSize: 17.sp,
-                            color: darkBrown,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w500,
                           ),
                           textAlign: TextAlign.center,
@@ -411,7 +411,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
           style: TextStyle(
             fontSize: 17.sp,
             fontWeight: FontWeight.bold,
-            color: darkBrown,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 1.5.h),
@@ -467,7 +467,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
             style: TextStyle(
               fontSize: 24.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.h),
@@ -476,7 +476,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 15.sp,
-              color: darkBrown.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               height: 1.5,
             ),
           ),
@@ -488,7 +488,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
   Widget _buildCategorySelector() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: lightBrown.withOpacity(0.2)),
         boxShadow: [
@@ -539,7 +539,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? category['color'] as Color : darkBrown,
+                            color: isSelected ? category['color'] as Color : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -574,10 +574,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
     return TextFormField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      style: TextStyle(fontSize: 16.sp, color: darkBrown),
+      style: TextStyle(fontSize: 16.sp, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: 'आपका email address',
-        hintStyle: TextStyle(color: darkBrown.withOpacity(0.4), fontSize: 15.sp),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 15.sp),
         prefixIcon: Container(
           margin: EdgeInsets.all(2.w),
           padding: EdgeInsets.all(2.w),
@@ -588,7 +588,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
           child: Icon(Icons.email, color: accentBrown, size: 22),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).colorScheme.surface,
         contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -622,10 +622,10 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
   Widget _buildSubjectField() {
     return TextFormField(
       controller: _subjectController,
-      style: TextStyle(fontSize: 16.sp, color: darkBrown),
+      style: TextStyle(fontSize: 16.sp, color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
         hintText: 'विषय लिखें (e.g., App not opening)',
-        hintStyle: TextStyle(color: darkBrown.withOpacity(0.4), fontSize: 15.sp),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 15.sp),
         prefixIcon: Container(
           margin: EdgeInsets.all(2.w),
           padding: EdgeInsets.all(2.w),
@@ -636,7 +636,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
           child: Icon(Icons.subject, color: Colors.blue, size: 22),
         ),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).colorScheme.surface,
         contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -663,7 +663,7 @@ class _ContactSupportScreenState extends State<ContactSupportScreen> with Ticker
   Widget _buildMessageField() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: lightBrown.withOpacity(0.3)),
         boxShadow: [

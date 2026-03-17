@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:intl/intl.dart';
 
@@ -168,10 +168,10 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 2),
@@ -210,12 +210,12 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Practice Calendar',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF2C1810),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 12),
@@ -232,7 +232,7 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
               if (count == 0) {
                 color = const Color(0xFFF0E8E0);
               } else if (count == 1) {
-                color = const Color(0xFFD4A574);
+                color = Color(0xFFD4A574);
               } else if (count == 2) {
                 color = const Color(0xFFB87333);
               } else {
@@ -261,7 +261,7 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
             children: [
               Text('Less', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
               const SizedBox(width: 4),
-              ...[const Color(0xFFF0E8E0), const Color(0xFFD4A574), const Color(0xFFB87333), primaryBrown]
+              ...[const Color(0xFFF0E8E0), Color(0xFFD4A574), const Color(0xFFB87333), primaryBrown]
                   .map((c) => Container(
                         width: 10,
                         height: 10,
@@ -312,12 +312,12 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Recent Sessions',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFF2C1810),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -378,10 +378,10 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
               children: [
                 Text(
                   technique,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: Color(0xFF2C1810),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

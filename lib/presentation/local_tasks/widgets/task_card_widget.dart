@@ -1,4 +1,4 @@
-// lib/presentation/local_tasks/widgets/task_card_widget.dart
+﻿// lib/presentation/local_tasks/widgets/task_card_widget.dart
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -157,8 +157,7 @@ class TaskCardWidget extends StatelessWidget {
                               child: Row(children: [
                                 CustomIconWidget(
                                     iconName: 'edit',
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
+                                    color: Theme.of(context).colorScheme.primary,
                                     size: 18),
                                 SizedBox(width: 2.w),
                                 const Text('Edit'),

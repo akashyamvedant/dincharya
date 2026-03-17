@@ -94,21 +94,37 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           .eq('id', userId)
           .maybeSingle();
       
-      // Group tasks by tracking_date
+      // Group tasks by tracking_date — DEDUPLICATED by task_id
+      // Same task can have both completed + missed records (from end-of-day processing)
+      // We keep only the best result per task per day (completed wins)
+      final Map<String, Map<String, Map<String, dynamic>>> rawGrouped = {};
+      
+      for (final task in trackingHistory) {
+        final dateKey = task['tracking_date'] ?? DateTime.now().toIso8601String().split('T')[0];
+        final taskId = task['task_id']?.toString() ?? task['activity_name']?.toString() ?? '';
+        
+        rawGrouped[dateKey] ??= {};
+        
+        // Keep the completed record if one exists (completed wins over missed)
+        final existing = rawGrouped[dateKey]![taskId];
+        if (existing == null || (existing['completed'] != true && task['completed'] == true)) {
+          rawGrouped[dateKey]![taskId] = task;
+        }
+      }
+      
+      // Convert to final grouped format
       final Map<String, List<Map<String, dynamic>>> grouped = {};
       int completed = 0;
       int missed = 0;
       
-      for (final task in trackingHistory) {
-        final dateKey = task['tracking_date'] ?? DateTime.now().toIso8601String().split('T')[0];
-        
-        grouped[dateKey] ??= [];
-        grouped[dateKey]!.add(task);
-        
-        if (task['completed'] == true) {
-          completed++;
-        } else {
-          missed++;
+      for (final entry in rawGrouped.entries) {
+        grouped[entry.key] = entry.value.values.toList();
+        for (final task in grouped[entry.key]!) {
+          if (task['completed'] == true) {
+            completed++;
+          } else {
+            missed++;
+          }
         }
       }
       
@@ -187,11 +203,13 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
         continue;
       }
       
-      final allCompleted = dayTasks.every((t) => 
-        t['is_completed'] == true || t['is_completed'] == 1
-      );
+      // Use 'completed' field (not 'is_completed') — routine_tracking table field
+      final completedCount = dayTasks.where((t) => 
+        t['completed'] == true
+      ).length;
       
-      if (allCompleted) {
+      // Consider day as streak if >50% tasks completed (matches dashboard logic)
+      if (completedCount > dayTasks.length / 2) {
         streak++;
         checkDate = checkDate.subtract(const Duration(days: 1));
       } else {
@@ -208,7 +226,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     const Color darkBrown = Color(0xFF2C1810);
     
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -233,7 +251,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                           color: primaryBrown,
                         ),
                         labelColor: Colors.white,
-                        unselectedLabelColor: darkBrown,
+                        unselectedLabelColor: Theme.of(context).colorScheme.onSurface,
                         labelStyle: TextStyle(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w600,
@@ -247,19 +265,19 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         tabs: [
                           Tab(
                             icon: Icon(Icons.calendar_month, size: 18),
-                            child: Text('Calendar', style: TextStyle(fontSize: 10.sp)),
+                            child: Text('Calendar', style: TextStyle(fontSize: 12.sp)),
                           ),
                           Tab(
                             icon: Icon(Icons.insights, size: 18),
-                            child: Text('Insights', style: TextStyle(fontSize: 10.sp)),
+                            child: Text('Insights', style: TextStyle(fontSize: 12.sp)),
                           ),
                           Tab(
                             icon: Icon(Icons.emoji_events, size: 18),
-                            child: Text('Medals', style: TextStyle(fontSize: 10.sp)),
+                            child: Text('Medals', style: TextStyle(fontSize: 12.sp)),
                           ),
                           Tab(
                             icon: Icon(Icons.book, size: 18),
-                            child: Text('Journal', style: TextStyle(fontSize: 10.sp)),
+                            child: Text('Journal', style: TextStyle(fontSize: 12.sp)),
                           ),
                         ],
                       ),
@@ -355,7 +373,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.5.h),
@@ -398,7 +416,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.5.h),
@@ -447,14 +465,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.bold,
-                    color: darkBrown,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Text(
                   'Track your daily progress',
                   style: TextStyle(
                     fontSize: 14.sp,
-                    color: mediumBrown,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -561,7 +579,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             label,
             style: TextStyle(
               fontSize: 12.sp,
-              color: const Color(0xFF5D4037),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -579,7 +597,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       margin: EdgeInsets.all(4.w),
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -608,7 +626,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                 style: TextStyle(
                   fontSize: 18.sp,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               IconButton(
@@ -633,7 +651,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   d,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: const Color(0xFF5D4037),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     fontWeight: FontWeight.w600,
                     fontSize: 13.sp,
                   ),
@@ -674,11 +692,11 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: isSelected 
-                        ? AppTheme.lightTheme.colorScheme.primary
+                        ? Color(0xFF8B4513)
                         : completionColor?.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(10),
                     border: isToday ? Border.all(
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       width: 2,
                     ) : null,
                   ),
@@ -689,7 +707,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         Text(
                           '$day',
                           style: TextStyle(
-                            color: isSelected ? Colors.white : const Color(0xFF2C1810),
+                            color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                             fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.w500,
                             fontSize: 14.sp,
                           ),
@@ -755,7 +773,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           label,
           style: TextStyle(
             fontSize: 12.sp,
-            color: const Color(0xFF5D4037),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
       ],
@@ -766,8 +784,9 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     final dateKey = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
     final dayTasks = _tasksByDate[dateKey] ?? [];
     
+    // Use 'completed' field (not 'is_completed') — routine_tracking table field
     final completedCount = dayTasks.where((t) => 
-      t['is_completed'] == true || t['is_completed'] == 1
+      t['completed'] == true
     ).length;
     
     return Container(
@@ -782,7 +801,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                 style: TextStyle(
                   fontSize: 18.sp,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -810,7 +829,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             Container(
               padding: EdgeInsets.all(4.w),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -861,7 +880,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       margin: EdgeInsets.only(bottom: 1.5.h),
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCompleted ? Colors.green.withOpacity(0.3) : Colors.red.withOpacity(0.2),
@@ -893,7 +912,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w600,
                     decoration: isCompleted ? TextDecoration.lineThrough : null,
-                    color: isCompleted ? Colors.grey : const Color(0xFF2C1810),
+                    color: isCompleted ? Colors.grey : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 Row(
@@ -903,7 +922,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         scheduledTime,
                         style: TextStyle(
                           fontSize: 13.sp,
-                          color: const Color(0xFF5D4037),
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     if (skipReason != null && !isCompleted) ...[
@@ -1029,14 +1048,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       style: TextStyle(
                         fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
-                        color: darkBrown,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     Text(
                       'Based on your habit consistency',
                       style: TextStyle(
                         fontSize: 13.sp,
-                        color: darkBrown.withOpacity(0.7),
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -1098,7 +1117,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           label,
           style: TextStyle(
             fontSize: 13.sp,
-            color: darkBrown.withOpacity(0.6),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
         Text(
@@ -1106,7 +1125,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.bold,
-            color: darkBrown,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -1130,7 +1149,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: primaryBrown.withOpacity(0.2)),
         boxShadow: [
@@ -1159,7 +1178,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
-                        color: darkBrown,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -1169,7 +1188,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       child: LinearProgressIndicator(
                         value: rate / 100,
                         minHeight: 16,
-                        backgroundColor: Colors.grey.shade200,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         valueColor: AlwaysStoppedAnimation(
                           isBest ? Colors.green : (isWorst ? Colors.red : primaryBrown),
                         ),
@@ -1184,7 +1203,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.bold,
-                        color: darkBrown,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -1234,7 +1253,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: primaryBrown.withOpacity(0.2)),
         boxShadow: [
@@ -1296,7 +1315,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             style: TextStyle(
               fontSize: 15.sp,
               fontWeight: FontWeight.w600,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1321,7 +1340,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             style: TextStyle(
               fontSize: 15.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -1338,7 +1357,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       return Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: primaryBrown.withOpacity(0.2)),
         ),
@@ -1347,7 +1366,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             'No habit data yet. Start tracking!',
             style: TextStyle(
               fontSize: 14.sp,
-              color: darkBrown.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
             ),
           ),
         ),
@@ -1357,7 +1376,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: primaryBrown.withOpacity(0.2)),
         boxShadow: [
@@ -1383,7 +1402,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                     style: TextStyle(
                       fontSize: 15.sp,
                       fontWeight: FontWeight.w500,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1395,7 +1414,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   style: TextStyle(
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
-                    color: isExcellent ? Colors.green : (isStruggling ? Colors.red : darkBrown),
+                    color: isExcellent ? Colors.green : (isStruggling ? Colors.red : Theme.of(context).colorScheme.onSurface),
                   ),
                 ),
                 SizedBox(width: 1.w),
@@ -1440,7 +1459,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       margin: EdgeInsets.only(bottom: 1.5.h),
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: isUnlocked ? Colors.amber.withOpacity(0.1) : Colors.white,
+        color: isUnlocked ? Colors.amber.withOpacity(0.1) : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isUnlocked ? Colors.amber : primaryBrown.withOpacity(0.2),
@@ -1461,7 +1480,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             width: 14.w,
             height: 14.w,
             decoration: BoxDecoration(
-              color: isUnlocked ? Colors.amber.withOpacity(0.2) : Colors.grey.shade100,
+              color: isUnlocked ? Colors.amber.withOpacity(0.2) : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
@@ -1487,14 +1506,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.bold,
-                    color: isUnlocked ? darkBrown : Colors.grey,
+                    color: isUnlocked ? Theme.of(context).colorScheme.onSurface : Colors.grey,
                   ),
                 ),
                 Text(
                   achievement.description,
                   style: TextStyle(
                     fontSize: 13.sp,
-                    color: isUnlocked ? darkBrown.withOpacity(0.7) : Colors.grey.shade500,
+                    color: isUnlocked ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7) : Colors.grey.shade500,
                   ),
                 ),
                 SizedBox(height: 0.5.h),
@@ -1508,7 +1527,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                           child: LinearProgressIndicator(
                             value: achievement.progress,
                             minHeight: 6,
-                            backgroundColor: Colors.grey.shade200,
+                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                             valueColor: const AlwaysStoppedAnimation(Colors.amber),
                           ),
                         ),
@@ -1566,14 +1585,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             SizedBox(height: 2.h),
             Text(
               'No journal entries yet',
-              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: Colors.grey[600],
               ),
             ),
             SizedBox(height: 1.h),
             Text(
               'Start writing your thoughts in the Journal tab',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[500],
               ),
             ),
@@ -1610,7 +1629,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
             margin: EdgeInsets.only(bottom: 2.h),
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: warmAmber.withOpacity(0.3)),
               boxShadow: [
@@ -1635,14 +1654,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                         children: [
                           Text(
                             displayDate,
-                            style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: primaryBrown,
                             ),
                           ),
                           Text(
                             '$wordCount words',
-                            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Colors.grey[600],
                             ),
                           ),
@@ -1663,8 +1682,8 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                 // Content preview
                 Text(
                   content.length > 150 ? '${content.substring(0, 150)}...' : content,
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[800],
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     height: 1.4,
                   ),
                   maxLines: 3,
@@ -1727,14 +1746,14 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                       children: [
                         Text(
                           date,
-                          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: primaryBrown,
                           ),
                         ),
                         Text(
                           '$wordCount words',
-                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),
                         ),
@@ -1801,7 +1820,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                     if (imageUrls.isNotEmpty) ...[
                       Text(
                         'Photos',
-                        style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -1859,7 +1878,7 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
                     // Journal text
                     Text(
                       content,
-                      style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         height: 1.6,
                       ),
                     ),

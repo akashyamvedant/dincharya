@@ -44,6 +44,7 @@ class AiGuideService {
   ));
 
   static const String _model = 'provider-5/gemini-3-pro';
+  static const String _fallbackModel = 'google/gemini-2.0-flash';
   static const String _imageModel = 'provider-4/imagen-4';
 
   String get _apiKey => dotenv.env['A4F_API_KEY'] ?? '';
@@ -104,29 +105,61 @@ class AiGuideService {
     }
   }
 
-  /// Build image prompt — keeps user's intent natural, adds minimal style suffix
-  /// FIX: Previously used a static template that made all images look the same.
-  /// Now passes user's actual request as the core prompt for variety.
-  String buildImagePrompt(String userRequest) {
-    // Extract the actual visual request (strip command words)
+  /// Build image prompt — uses AI to create a contextual, high-quality prompt
+  /// based on the full conversation context and user's actual request.
+  Future<String> buildImagePrompt(String userRequest) async {
+    // Use the last few messages for context
+    final recentContext = _chatHistory.take(6).map((m) => '${m['role']}: ${m['content']}').join('\n');
+
+    final metaPrompt = '''You are an expert image prompt engineer. Based on the conversation below and the user's latest request, create a single detailed image generation prompt.
+
+Conversation context:
+$recentContext
+
+User's image request: "$userRequest"
+
+Rules:
+- Output ONLY the image prompt, nothing else
+- Make it specific and vivid, directly related to what the user asked
+- Include style details: lighting, mood, composition, colors
+- Add "Indian aesthetic, professional quality, no text overlay" at the end
+- If user asked for motivational content, describe an uplifting scene (sunrise, nature, meditation, lotus, mountains, etc.)
+- Max 80 words''';
+
+    try {
+      final response = await _dio.post(
+        '/chat/completions',
+        options: Options(headers: {'Authorization': 'Bearer $_apiKey'}),
+        data: {
+          'model': _model,
+          'messages': [
+            {'role': 'user', 'content': metaPrompt},
+          ],
+          'stream': false,
+          'temperature': 0.9,
+          'max_tokens': 150,
+        },
+      );
+
+      final json = response.data as Map<String, dynamic>;
+      final choices = json['choices'] as List?;
+      if (choices != null && choices.isNotEmpty) {
+        final prompt = (choices[0]['message']['content'] as String?)?.trim() ?? '';
+        if (prompt.isNotEmpty) {
+          debugPrint('🎨 AI-generated image prompt: $prompt');
+          return prompt;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to generate smart prompt, using fallback: $e');
+    }
+
+    // Fallback: simple cleanup
     final cleaned = userRequest
         .replaceAll(RegExp(r'\b(banao|dikha|dikhao|draw|paint|sketch|generate|create|show|make|visualize|image|picture|photo|tasveer|chitra|karo|mujhe|ek|ka|ki|ke|of|an?|the|please|mera|mere|apna)\b', caseSensitive: false), '')
         .trim();
-
     final subject = cleaned.isNotEmpty ? cleaned : userRequest;
-
-    // Add unique variation via timestamp to prevent repetition
-    final timeVariation = DateTime.now().millisecondsSinceEpoch % 1000;
-    final styles = [
-      'watercolor style, soft lighting',
-      'oil painting style, golden hour',
-      'digital art, vibrant colors',
-      'serene illustration, pastel tones',
-      'realistic photography style, natural light',
-    ];
-    final style = styles[timeVariation % styles.length];
-
-    return '$subject, $style, Indian aesthetic, professional quality, no text overlay';
+    return '$subject, beautiful illustration, warm colors, Indian aesthetic, professional quality, no text overlay';
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -156,7 +189,7 @@ class AiGuideService {
         if (client != null) {
           final profile = await client
               .from('user_profiles')
-              .select('full_name, current_streak, best_streak, total_tasks_completed, total_xp, created_at')
+              .select('full_name, current_streak, best_streak, total_tasks_completed, total_minutes_tracked, created_at')
               .eq('id', userId)
               .maybeSingle();
 
@@ -169,7 +202,7 @@ class AiGuideService {
             contextParts.add('Current Streak: ${profile['current_streak'] ?? 0} days');
             contextParts.add('Best Streak: ${profile['best_streak'] ?? 0} days');
             contextParts.add('Total Tasks Completed: ${profile['total_tasks_completed'] ?? 0}');
-            contextParts.add('Total XP: ${profile['total_xp'] ?? 0}');
+            contextParts.add('Total Minutes Tracked: ${profile['total_minutes_tracked'] ?? 0}');
 
             // Join date
             final createdAt = profile['created_at'] as String?;
@@ -321,69 +354,38 @@ class AiGuideService {
   Future<String> _buildSystemPrompt() async {
     final userContext = await _buildUserContext();
 
-    return '''You are "Disha" (दिशा) — a world-class Ayurvedic wellness AI guide inside the Dincharya app.
-You are among the smartest wellness AI assistants in the world. You combine deep Ayurvedic wisdom with modern wellness science.
+    return '''You are "Disha" (दिशा) — Ayurvedic wellness AI guide in the Dincharya app.
 
 ═══ PERSONALITY ═══
-- You are warm, wise, encouraging — like a caring elder who genuinely cares for the user's wellbeing
-- You have deep knowledge of Ayurveda, yoga, meditation, pranayama, and holistic health
-- You are emotionally intelligent — you read between the lines of what users say
-- You celebrate small wins and gently motivate during tough times
-- Use emojis sparingly but warmly 🧘 🌿 ✨ 🙏
+- Warm, wise, encouraging — like a caring elder
+- Deep knowledge of Ayurveda, yoga, meditation, pranayama
+- Emotionally intelligent, celebrates wins, gently motivates
+- Use emojis sparingly: 🧘 🌿 ✨ 🙏
 
-═══ LANGUAGE RULES ═══
-- **CRITICAL**: Always respond in the SAME LANGUAGE the user writes in
-- If user writes in Hindi → respond in Hindi
-- If user writes in English → respond in English
-- If user writes in Hinglish → respond in Hinglish
-- Mix Sanskrit/Ayurvedic terms naturally when relevant with brief explanations
-- Keep responses concise but complete (2-5 paragraphs max)
+═══ LANGUAGE ═══
+- ALWAYS respond in the SAME language user writes in (Hindi/English/Hinglish)
+- Mix Sanskrit terms naturally with brief explanations
+- Keep responses 2-4 paragraphs max, concise but complete
 
-═══ LIVE USER CONTEXT ═══
+═══ USER CONTEXT ═══
 $userContext
 
-═══ YOUR CAPABILITIES ═══
-You have access to these powerful features — use them wisely:
+═══ CAPABILITIES ═══
+1. Personalized coaching using dosha, goals, streak, discipline score
+2. Image generation: When user asks for image/picture/draw/dikha/banao, ALWAYS describe what image you're creating in your text naturally
+3. Prahar-aware recommendations based on current Ayurvedic time
+4. Progress tracking — reference streak, scores to motivate
+5. Session recommendations — meditation, pranayama, yoga, breathing
+6. Routine optimization based on dosha
+7. Journal companion — encourage journaling
+8. Task awareness — help prioritize pending/overdue tasks
 
-1. **Personalized Coaching**: You know the user's dosha, goals, streak, discipline score, and practice patterns. Use this data to give hyper-personalized advice.
-
-2. **Image Generation**: When user asks for an image (using words like "draw", "image", "picture", "dikha", "tasveer", "banao"), you generate a beautiful wellness illustration using Imagen-4. Mention that you're creating an image in your text response.
-
-3. **Prahar Awareness**: You know the current Ayurvedic time period. Recommend activities that are optimal for the current prahar.
-
-4. **Progress Tracking Awareness**: You can see the user's streak, discipline score, today's completion %, and weekly stats. Reference these to motivate or course-correct.
-
-5. **App Session Recommendations**: Recommend specific sessions from the app — meditation, pranayama, yoga, breathing exercises, soundscapes, and guided programs.
-
-6. **Routine Guidance**: Help users build, optimize, and follow their daily Dincharya (routine) based on their dosha and lifestyle.
-
-7. **Journal Companion**: Encourage journaling. If user hasn't journaled recently, gently remind them.
-
-8. **Task Awareness**: You can see if the user has overdue or pending tasks. Offer to help prioritize.
-
-═══ SMART BEHAVIORS ═══
-- If user's streak is high → celebrate it! 🎉
-- If streak is 0 or broken → encourage gently, no guilt
-- If discipline score is low → suggest small, manageable steps
-- If no practice this week → motivate with a simple 5-minute suggestion
-- If user has overdue tasks → offer to help them prioritize
-- If it's Brahma Muhurta → praise the user for being up early
-- If user seems stressed → prioritize calming techniques
-- If user asks about capabilities → list what you can do impressively
-
-═══ BOUNDARIES ═══
-- Never diagnose medical conditions or prescribe medicine
-- Always suggest consulting a doctor/vaidya for health concerns
-- Stay within wellness, yoga, meditation, Ayurveda, and productivity topics
-- If asked about totally unrelated topics → gently redirect to wellness with humor
-- Never share raw personal data back — only reference it naturally in advice
-
-═══ RESPONSE FORMAT ═══
-- Use markdown: **bold** for key terms, bullet points for steps
-- Keep responses actionable — every response should have something the user can DO
-- End responses with an engaging question or suggestion when natural
-- For step-by-step guides → use numbered lists
-- For comparisons → use brief structured format''';
+═══ RULES ═══
+- Never diagnose or prescribe medicine
+- Stay within wellness topics; redirect unrelated questions with humor
+- Use markdown: **bold**, bullet points, numbered lists
+- Keep responses actionable
+- End with engaging question or suggestion when natural''';
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -417,71 +419,133 @@ You have access to these powerful features — use them wisely:
     _chatHistory.add({'role': 'user', 'content': sanitizedMessage});
 
     // Build messages array with full context
-    final systemPrompt = await _buildSystemPrompt();
+    String systemPrompt;
+    try {
+      systemPrompt = await _buildSystemPrompt();
+    } catch (e) {
+      debugPrint('⚠️ System prompt build failed, using fallback: $e');
+      systemPrompt = 'You are Disha, a friendly Ayurvedic wellness AI guide for the Dincharya app. Respond in Hinglish.';
+    }
+
+    // Filter out empty messages from history
+    final validHistory = _chatHistory
+        .where((m) => (m['content'] ?? '').trim().isNotEmpty)
+        .toList();
+    // Keep only the last 6 messages to stay within token limits
+    final recentHistory = validHistory.length > 6
+        ? validHistory.sublist(validHistory.length - 6)
+        : validHistory;
+
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': systemPrompt},
-      ..._chatHistory.take(20), // Keep last 20 messages for context
+      ...recentHistory,
     ];
 
+    debugPrint('📤 AI Guide sending ${messages.length} messages (system prompt: ${systemPrompt.length} chars)');
+
     try {
+      // Use non-streaming API call (streaming returns empty from a4f.co)
       final response = await _dio.post(
         '/chat/completions',
         options: Options(
           headers: {'Authorization': 'Bearer $_apiKey'},
-          responseType: ResponseType.stream,
+          receiveTimeout: const Duration(seconds: 60),
         ),
         data: {
           'model': _model,
           'messages': messages,
-          'stream': true,
+          'stream': false,
           'temperature': 0.7,
-          'max_tokens': 1500,
+          'max_tokens': 800,
         },
       );
 
-      final stream = response.data.stream as Stream<List<int>>;
-      final fullResponse = StringBuffer();
-      String buffer = '';
+      final json = response.data as Map<String, dynamic>;
+      final choices = json['choices'] as List?;
+      String fullResponse = '';
 
-      await for (final chunk in stream) {
-        buffer += utf8.decode(chunk);
+      if (choices != null && choices.isNotEmpty) {
+        final message = choices[0]['message'] as Map<String, dynamic>?;
+        fullResponse = message?['content'] as String? ?? '';
+      }
 
-        // Process complete SSE lines
-        while (buffer.contains('\n')) {
-          final newlineIndex = buffer.indexOf('\n');
-          final line = buffer.substring(0, newlineIndex).trim();
-          buffer = buffer.substring(newlineIndex + 1);
+      debugPrint('📥 AI Guide response: ${fullResponse.length} chars');
 
-          if (line.startsWith('data: ')) {
-            final data = line.substring(6).trim();
-            if (data == '[DONE]') break;
+      if (fullResponse.isEmpty) {
+        debugPrint('⚠️ AI returned empty response!');
+        yield 'Kuch samajh nahi aaya. Kya aap dubara pooch sakte hain? 🙏';
+        return;
+      }
 
-            try {
-              final json = jsonDecode(data) as Map<String, dynamic>;
-              final choices = json['choices'] as List?;
-              if (choices != null && choices.isNotEmpty) {
-                final delta = choices[0]['delta'] as Map<String, dynamic>?;
-                final content = delta?['content'] as String?;
-                if (content != null) {
-                  fullResponse.write(content);
-                  yield fullResponse.toString();
-                }
-              }
-            } catch (_) {
-              // Skip malformed chunks
-            }
-          }
+      // Simulate streaming by yielding words progressively
+      final words = fullResponse.split(' ');
+      final buffer = StringBuffer();
+      for (int i = 0; i < words.length; i++) {
+        if (i > 0) buffer.write(' ');
+        buffer.write(words[i]);
+        yield buffer.toString();
+        // Small delay for natural feel (every 3 words)
+        if (i % 3 == 0) {
+          await Future.delayed(const Duration(milliseconds: 15));
         }
       }
 
       // Add assistant response to history
-      final finalResponse = fullResponse.toString();
-      if (finalResponse.isNotEmpty) {
-        _chatHistory.add({'role': 'assistant', 'content': finalResponse});
+      if (fullResponse.isNotEmpty) {
+        _chatHistory.add({'role': 'assistant', 'content': fullResponse});
       }
     } on DioException catch (e) {
       debugPrint('❌ AI Guide error: ${e.message}');
-      if (e.response?.statusCode == 401) {
+      // Log the actual error body for debugging
+      if (e.response?.data != null) {
+        debugPrint('❌ API error body: ${e.response?.data}');
+      }
+      if (e.response?.statusCode == 500 || e.response?.statusCode == 503) {
+        // Retry with minimal context
+        debugPrint('🔄 Retrying with fallback model and minimal context...');
+        try {
+          final retryMessages = <Map<String, String>>[
+            {'role': 'system', 'content': 'You are Disha, a friendly Ayurvedic wellness AI guide. Respond in the same language the user writes in.'},
+            {'role': 'user', 'content': sanitizedMessage},
+          ];
+          final retryResponse = await _dio.post(
+            '/chat/completions',
+            options: Options(
+              headers: {'Authorization': 'Bearer $_apiKey'},
+              receiveTimeout: const Duration(seconds: 60),
+            ),
+            data: {
+              'model': _fallbackModel,
+              'messages': retryMessages,
+              'stream': false,
+              'temperature': 0.7,
+              'max_tokens': 500,
+            },
+          );
+          final retryJson = retryResponse.data as Map<String, dynamic>;
+          final retryChoices = retryJson['choices'] as List?;
+          if (retryChoices != null && retryChoices.isNotEmpty) {
+            final retryContent = (retryChoices[0]['message'] as Map<String, dynamic>?)?['content'] as String? ?? '';
+            if (retryContent.isNotEmpty) {
+              debugPrint('✅ Retry succeeded: ${retryContent.length} chars');
+              final words = retryContent.split(' ');
+              final buf = StringBuffer();
+              for (int i = 0; i < words.length; i++) {
+                if (i > 0) buf.write(' ');
+                buf.write(words[i]);
+                yield buf.toString();
+                if (i % 3 == 0) await Future.delayed(const Duration(milliseconds: 15));
+              }
+              _chatHistory.add({'role': 'assistant', 'content': retryContent});
+              return;
+            }
+          }
+          yield 'Server busy. Please try again in a moment. 🙏';
+        } catch (retryError) {
+          debugPrint('❌ Retry also failed: $retryError');
+          yield 'Server is currently busy. Please try again in a moment. 🙏';
+        }
+      } else if (e.response?.statusCode == 401) {
         yield 'API key invalid. Please check your A4F API key in the .env file.';
       } else if (e.response?.statusCode == 429) {
         yield 'Too many requests. Please wait a moment and try again. 🙏';
@@ -530,8 +594,82 @@ You have access to these powerful features — use them wisely:
     }
   }
 
-  /// Clear chat history
-  void clearHistory() => _chatHistory.clear();
+  /// Clear chat history (in-memory + Supabase)
+  Future<void> clearHistory() async {
+    _chatHistory.clear();
+    try {
+      final user = _supabase.currentUser;
+      if (user == null) return;
+      final client = await _supabase.client;
+      if (client == null) return;
+      await client.from('ai_chat_messages').delete().eq('user_id', user.id);
+      debugPrint('🗑️ AI chat history cleared from Supabase');
+    } catch (e) {
+      debugPrint('⚠️ Failed to clear chat history from Supabase: $e');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SUPABASE PERSISTENCE
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Save a single message to Supabase
+  Future<void> saveMessage({
+    required String role,
+    required String content,
+    String? imageUrl,
+  }) async {
+    try {
+      final user = _supabase.currentUser;
+      if (user == null) return;
+      final client = await _supabase.client;
+      if (client == null) return;
+
+      await client.from('ai_chat_messages').insert({
+        'user_id': user.id,
+        'role': role,
+        'content': content,
+        'image_url': imageUrl,
+      });
+    } catch (e) {
+      debugPrint('⚠️ Failed to save AI chat message: $e');
+    }
+  }
+
+  /// Load chat history from Supabase (last 50 messages)
+  Future<List<Map<String, dynamic>>> loadChatHistory() async {
+    try {
+      final user = _supabase.currentUser;
+      if (user == null) return [];
+      final client = await _supabase.client;
+      if (client == null) return [];
+
+      final data = await client
+          .from('ai_chat_messages')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: true)
+          .limit(50);
+
+      // Also populate in-memory chat history for API context (skip empty messages)
+      _chatHistory.clear();
+      for (final msg in data) {
+        final content = (msg['content'] as String?) ?? '';
+        if (content.trim().isNotEmpty) {
+          _chatHistory.add({
+            'role': msg['role'] as String,
+            'content': content,
+          });
+        }
+      }
+
+      debugPrint('📥 Loaded ${data.length} AI chat messages from Supabase');
+      return List<Map<String, dynamic>>.from(data);
+    } catch (e) {
+      debugPrint('⚠️ Failed to load AI chat history: $e');
+      return [];
+    }
+  }
 
   /// Get suggested quick prompts based on time of day
   List<String> getSuggestedPrompts() {

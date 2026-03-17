@@ -23,7 +23,7 @@ class VolumeControlWidget extends StatelessWidget {
             children: [
               CustomIconWidget(
                 iconName: 'volume_down',
-                color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 20,
               ),
               Expanded(
@@ -33,23 +33,23 @@ class VolumeControlWidget extends StatelessWidget {
                   max: 1.0,
                   divisions: 20,
                   onChanged: onVolumeChanged,
-                  activeColor: AppTheme.darkTheme.colorScheme.primary,
-                  inactiveColor: AppTheme.darkTheme.colorScheme.primary
+                  activeColor: Theme.of(context).colorScheme.primary,
+                  inactiveColor: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.3),
-                  thumbColor: AppTheme.darkTheme.colorScheme.primary,
+                  thumbColor: Theme.of(context).colorScheme.primary,
                 ),
               ),
               CustomIconWidget(
                 iconName: 'volume_up',
-                color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 20,
               ),
             ],
           ),
           Text(
             'Volume: ${(volume * 100).round()}%',
-            style: AppTheme.darkTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],

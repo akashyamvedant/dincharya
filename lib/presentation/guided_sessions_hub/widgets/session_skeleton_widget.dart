@@ -58,10 +58,10 @@ class _SessionSkeletonWidgetState extends State<SessionSkeletonWidget>
           gradient: LinearGradient(
             begin: Alignment(_shimmerAnimation.value - 1, 0),
             end: Alignment(_shimmerAnimation.value, 0),
-            colors: const [
-              Color(0xFFF5F0EB),
-              Color(0xFFEDE7E0),
-              Color(0xFFF5F0EB),
+            colors: [
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+              Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.6),
+              Theme.of(context).colorScheme.surfaceContainerHighest,
             ],
           ),
         ),

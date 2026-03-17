@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -23,15 +23,15 @@ class WelcomeStepWidget extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.lightTheme.colorScheme.primary
+                  Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.08),
-                  AppTheme.lightTheme.colorScheme.secondary
+                  Theme.of(context).colorScheme.secondary
                       .withValues(alpha: 0.12),
                 ],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.lightTheme.colorScheme.primary
+                  color: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
@@ -50,7 +50,7 @@ class WelcomeStepWidget extends StatelessWidget {
                       scale: value,
                       child: CustomIconWidget(
                         iconName: 'wb_sunny',
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 64,
                       ),
                     );
@@ -68,7 +68,7 @@ class WelcomeStepWidget extends StatelessWidget {
                         offset: Offset(0, 10 * (1 - value)),
                         child: CustomIconWidget(
                           iconName: 'self_improvement',
-                          color: AppTheme.lightTheme.colorScheme.secondary,
+                          color: Theme.of(context).colorScheme.secondary,
                           size: 48,
                         ),
                       ),
@@ -84,9 +84,9 @@ class WelcomeStepWidget extends StatelessWidget {
           // Headline
           Text(
             'Welcome to DinCharya',
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -96,7 +96,7 @@ class WelcomeStepWidget extends StatelessWidget {
           // Description
           Text(
             'Discover the ancient wisdom of daily routines. DinCharya helps you build discipline, peace, and productivity through personalized practices rooted in yogic traditions.',
-            style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               height: 1.6,
             ),
             textAlign: TextAlign.center,
@@ -136,14 +136,14 @@ class WelcomeStepWidget extends StatelessWidget {
       children: [
         CustomIconWidget(
           iconName: iconName,
-          color: AppTheme.lightTheme.colorScheme.primary,
+          color: Theme.of(context).colorScheme.primary,
           size: 24,
         ),
         SizedBox(width: 3.w),
         Expanded(
           child: Text(
             text,
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
       ],

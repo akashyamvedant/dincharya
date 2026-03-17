@@ -3,6 +3,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../models/task_categories.dart';
+import '../../../services/alarm_service.dart';
+import 'session_picker_sheet.dart';
 
 /// Bottom sheet dialog for editing task details
 class EditTaskBottomSheet extends StatefulWidget {
@@ -26,6 +28,11 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
   late String _selectedCategoryId;
   int _durationMinutes = 15;
   bool _isSaving = false;
+  bool _alarmEnabled = false;
+  String _selectedAlarmSound = 'gentle_morning';
+  String? _linkedSessionId;
+  String? _linkedSessionTitle;
+  int? _linkedSessionDuration;
 
   TaskCategory get _selectedCategory =>
       TaskCategory.findById(_selectedCategoryId);
@@ -57,6 +64,16 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
     // Parse time
     final timeStr = widget.task['time'] ?? '06:00 AM';
     _selectedTime = _parseTimeString(timeStr);
+
+    // Parse alarm settings
+    _alarmEnabled = widget.task['alarm_enabled'] == true;
+    _selectedAlarmSound = widget.task['alarm_sound']?.toString() ?? 'gentle_morning';
+
+    // Parse linked session
+    _linkedSessionId = widget.task['linked_session_id']?.toString();
+    _linkedSessionTitle = widget.task['linked_session_title']?.toString();
+    final rawSessionDur = widget.task['linked_session_duration'];
+    _linkedSessionDuration = rawSessionDur is int ? rawSessionDur : null;
   }
 
   TimeOfDay _parseTimeString(String timeStr) {
@@ -94,17 +111,24 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: AppTheme.lightTheme.colorScheme.copyWith(
-              primary: const Color(0xFF5D4037),
-              onPrimary: Colors.white,
-              surface: const Color(0xFFFDF8F3),
-              onSurface: const Color(0xFF2C1810),
-            ),
             timePickerTheme: TimePickerThemeData(
-              backgroundColor: const Color(0xFFFDF8F3),
-              dialHandColor: const Color(0xFF5D4037),
-              dialBackgroundColor: const Color(0xFF5D4037).withOpacity(0.08),
-              entryModeIconColor: const Color(0xFF5D4037),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              hourMinuteTextColor: Theme.of(context).colorScheme.onSurface,
+              dialHandColor: Theme.of(context).colorScheme.primary,
+              dialBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              dayPeriodTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodBorderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+              entryModeIconColor: Theme.of(context).colorScheme.primary,
+              helpTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
           child: child!,
@@ -120,21 +144,23 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
 
   void _showDurationPicker() {
     int tempDuration = _durationMinutes > 0 ? _durationMinutes : 15;
+    final customController = TextEditingController();
+    bool isCustomMode = false;
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            backgroundColor: const Color(0xFFFDF8F3),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text(
+            title: Text(
               'Set Duration',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             content: Column(
@@ -142,88 +168,189 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
               children: [
                 Text(
                   '$tempDuration min',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF5D4037),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 SizedBox(height: 2.h),
-                SliderTheme(
-                  data: SliderThemeData(
-                    activeTrackColor: const Color(0xFF5D4037),
-                    inactiveTrackColor:
-                        const Color(0xFF5D4037).withOpacity(0.15),
-                    thumbColor: const Color(0xFF5D4037),
-                    overlayColor:
-                        const Color(0xFF5D4037).withOpacity(0.1),
-                    trackHeight: 6,
+
+                // Slider (capped at 120)
+                if (!isCustomMode) ...[
+                  SliderTheme(
+                    data: SliderThemeData(
+                      activeTrackColor: Theme.of(context).colorScheme.primary,
+                      inactiveTrackColor:
+                          Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                      thumbColor: Theme.of(context).colorScheme.primary,
+                      overlayColor:
+                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      trackHeight: 6,
+                    ),
+                    child: Slider(
+                      value: tempDuration.clamp(5, 120).toDouble(),
+                      min: 5,
+                      max: 120,
+                      divisions: 23,
+                      label: '$tempDuration min',
+                      onChanged: (value) {
+                        setDialogState(() {
+                          tempDuration = value.round();
+                        });
+                      },
+                    ),
                   ),
-                  child: Slider(
-                    value: tempDuration.toDouble(),
-                    min: 5,
-                    max: 120,
-                    divisions: 23,
-                    label: '$tempDuration min',
+                  SizedBox(height: 0.5.h),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('5 min',
+                          style: TextStyle(
+                              fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      Text('120 min',
+                          style: TextStyle(
+                              fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                ],
+
+                // Custom time input
+                if (isCustomMode) ...[
+                  TextField(
+                    controller: customController,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter minutes (e.g. 180)',
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      suffixText: 'min',
+                      suffixStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).colorScheme.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).colorScheme.primary, width: 2),
+                      ),
+                    ),
                     onChanged: (value) {
-                      setDialogState(() {
-                        tempDuration = value.round();
-                      });
+                      final parsed = int.tryParse(value);
+                      if (parsed != null && parsed > 0) {
+                        setDialogState(() {
+                          tempDuration = parsed;
+                        });
+                      }
                     },
                   ),
-                ),
-                SizedBox(height: 0.5.h),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('5 min',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                    Text('120 min',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[500])),
-                  ],
-                ),
-                SizedBox(height: 2.h),
+                  SizedBox(height: 2.h),
+                ],
+
+                // Preset buttons + Custom button
                 Wrap(
                   spacing: 2.w,
                   runSpacing: 1.h,
-                  children: [5, 10, 15, 20, 30, 45, 60, 90].map((mins) {
-                    final isActive = tempDuration == mins;
-                    return GestureDetector(
+                  children: [
+                    ...[5, 10, 15, 20, 30, 45, 60, 90].map((mins) {
+                      final isActive = tempDuration == mins && !isCustomMode;
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            tempDuration = mins;
+                            isCustomMode = false;
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 3.w, vertical: 1.h),
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
+                          child: Text(
+                            '${mins}m',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color:
+                                  isActive ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    // Custom button
+                    GestureDetector(
                       onTap: () {
                         setDialogState(() {
-                          tempDuration = mins;
+                          isCustomMode = !isCustomMode;
+                          if (isCustomMode) {
+                            customController.text = tempDuration.toString();
+                          }
                         });
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(
                             horizontal: 3.w, vertical: 1.h),
                         decoration: BoxDecoration(
-                          color: isActive
-                              ? const Color(0xFF5D4037)
-                              : Colors.white,
+                          color: isCustomMode
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isActive
-                                ? const Color(0xFF5D4037)
-                                : Colors.grey[300]!,
+                            color: isCustomMode
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outline,
                           ),
                         ),
-                        child: Text(
-                          '${mins}m',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: isActive
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color:
-                                isActive ? Colors.white : Colors.black87,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.edit,
+                              size: 13,
+                              color: isCustomMode ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                            ),
+                            SizedBox(width: 1.w),
+                            Text(
+                              'Custom',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isCustomMode
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isCustomMode
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -232,7 +359,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
               ElevatedButton(
@@ -243,13 +370,13 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5D4037),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Confirm',
-                    style: TextStyle(color: Colors.white)),
+                child: Text('Confirm',
+                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
               ),
             ],
           );
@@ -270,8 +397,8 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
     if (_selectedCategory.hasDuration && _durationMinutes <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please set task duration'),
-          backgroundColor: Colors.red[700],
+          content: Text('Please set task duration'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -293,6 +420,9 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
           ? _durationMinutes
           : null,
       'is_inevitable': _selectedCategory.isInevitable,
+      'alarm_enabled': _selectedCategoryId == 'wakeup' ? _alarmEnabled : false,
+      'alarm_sound': _selectedCategoryId == 'wakeup' ? _selectedAlarmSound : null,
+      'linked_session_id': _selectedCategory.hasGuidedSessions ? _linkedSessionId : null,
     };
 
     widget.onTaskUpdated(updatedTask);
@@ -303,8 +433,8 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(4.w),
-      decoration: const BoxDecoration(
-        color: Color(0xFFFDF8F3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SingleChildScrollView(
@@ -318,7 +448,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                 width: 12.w,
                 height: 0.5.h,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF5D4037).withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.outline,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -326,12 +456,12 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
             SizedBox(height: 2.h),
 
             // Title
-            const Text(
+            Text(
               'Edit Task',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 3.h),
@@ -339,26 +469,26 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
             // Task Title
             TextField(
               controller: _titleController,
-              style: const TextStyle(color: Colors.black87),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Task Title',
-                labelStyle: TextStyle(color: Colors.grey[600]),
+                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 prefixIcon:
-                    const Icon(Icons.title, color: Color(0xFF5D4037)),
+                    Icon(Icons.title, color: Theme.of(context).colorScheme.primary),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: Color(0xFF5D4037), width: 2),
+                      BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                 ),
               ),
             ),
@@ -368,38 +498,38 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
             TextField(
               controller: _descriptionController,
               maxLines: 2,
-              style: const TextStyle(color: Colors.black87),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Description (Optional)',
-                labelStyle: TextStyle(color: Colors.grey[600]),
+                labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 prefixIcon:
-                    const Icon(Icons.notes, color: Color(0xFF5D4037)),
+                    Icon(Icons.notes, color: Theme.of(context).colorScheme.primary),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: Theme.of(context).colorScheme.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: Color(0xFF5D4037), width: 2),
+                      BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                 ),
               ),
             ),
             SizedBox(height: 2.h),
 
             // Category Selection
-            const Text(
+            Text(
               'Category',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 1.h),
@@ -426,12 +556,12 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? category.color
-                              : Colors.white,
+                              : Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
                                 ? category.color
-                                : Colors.grey[300]!,
+                                : Theme.of(context).colorScheme.outline,
                           ),
                         ),
                         child: Row(
@@ -442,7 +572,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                               size: 16,
                               color: isSelected
                                   ? Colors.white
-                                  : Colors.black54,
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             SizedBox(width: 1.w),
                             Text(
@@ -450,7 +580,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                               style: TextStyle(
                                 color: isSelected
                                     ? Colors.white
-                                    : Colors.black87,
+                                    : Theme.of(context).colorScheme.onSurface,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w400,
@@ -474,13 +604,13 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.timer, color: Color(0xFF5D4037)),
+                      Icon(Icons.timer, color: Theme.of(context).colorScheme.primary),
                       SizedBox(width: 3.w),
                       Text(
                         _durationMinutes > 0
@@ -488,14 +618,14 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                             : 'Set duration',
                         style: TextStyle(
                           color: _durationMinutes > 0
-                              ? const Color(0xFF2C1810)
-                              : Colors.grey[400],
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                           fontSize: 16,
                         ),
                       ),
                       const Spacer(),
-                      Icon(Icons.edit, color: Colors.grey[400], size: 18),
+                      Icon(Icons.edit, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18),
                     ],
                   ),
                 ),
@@ -506,37 +636,49 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
             // Time Selection
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
               ),
               child: ListTile(
-                leading: const Icon(
+                leading: Icon(
                   Icons.access_time,
-                  color: Color(0xFF5D4037),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                title: const Text(
+                title: Text(
                   'Scheduled Time',
                   style: TextStyle(
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 subtitle: Text(
                   _selectedTime.format(context),
-                  style: const TextStyle(
-                    color: Color(0xFF5D4037),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.edit,
-                  color: Color(0xFF5D4037),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 onTap: _selectTime,
               ),
             ),
-            SizedBox(height: 3.h),
+            SizedBox(height: 2.h),
+
+            // Alarm settings — only for wakeup category
+            if (_selectedCategoryId == 'wakeup') ...[
+              _buildAlarmSection(),
+              SizedBox(height: 2.h),
+            ],
+
+            // Guided Session linking — for meditation, yoga, pranayama
+            if (_selectedCategory.hasGuidedSessions) ...[
+              _buildGuidedSessionSection(),
+              SizedBox(height: 2.h),
+            ],
 
             // Action Buttons
             Row(
@@ -549,11 +691,11 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      side: BorderSide(color: Colors.grey[400]!),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outline),
                     ),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.grey[700]),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ),
@@ -563,25 +705,25 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _saveTask,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5D4037),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       padding: EdgeInsets.symmetric(vertical: 1.5.h),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           )
-                        : const Text(
+                        : Text(
                             'Save Changes',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -592,6 +734,273 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
             SizedBox(height: 2.h),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildGuidedSessionSection() {
+    final color = _selectedCategory.color;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Link Guided Session (Optional)',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        SizedBox(height: 1.h),
+        GestureDetector(
+          onTap: () async {
+            final result = await showModalBottomSheet<Map<String, dynamic>>(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (ctx) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                ),
+                child: SessionPickerSheet(
+                  category: _selectedCategoryId,
+                  currentSessionId: _linkedSessionId,
+                ),
+              ),
+            );
+            if (result != null) {
+              setState(() {
+                if (result['unlink'] == true) {
+                  _linkedSessionId = null;
+                  _linkedSessionTitle = null;
+                  _linkedSessionDuration = null;
+                } else {
+                  _linkedSessionId = result['id'] as String?;
+                  _linkedSessionTitle = result['title'] as String?;
+                  _linkedSessionDuration = result['duration'] as int?;
+                }
+              });
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+            decoration: BoxDecoration(
+              color: _linkedSessionId != null
+                  ? color.withOpacity(0.06)
+                  : Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _linkedSessionId != null
+                    ? color.withOpacity(0.3)
+                    : Theme.of(context).colorScheme.outline,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _linkedSessionId != null
+                        ? Icons.play_circle_filled
+                        : Icons.add_circle_outline,
+                    color: color,
+                    size: 22,
+                  ),
+                ),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: _linkedSessionId != null
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _linkedSessionTitle ?? 'Session',
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_linkedSessionDuration != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  '${(_linkedSessionDuration! ~/ 60)} min • Tap to change',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        )
+                      : Text(
+                          'Tap to choose a guided session',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                ),
+                if (_linkedSessionId != null)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _linkedSessionId = null;
+                        _linkedSessionTitle = null;
+                        _linkedSessionDuration = null;
+                      });
+                    },
+                    child: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  )
+                else
+                  Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlarmSection() {
+    return Container(
+      padding: EdgeInsets.all(3.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFF57F17).withOpacity(0.08),
+            const Color(0xFFFF8F00).withOpacity(0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFF57F17).withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _alarmEnabled
+                      ? const Color(0xFFF57F17).withOpacity(0.15)
+                      : Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _alarmEnabled ? Icons.alarm_on_rounded : Icons.alarm_off_rounded,
+                  color: _alarmEnabled ? Color(0xFFF57F17) : Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 3.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wake Up Alarm',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      _alarmEnabled
+                          ? 'Alarm will ring at scheduled time'
+                          : 'Only notification will be sent',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _alarmEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _alarmEnabled = value;
+                  });
+                },
+                activeColor: const Color(0xFFF57F17),
+                activeTrackColor: const Color(0xFFF57F17).withOpacity(0.3),
+              ),
+            ],
+          ),
+          if (_alarmEnabled) ...[
+            SizedBox(height: 1.5.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.outline),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.music_note_rounded,
+                    color: const Color(0xFFF57F17),
+                    size: 18,
+                  ),
+                  SizedBox(width: 2.w),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedAlarmSound,
+                        isExpanded: true,
+                        dropdownColor: Theme.of(context).scaffoldBackgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                        elevation: 4,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        icon: Icon(
+                          Icons.expand_more_rounded,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
+                        items: AlarmService.availableSounds.map((sound) {
+                          return DropdownMenuItem<String>(
+                            value: sound.id,
+                            child: Text(sound.displayName),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedAlarmSound = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

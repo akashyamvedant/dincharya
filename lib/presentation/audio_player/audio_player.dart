@@ -184,7 +184,7 @@ class _AudioPlayerState extends State<AudioPlayer>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: _isLoading
             ? Center(
@@ -192,13 +192,13 @@ class _AudioPlayerState extends State<AudioPlayer>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     CircularProgressIndicator(
-                      color: AppTheme.darkTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     SizedBox(height: 2.h),
                     Text(
                       'Loading session...',
-                      style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.darkTheme.colorScheme.onSurface,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -233,10 +233,9 @@ class _AudioPlayerState extends State<AudioPlayer>
                                     child: CircularProgressIndicator(
                                       value: _currentPosition / _totalDuration,
                                       strokeWidth: 4.0,
-                                      backgroundColor: AppTheme
-                                          .darkTheme.colorScheme.surface,
+                                      backgroundColor: Theme.of(context).colorScheme.surface,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppTheme.darkTheme.colorScheme.primary,
+                                        Color(0xFF8B4513),
                                       ),
                                     ),
                                   );
@@ -267,21 +266,18 @@ class _AudioPlayerState extends State<AudioPlayer>
                               children: [
                                 Text(
                                   currentSession["title"],
-                                  style: AppTheme
-                                      .darkTheme.textTheme.headlineSmall
+                                  style: Theme.of(context).textTheme.headlineSmall
                                       ?.copyWith(
-                                    color: AppTheme
-                                        .darkTheme.colorScheme.onSurface,
+                                    color: Theme.of(context).colorScheme.onSurface,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                                 SizedBox(height: 1.h),
                                 Text(
                                   'with ${currentSession["instructor"]}',
-                                  style: AppTheme.darkTheme.textTheme.bodyMedium
+                                  style: Theme.of(context).textTheme.bodyMedium
                                       ?.copyWith(
-                                    color: AppTheme
-                                        .darkTheme.colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),

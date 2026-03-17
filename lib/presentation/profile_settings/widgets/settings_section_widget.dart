@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../services/theme_provider.dart';
 
 class SettingsSectionWidget extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -46,6 +47,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
 
   void _showLanguageSelector() {
     final languages = ['English', 'Hindi', 'Tamil', 'Telugu', 'Bengali'];
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
@@ -53,7 +55,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
         return AlertDialog(
           title: Text(
             'Select Language',
-            style: AppTheme.lightTheme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -78,6 +80,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
 
   void _showAdProviderSelector() {
     final providers = ['AdMob', 'Facebook', 'None'];
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
@@ -85,7 +88,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
         return AlertDialog(
           title: Text(
             'Ad Provider',
-            style: AppTheme.lightTheme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -109,17 +112,18 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
   }
 
   void _showDataManagementDialog(String action) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
             action,
-            style: AppTheme.lightTheme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           content: Text(
             '$action functionality will be implemented here.',
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            style: theme.textTheme.bodyMedium,
           ),
           actions: [
             TextButton(
@@ -133,17 +137,18 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
   }
 
   void _showSupportDialog(String action) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(
             action,
-            style: AppTheme.lightTheme.textTheme.titleMedium,
+            style: theme.textTheme.titleMedium,
           ),
           content: Text(
             '$action will be available in the next update.',
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
+            style: theme.textTheme.bodyMedium,
           ),
           actions: [
             TextButton(
@@ -158,7 +163,9 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final notifications = preferences["notifications"] as Map<String, dynamic>;
+    final themeProvider = ThemeProvider();
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -166,13 +173,14 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Account Section
-          _buildSectionHeader('Account'),
-          _buildSettingsCard([
+          _buildSectionHeader('Account', theme),
+          _buildSettingsCard(theme, [
             if (!widget.isLoggedIn) ...[
               _buildSettingsTile(
                 'Sign In',
                 'Sign in with email or Google',
                 'login',
+                theme,
                 onTap: widget.onLogin,
               ),
             ] else ...[
@@ -180,12 +188,14 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
                 'Edit Profile',
                 'Update your personal information',
                 'person_outline',
+                theme,
                 onTap: () => _showDataManagementDialog('Edit Profile'),
               ),
               _buildSettingsTile(
                 'Change Password',
                 'Update your account password',
                 'lock_outline',
+                theme,
                 onTap: () => _showDataManagementDialog('Change Password'),
               ),
             ],
@@ -194,8 +204,8 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
           SizedBox(height: 2.h),
 
           // Notification Preferences
-          _buildSectionHeader('Notifications'),
-          _buildSettingsCard([
+          _buildSectionHeader('Notifications', theme),
+          _buildSettingsCard(theme, [
             _buildSwitchTile(
               'Routine Reminders',
               'Get notified about your daily routines',
@@ -203,6 +213,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
               notifications["routineReminders"] as bool,
               (value) =>
                   _updatePreference("notifications.routineReminders", value),
+              theme,
             ),
             _buildSwitchTile(
               'Streak Notifications',
@@ -211,6 +222,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
               notifications["streakNotifications"] as bool,
               (value) =>
                   _updatePreference("notifications.streakNotifications", value),
+              theme,
             ),
             _buildSwitchTile(
               'Weekly Summaries',
@@ -219,25 +231,33 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
               notifications["weeklySummaries"] as bool,
               (value) =>
                   _updatePreference("notifications.weeklySummaries", value),
+              theme,
             ),
           ]),
 
           SizedBox(height: 2.h),
 
           // App Preferences
-          _buildSectionHeader('App Preferences'),
-          _buildSettingsCard([
+          _buildSectionHeader('App Preferences', theme),
+          _buildSettingsCard(theme, [
+            // Dark Mode Toggle — uses ThemeProvider
             _buildSwitchTile(
               'Dark Mode',
               'Switch to dark theme',
               'dark_mode',
-              preferences["darkMode"] as bool,
-              (value) => _updatePreference("darkMode", value),
+              themeProvider.isDarkMode,
+              (value) {
+                themeProvider.setThemeMode(
+                  value ? ThemeMode.dark : ThemeMode.light,
+                );
+              },
+              theme,
             ),
             _buildSettingsTile(
               'Language',
               preferences["language"] as String,
               'language',
+              theme,
               onTap: _showLanguageSelector,
               showArrow: true,
             ),
@@ -246,6 +266,7 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
                 'Ad Provider',
                 preferences["adProvider"] as String,
                 'ads_click',
+                theme,
                 onTap: _showAdProviderSelector,
                 showArrow: true,
               ),
@@ -254,24 +275,27 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
           SizedBox(height: 2.h),
 
           // Data Management
-          _buildSectionHeader('Data Management'),
-          _buildSettingsCard([
+          _buildSectionHeader('Data Management', theme),
+          _buildSettingsCard(theme, [
             _buildSettingsTile(
               'Export Data',
               'Download your personal data',
               'download',
+              theme,
               onTap: () => _showDataManagementDialog('Export Data'),
             ),
             _buildSettingsTile(
               'Backup Settings',
               'Backup your app preferences',
               'backup',
+              theme,
               onTap: () => _showDataManagementDialog('Backup Settings'),
             ),
             _buildSettingsTile(
               'Clear Cache',
               'Free up storage space',
               'cleaning_services',
+              theme,
               onTap: () => _showDataManagementDialog('Clear Cache'),
             ),
           ]),
@@ -279,30 +303,34 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
           SizedBox(height: 2.h),
 
           // Support Section
-          _buildSectionHeader('Support'),
-          _buildSettingsCard([
+          _buildSectionHeader('Support', theme),
+          _buildSettingsCard(theme, [
             _buildSettingsTile(
               'Help Center',
               'Get help and support',
               'help_outline',
+              theme,
               onTap: () => _showSupportDialog('Help Center'),
             ),
             _buildSettingsTile(
               'Contact Support',
               'Reach out to our team',
               'support_agent',
+              theme,
               onTap: () => _showSupportDialog('Contact Support'),
             ),
             _buildSettingsTile(
               'Rate App',
               'Rate us on the app store',
               'star_outline',
+              theme,
               onTap: () => _showSupportDialog('Rate App'),
             ),
             _buildSettingsTile(
               'Privacy Policy',
               'Read our privacy policy',
               'privacy_tip',
+              theme,
               onTap: () => _showSupportDialog('Privacy Policy'),
             ),
           ]),
@@ -317,9 +345,8 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
               child: OutlinedButton(
                 onPressed: widget.onLogout,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.lightTheme.colorScheme.error,
-                  side:
-                      BorderSide(color: AppTheme.lightTheme.colorScheme.error),
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
                   padding: EdgeInsets.symmetric(vertical: 1.5.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -330,14 +357,14 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
                   children: [
                     CustomIconWidget(
                       iconName: 'logout',
-                      color: AppTheme.lightTheme.colorScheme.error,
+                      color: theme.colorScheme.error,
                       size: 20,
                     ),
                     SizedBox(width: 2.w),
                     Text(
                       'Logout',
-                      style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.error,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -351,25 +378,25 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(String title, ThemeData theme) {
     return Padding(
       padding: EdgeInsets.only(bottom: 1.h),
       child: Text(
         title,
-        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+        style: theme.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 
-  Widget _buildSettingsCard(List<Widget> children) {
+  Widget _buildSettingsCard(ThemeData theme, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -381,7 +408,8 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
   Widget _buildSettingsTile(
     String title,
     String subtitle,
-    String iconName, {
+    String iconName,
+    ThemeData theme, {
     VoidCallback? onTap,
     bool showArrow = false,
   }) {
@@ -389,33 +417,31 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
       leading: Container(
         padding: EdgeInsets.all(2.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+          color: theme.colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: CustomIconWidget(
           iconName: iconName,
-          color: AppTheme.lightTheme.colorScheme.primary,
+          color: theme.colorScheme.primary,
           size: 20,
         ),
       ),
       title: Text(
         title,
-        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+        style: theme.textTheme.bodyMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-          color:
-              AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       trailing: showArrow
           ? CustomIconWidget(
               iconName: 'chevron_right',
-              color: AppTheme.lightTheme.colorScheme.onSurface
-                  .withValues(alpha: 0.5),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               size: 20,
             )
           : null,
@@ -430,31 +456,31 @@ class _SettingsSectionWidgetState extends State<SettingsSectionWidget> {
     String iconName,
     bool value,
     ValueChanged<bool> onChanged,
+    ThemeData theme,
   ) {
     return ListTile(
       leading: Container(
         padding: EdgeInsets.all(2.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+          color: theme.colorScheme.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: CustomIconWidget(
           iconName: iconName,
-          color: AppTheme.lightTheme.colorScheme.primary,
+          color: theme.colorScheme.primary,
           size: 20,
         ),
       ),
       title: Text(
         title,
-        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+        style: theme.textTheme.bodyMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-          color:
-              AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.7),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       trailing: Switch(

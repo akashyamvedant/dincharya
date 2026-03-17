@@ -4,7 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../services/guided_session_service.dart';
 
-/// Inline dosha quiz banner — shown when user hasn't set their dosha yet.
+/// Inline dosha quiz banner â€” shown when user hasn't set their dosha yet.
 /// Provides a quick 3-question flow to determine Ayurvedic constitution.
 class DoshaQuizWidget extends StatefulWidget {
   final VoidCallback? onDoshaSet;
@@ -25,25 +25,25 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
     {
       'question': 'What describes your body type?',
       'options': [
-        {'text': 'Thin, light frame', 'dosha': 'vata', 'emoji': '🌬️'},
-        {'text': 'Medium, athletic build', 'dosha': 'pitta', 'emoji': '🔥'},
-        {'text': 'Solid, strong frame', 'dosha': 'kapha', 'emoji': '🌊'},
+        {'text': 'Thin, light frame', 'dosha': 'vata', 'emoji': 'ðŸŒ¬ï¸'},
+        {'text': 'Medium, athletic build', 'dosha': 'pitta', 'emoji': 'ðŸ”¥'},
+        {'text': 'Solid, strong frame', 'dosha': 'kapha', 'emoji': 'ðŸŒŠ'},
       ],
     },
     {
       'question': 'How do you handle stress?',
       'options': [
-        {'text': 'I get anxious, restless', 'dosha': 'vata', 'emoji': '😰'},
-        {'text': 'I get frustrated, irritable', 'dosha': 'pitta', 'emoji': '😤'},
-        {'text': 'I withdraw, feel heavy', 'dosha': 'kapha', 'emoji': '😔'},
+        {'text': 'I get anxious, restless', 'dosha': 'vata', 'emoji': 'ðŸ˜°'},
+        {'text': 'I get frustrated, irritable', 'dosha': 'pitta', 'emoji': 'ðŸ˜¤'},
+        {'text': 'I withdraw, feel heavy', 'dosha': 'kapha', 'emoji': 'ðŸ˜”'},
       ],
     },
     {
       'question': 'Your natural energy pattern?',
       'options': [
-        {'text': 'Bursts of energy, tire quickly', 'dosha': 'vata', 'emoji': '⚡'},
-        {'text': 'Intense focus, strong drive', 'dosha': 'pitta', 'emoji': '🎯'},
-        {'text': 'Steady, enduring stamina', 'dosha': 'kapha', 'emoji': '🏔️'},
+        {'text': 'Bursts of energy, tire quickly', 'dosha': 'vata', 'emoji': 'âš¡'},
+        {'text': 'Intense focus, strong drive', 'dosha': 'pitta', 'emoji': 'ðŸŽ¯'},
+        {'text': 'Steady, enduring stamina', 'dosha': 'kapha', 'emoji': 'ðŸ”ï¸'},
       ],
     },
   ];
@@ -99,8 +99,8 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
         child: Container(
           padding: EdgeInsets.all(4.w),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6B3410), Color(0xFF8B4513)],
+            gradient: LinearGradient(
+              colors: [Color(0xFF6B3410), Color(0xFF5D4037)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -115,13 +115,13 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
           ),
           child: Row(
             children: [
-              const Text('🕉️', style: TextStyle(fontSize: 32)),
+               Text('ðŸ•‰ï¸', style: TextStyle(fontSize: 32)),
               SizedBox(width: 3.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Discover Your Dosha',
                       style: TextStyle(
                         color: Colors.white,
@@ -147,7 +147,7 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
+                child: Text(
                   'Start',
                   style: TextStyle(
                     color: Colors.white,
@@ -172,9 +172,9 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
       child: Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F0EB),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE0D5C8)),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,8 +184,8 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
               children: [
                 Text(
                   'Question ${_currentQuestion + 1} of ${_questions.length}',
-                  style: const TextStyle(
-                    color: Color(0xFF8B4513),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -199,7 +199,7 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
                     margin: const EdgeInsets.only(left: 4),
                     decoration: BoxDecoration(
                       color: i <= _currentQuestion
-                          ? const Color(0xFF8B4513)
+                           ? Theme.of(context).colorScheme.primary
                           : const Color(0xFFD7CCC8),
                       borderRadius: BorderRadius.circular(2),
                     ),
@@ -210,8 +210,8 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
             SizedBox(height: 1.5.h),
             Text(
               q['question'] as String,
-              style: const TextStyle(
-                color: Color(0xFF2C1810),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
@@ -225,19 +225,19 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE0D5C8)),
+                    border: Border.all(color: Theme.of(context).colorScheme.outline),
                   ),
                   child: Row(
                     children: [
-                      Text(opt['emoji']!, style: const TextStyle(fontSize: 20)),
-                      const SizedBox(width: 10),
+                      Text(opt['emoji']!, style:  TextStyle(fontSize: 20)),
+                      SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           opt['text']!,
-                          style: const TextStyle(
-                            color: Color(0xFF2C1810),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -272,7 +272,7 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
         ),
         child: Row(
           children: [
-            Text(info['emoji'] as String, style: const TextStyle(fontSize: 36)),
+            Text(info['emoji'] as String, style:  TextStyle(fontSize: 36)),
             SizedBox(width: 3.w),
             Expanded(
               child: Column(
@@ -280,7 +280,7 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
                 children: [
                   Text(
                     'You are ${(info['name'] as String)} dominant!',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -308,19 +308,19 @@ class _DoshaQuizWidgetState extends State<DoshaQuizWidget> {
   static const Map<String, Map<String, dynamic>> _doshaInfo = {
     'vata': {
       'name': 'Vata',
-      'emoji': '🌬️',
+      'emoji': 'ðŸŒ¬ï¸',
       'color': Color(0xFFCD853F),
       'tip': 'Calming meditations and grounding yoga are best for you.',
     },
     'pitta': {
       'name': 'Pitta',
-      'emoji': '🔥',
+      'emoji': 'ðŸ”¥',
       'color': Color(0xFFEF6C00),
       'tip': 'Cooling breathwork and gentle yoga balance your fire.',
     },
     'kapha': {
       'name': 'Kapha',
-      'emoji': '🌊',
+      'emoji': 'ðŸŒŠ',
       'color': Color(0xFF4A7C59),
       'tip': 'Energizing practices and dynamic yoga awaken your energy.',
     },

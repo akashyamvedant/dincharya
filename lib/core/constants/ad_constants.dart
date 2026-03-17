@@ -29,9 +29,11 @@ enum InterstitialPlacement {
 
 /// Native Ad placement types for different screens
 enum NativePlacement {
-  sessionFeed,      // Guided Sessions list feed (between session cards)
-  meTab,            // Me Tab profile screen (card style)
-  routineDashboard, // Routine task list (after task list)
+  sessionFeed,        // Guided Sessions list feed (between session cards)
+  meTab,              // Me Tab profile screen (card style)
+  routineDashboard,   // Routine task list (after evening tasks)
+  routineMorning,     // After morning task section
+  routineAfternoon,   // After afternoon task section
 }
 
 /// Rewarded Ad placement types for Guided Sessions
@@ -193,6 +195,10 @@ class AdConstants {
         return _prodNativeMeTabAndroid;
       case NativePlacement.routineDashboard:
         return _prodNativeRoutineDashboardAndroid;
+      case NativePlacement.routineMorning:
+        return _prodNativeMeTabAndroid; // Reuses meTab ad unit
+      case NativePlacement.routineAfternoon:
+        return _prodNativeRoutineDashboardAndroid; // Reuses routineDashboard ad unit
     }
   }
   

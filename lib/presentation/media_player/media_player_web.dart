@@ -1,4 +1,4 @@
-// Web implementation of Media Player - Premium Design
+﻿// Web implementation of Media Player - Premium Design
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -231,7 +231,7 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
 
   List<Color> _getCategoryGradient(String category) {
     // Single Warm Earth Brown for all categories
-    return [Color(0xFF8B4513), Color(0xFF6B3410)];
+    return [Theme.of(context).colorScheme.primary, Color(0xFF6B3410)];
   }
 
   @override

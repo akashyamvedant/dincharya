@@ -43,9 +43,9 @@ class ScheduleStepWidget extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.lightTheme.colorScheme.primary
+                    Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.1),
-                    AppTheme.lightTheme.colorScheme.secondary
+                    Theme.of(context).colorScheme.secondary
                         .withValues(alpha: 0.1),
                   ],
                 ),
@@ -55,13 +55,13 @@ class ScheduleStepWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'schedule',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 64,
                   ),
                   SizedBox(height: 1.h),
                   CustomIconWidget(
                     iconName: 'access_time',
-                    color: AppTheme.lightTheme.colorScheme.secondary,
+                    color: Theme.of(context).colorScheme.secondary,
                     size: 32,
                   ),
                 ],
@@ -74,9 +74,9 @@ class ScheduleStepWidget extends StatelessWidget {
           // Headline
           Text(
             'Your Goals & Schedule',
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -86,7 +86,7 @@ class ScheduleStepWidget extends StatelessWidget {
           // Description
           Text(
             'Select your wellness goals and set your daily schedule',
-            style: AppTheme.lightTheme.textTheme.bodyLarge,
+            style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),
 
@@ -95,14 +95,14 @@ class ScheduleStepWidget extends StatelessWidget {
           // Goals selection
           Text(
             'Primary Goals',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           SizedBox(height: 1.h),
           Text(
             'Choose what you want to focus on (select multiple)',
-            style: AppTheme.lightTheme.textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           SizedBox(height: 2.h),
 
@@ -124,19 +124,19 @@ class ScheduleStepWidget extends StatelessWidget {
                   }
                   onGoalsChanged(updatedGoals);
                 },
-                backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-                selectedColor: AppTheme.lightTheme.colorScheme.primary
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                selectedColor: Theme.of(context).colorScheme.primary
                     .withValues(alpha: 0.2),
-                checkmarkColor: AppTheme.lightTheme.colorScheme.primary,
-                labelStyle: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                checkmarkColor: Theme.of(context).colorScheme.primary,
+                labelStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: isSelected
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.onSurface,
+                      ? Color(0xFF8B4513)
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
                 side: BorderSide(
                   color: isSelected
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.outline,
+                      ? Color(0xFF8B4513)
+                      : Theme.of(context).colorScheme.outline,
                 ),
               );
             }).toList(),
@@ -147,14 +147,14 @@ class ScheduleStepWidget extends StatelessWidget {
           // Schedule section
           Text(
             'Daily Schedule',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           SizedBox(height: 1.h),
           Text(
             'Set your preferred wake and sleep times',
-            style: AppTheme.lightTheme.textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           SizedBox(height: 2.h),
 
@@ -199,7 +199,7 @@ class ScheduleStepWidget extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline,
+          color: Theme.of(context).colorScheme.outline,
         ),
         borderRadius: BorderRadius.circular(12),
       ),
@@ -210,7 +210,7 @@ class ScheduleStepWidget extends StatelessWidget {
             initialTime: time,
             builder: (context, child) {
               return Theme(
-                data: AppTheme.lightTheme,
+                data: Theme.of(context),
                 child: child!,
               );
             },
@@ -226,21 +226,21 @@ class ScheduleStepWidget extends StatelessWidget {
             children: [
               CustomIconWidget(
                 iconName: iconName,
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 size: 32,
               ),
               SizedBox(height: 1.h),
               Text(
                 label,
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
               ),
               SizedBox(height: 0.5.h),
               Text(
                 time.format(context),
-                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),

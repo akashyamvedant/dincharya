@@ -77,6 +77,10 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    // Listen for BOTH tap and swipe changes to update header/content
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _loadSessionsFromDB();
     _loadExtras();
   }
@@ -156,21 +160,22 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _getCurrentTabSessions() {
-    switch (_tabController.index) {
+
+  List<Map<String, dynamic>> _getCurrentTabSessions([int? tabIndex]) {
+    switch (tabIndex ?? _tabController.index) {
       case 0:
-        return _meditationSessions.isEmpty ? _fallbackMeditationSessions : _meditationSessions;
+        return _yogaSessions.isEmpty ? _fallbackYogaSessions : _yogaSessions;
       case 1:
         return _pranayamaSessions.isEmpty ? _fallbackPranayamaSessions : _pranayamaSessions;
       case 2:
-        return _yogaSessions.isEmpty ? _fallbackYogaSessions : _yogaSessions;
-      default:
         return _meditationSessions.isEmpty ? _fallbackMeditationSessions : _meditationSessions;
+      default:
+        return _yogaSessions.isEmpty ? _fallbackYogaSessions : _yogaSessions;
     }
   }
 
-  List<Map<String, dynamic>> _getFilteredSessions() {
-    List<Map<String, dynamic>> sessions = _getCurrentTabSessions();
+  List<Map<String, dynamic>> _getFilteredSessions([int? tabIndex]) {
+    List<Map<String, dynamic>> sessions = _getCurrentTabSessions(tabIndex);
 
     // Apply search filter
     if (_searchController.text.isNotEmpty) {
@@ -275,7 +280,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
-              Icon(Icons.play_circle_outline, color: Color(0xFF8B4513)),
+              Icon(Icons.play_circle_outline, color: Color(0xFF5D4037)),
               SizedBox(width: 8),
               Text('Watch Ad to Continue'),
             ],
@@ -287,13 +292,13 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Skip', style: TextStyle(color: Colors.grey[600])),
+              child: Text('Skip', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF8B4513),
-                foregroundColor: Colors.white,
+                backgroundColor: Color(0xFF5D4037),
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               child: const Text('Watch Ad'),
             ),
@@ -318,7 +323,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(color: Color(0xFF8B4513)),
+                    CircularProgressIndicator(color: Color(0xFF5D4037)),
                     SizedBox(height: 16),
                     Text('Loading ad...', style: TextStyle(fontSize: 14)),
                   ],
@@ -429,7 +434,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -464,7 +469,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                   Text(
                     'Guided Sessions',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       fontSize: 22.sp,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
@@ -482,7 +487,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                   // Search Bar
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
@@ -496,7 +501,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                       controller: _searchController,
                       decoration: InputDecoration(
                         hintText: 'Search sessions...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                         prefixIcon: Icon(Icons.search, color: _getTabColor(_tabController.index)),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -524,7 +529,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               margin: EdgeInsets.symmetric(horizontal: 4.w),
               padding: EdgeInsets.all(1.w),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: TabBar(
@@ -549,59 +554,60 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
                 labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[600],
-                labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.sp),
-                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 11.sp),
+                unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+                labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp),
+                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13.sp),
                 labelPadding: EdgeInsets.symmetric(horizontal: 2.w),
                 tabs: const [
-                  Tab(text: 'Meditate'),
-                  Tab(text: 'Breathe'),
                   Tab(text: 'Yoga'),
+                  Tab(text: 'Pranayam'),
+                  Tab(text: 'Meditation'),
                   Tab(text: 'Explore'),
                 ],
-                onTap: (index) => setState(() {}),
+                // setState handled by _tabController.addListener
               ),
             ),
 
             SizedBox(height: 2.h),
 
-            // Filter Chips
-            SizedBox(
-              height: 5.h,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                children: [
-                  _buildPremiumFilterChip(
-                    label: 'Duration',
-                    selectedValue: _selectedDurationFilter,
-                    options: const ['All', '5-15 min', '16-30 min', '30+ min'],
-                    onChanged: (value) => setState(() => _selectedDurationFilter = value),
-                  ),
-                  SizedBox(width: 2.w),
-                  _buildPremiumFilterChip(
-                    label: 'Difficulty',
-                    selectedValue: _selectedDifficultyFilter,
-                    options: const ['All', 'Beginner', 'Intermediate', 'Advanced'],
-                    onChanged: (value) => setState(() => _selectedDifficultyFilter = value),
-                  ),
-                ],
+            // Filter Chips — only show for Yoga/Pranayam/Meditation tabs (not Explore)
+            if (_tabController.index != 3) ...[
+              SizedBox(
+                height: 5.h,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: 4.w),
+                  children: [
+                    _buildPremiumFilterChip(
+                      label: 'Duration',
+                      selectedValue: _selectedDurationFilter,
+                      options: const ['All', '5-15 min', '16-30 min', '30+ min'],
+                      onChanged: (value) => setState(() => _selectedDurationFilter = value),
+                    ),
+                    SizedBox(width: 2.w),
+                    _buildPremiumFilterChip(
+                      label: 'Difficulty',
+                      selectedValue: _selectedDifficultyFilter,
+                      options: const ['All', 'Beginner', 'Intermediate', 'Advanced'],
+                      onChanged: (value) => setState(() => _selectedDifficultyFilter = value),
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            SizedBox(height: 1.h),
+              SizedBox(height: 1.h),
+            ],
 
             // Sessions List
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _handleRefresh,
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildSessionsList(_getFilteredSessions()),
-                    _buildSessionsList(_getFilteredSessions()),
-                    _buildSessionsList(_getFilteredSessions()),
+                    _buildSessionsList(_getFilteredSessions(0)),
+                    _buildSessionsList(_getFilteredSessions(1)),
+                    _buildSessionsList(_getFilteredSessions(2)),
                     _buildExploreTab(),
                   ],
                 ),
@@ -613,16 +619,16 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentBottomIndex,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-        selectedItemColor: AppTheme.lightTheme.colorScheme.primary,
-        unselectedItemColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
         items: [
           BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'schedule',
               color: _currentBottomIndex == 0
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: 'Routine',
@@ -631,8 +637,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
             icon: CustomIconWidget(
               iconName: 'self_improvement',
               color: _currentBottomIndex == 1
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: 'Guided',
@@ -641,8 +647,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
             icon: CustomIconWidget(
               iconName: 'book',
               color: _currentBottomIndex == 2
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: 'Journal',
@@ -651,8 +657,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
             icon: CustomIconWidget(
               iconName: 'person',
               color: _currentBottomIndex == 3
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: 'Me',
@@ -687,16 +693,6 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     return ListView(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       children: [
-        // Stats overview (tappable) — first
-        GestureDetector(
-          onTap: () => Navigator.pushNamed(context, '/session-history'),
-          child: PracticeStatsRow(
-            totalMinutes: _weeklyMinutes,
-            streak: _streak,
-            sessionsCount: _sessionsCount,
-          ),
-        ),
-        SizedBox(height: 2.h),
 
         // ✨ Ask Disha — AI Guide
         GestureDetector(
@@ -704,8 +700,12 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           child: Container(
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFF8E1), Color(0xFFFFF3C4), Color(0xFFFFF8E1)],
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF5D4037).withOpacity(0.08),
+                  Color(0xFF5D4037).withOpacity(0.12),
+                  Color(0xFF5D4037).withOpacity(0.08),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -742,22 +742,22 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                       Text(
                         'Ask Disha — AI Guide ✨',
                         style: TextStyle(
-                          fontSize: 14.sp,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.bold,
-                          color: const Color(0xFF8B4513),
+                          color: Color(0xFF5D4037),
                         ),
                       ),
                       Text(
                         'Your personal Ayurvedic wellness companion',
                         style: TextStyle(
-                          fontSize: 10.sp,
-                          color: const Color(0xFF5D4037),
+                          fontSize: 13.sp,
+                          color: Color(0xFF5D4037),
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios, size: 16, color: const Color(0xFF8B4513).withOpacity(0.5)),
+                Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF5D4037).withOpacity(0.5)),
               ],
             ),
           ),
@@ -771,35 +771,35 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           ),
 
         // Vedic Prahar — time-aware recommendation
-        const VedicPraharBanner(),
+        VedicPraharBanner(),
         SizedBox(height: 1.5.h),
 
         // Routine Link — bridge to routine tab
-        const RoutineLinkBanner(),
+        RoutineLinkBanner(),
         SizedBox(height: 2.h),
 
         // Programs & Courses
-        const ProgramsSection(),
+        ProgramsSection(),
         SizedBox(height: 2.h),
 
         // Quick Tools
-        const QuickToolsSection(),
+        QuickToolsSection(),
         SizedBox(height: 2.h),
 
         // My Downloads (only shown if downloads exist)
-        const DownloadsSection(),
+        DownloadsSection(),
         SizedBox(height: 2.h),
 
         // Sleep & Relax
-        const SleepStoriesSection(),
+        SleepStoriesSection(),
         SizedBox(height: 2.h),
 
         // Weekly Challenge
-        const WeeklyChallengeWidget(),
+        WeeklyChallengeWidget(),
         SizedBox(height: 2.h),
 
         // Dosha Quiz
-        const DoshaQuizWidget(),
+        DoshaQuizWidget(),
         SizedBox(height: 3.h),
       ],
     );
@@ -819,30 +819,30 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cloud_off_rounded, size: 56, color: Colors.grey[400]),
+              Icon(Icons.cloud_off_rounded, size: 56, color: Theme.of(context).colorScheme.onSurfaceVariant),
               SizedBox(height: 2.h),
               Text(
                 'Couldn\'t load sessions',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               SizedBox(height: 1.h),
               Text(
                 'Check your internet connection and try again',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               SizedBox(height: 2.h),
               ElevatedButton.icon(
                 onPressed: _loadSessionsFromDB,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
+                icon: Icon(Icons.refresh_rounded),
+                label: Text('Retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B4513),
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -890,21 +890,21 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               children: [
                 CustomIconWidget(
                   iconName: 'search_off',
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   size: 48,
                 ),
                 SizedBox(height: 2.h),
                 Text(
                   'No sessions found',
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 SizedBox(height: 1.h),
                 Text(
                   'Try adjusting your search or filters',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -976,20 +976,21 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     );
   }
 
+
   Color _getTabColor(int index) {
     switch (index) {
-      case 0: return const Color(0xFF8B4513); // Earth brown for Meditate
-      case 1: return const Color(0xFF4A7C59); // Natural green for Breathe
-      case 2: return const Color(0xFFFF6B35); // Accent orange for Yoga
-      default: return const Color(0xFF8B4513);
+      case 0: return const Color(0xFFFF6B35); // Accent orange for Yoga
+      case 1: return const Color(0xFF4A7C59); // Natural green for Pranayam
+      case 2: return Theme.of(context).colorScheme.primary; // Earth brown for Meditation
+      default: return const Color(0xFFFF6B35);
     }
   }
 
   String _getTabSubtitle(int index) {
     switch (index) {
-      case 0: return 'Find peace and clarity through meditation';
+      case 0: return 'Strengthen body, mind and spirit';
       case 1: return 'Master the art of conscious breathing';
-      case 2: return 'Strengthen body, mind and spirit';
+      case 2: return 'Find peace and clarity through meditation';
       default: return 'Explore guided sessions';
     }
   }
@@ -1005,12 +1006,12 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       decoration: BoxDecoration(
         color: selectedValue != 'All' 
             ? _getTabColor(_tabController.index).withOpacity(0.1) 
-            : Colors.grey.shade100,
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selectedValue != 'All' 
               ? _getTabColor(_tabController.index) 
-              : Colors.grey.shade300,
+              : Theme.of(context).colorScheme.outline,
           width: 1,
         ),
       ),
@@ -1024,7 +1025,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               size: 16,
               color: selectedValue != 'All' 
                   ? _getTabColor(_tabController.index) 
-                  : Colors.grey[600],
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             SizedBox(width: 1.w),
             Text(
@@ -1034,7 +1035,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
                 fontWeight: selectedValue != 'All' ? FontWeight.bold : FontWeight.w500,
                 color: selectedValue != 'All' 
                     ? _getTabColor(_tabController.index) 
-                    : Colors.grey[600],
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             SizedBox(width: 1.w),
@@ -1043,7 +1044,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               size: 18,
               color: selectedValue != 'All' 
                   ? _getTabColor(_tabController.index) 
-                  : Colors.grey[600],
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -1058,7 +1059,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       builder: (context) => Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -1069,7 +1070,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               height: 4,
               margin: EdgeInsets.only(bottom: 2.h),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1078,7 +1079,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C1810),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 2.h),
@@ -1086,7 +1087,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               title: Text(
                 option,
                 style: TextStyle(
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 14.sp,
                 ),
               ),

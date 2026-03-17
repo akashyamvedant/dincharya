@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart'; // For generating unique IDs
 
+import '../../main.dart' show dayChangeNotifier;
 import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../models/task_categories.dart';
@@ -10,6 +11,7 @@ import '../../services/auth_service.dart';
 import '../../services/routine_tracking_service.dart';
 import '../../services/task_lifecycle_service.dart';
 import '../../services/ads_service.dart';
+import '../../services/alarm_service.dart';
 import '../../services/notification_deep_link_service.dart';
 import '../../services/app_tour_service.dart';
 import './widgets/add_task_bottom_sheet.dart';
@@ -20,6 +22,7 @@ import './widgets/routine_header_widget.dart';
 import './widgets/task_card_widget.dart';
 import './widgets/activity_tracking_dialog.dart';
 import './widgets/celebration_overlay.dart';
+import './widgets/quick_tasks_section.dart';
 import '../../widgets/ads/native_ad_widget.dart';
 
 
@@ -87,6 +90,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     _initializeTracking();
     _initializeLifecycle();
     _initializeDeepLinkListener();
+    
+    // Layer 4: Listen for app-level day change notifications
+    dayChangeNotifier.addListener(_onGlobalDayChange);
   }
 
   /// Initialize lifecycle service and check for day change
@@ -157,8 +163,20 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _deepLinkService.highlightedTaskId.removeListener(_onHighlightedTaskChanged);
+    dayChangeNotifier.removeListener(_onGlobalDayChange);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Layer 4: Called when app-level day change is detected (from main.dart).
+  /// Refreshes all dashboard data without re-running day change processing
+  /// (that's already been handled by main.dart's Layer 1).
+  void _onGlobalDayChange() {
+    debugPrint('📅 RoutineDashboard: Received global day change notification — refreshing UI');
+    _loadTasks();
+    _calculateStreak();
+    _loadWeeklyStats();
+    _loadUserXP();
   }
 
   @override
@@ -210,8 +228,12 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       final isLoggedIn = await authService.isUserLoggedIn();
 
       if (isLoggedIn) {
-        final userId = _supabaseService.currentUser?.id;
-        if (userId != null) {
+          // CRITICAL: Use getAuthenticatedUser() not currentUser?.id
+          // currentUser is null on cold start before supabase_flutter v2
+          // restores the session from local storage asynchronously.
+          final user = await _supabaseService.getAuthenticatedUser();
+          final userId = user?.id;
+          if (userId != null) {
           final tasks = await _supabaseService.getLocalTasks(userId);
           // Sort tasks by time (AM to PM)
           tasks.sort((a, b) {
@@ -254,6 +276,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       // Schedule notifications for today's tasks (only once per session)
       await _scheduleTaskNotifications();
       
+      // Reschedule wakeup alarms (ensures alarms survive app restart)
+      _rescheduleWakeupAlarms();
+
       // Check and show app tour for first-time users (with delay for UI to settle)
       _checkAndShowAppTour();
     }
@@ -486,9 +511,14 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           .gte('tracking_date', monday.toIso8601String().split('T')[0])
           .lte('tracking_date', now.toIso8601String().split('T')[0]);
       
-      // Calculate per-day completion
+      // Calculate per-day completion — DEDUPLICATED by task_id
+      // A task may have both a "completed" record (user tap) and a "missed"
+      // record (end-of-day auto-processing). We keep only the best result per task.
       List<bool> days = [false, false, false, false, false, false, false];
-      Map<int, List<bool>> dayResults = {};
+      
+      // Group by day, then deduplicate by task_id (completed wins over missed)
+      // Key: dayIndex, Value: Map<taskId, bestResult>
+      Map<int, Map<String, bool>> dayTaskResults = {};
       
       for (final task in weeklyTracking) {
         final dateStr = task['tracking_date'];
@@ -496,19 +526,28 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         try {
           final date = DateTime.parse(dateStr);
           final dayIndex = date.weekday - 1; // 0 = Monday
-          dayResults[dayIndex] ??= [];
-          dayResults[dayIndex]!.add(task['completed'] == true);
+          final taskId = task['task_id']?.toString() ?? task['activity_name']?.toString() ?? '';
+          final isCompleted = task['completed'] == true;
+          
+          dayTaskResults[dayIndex] ??= {};
+          // Keep true if already true (completed wins over missed)
+          final existing = dayTaskResults[dayIndex]![taskId];
+          if (existing == null || (!existing && isCompleted)) {
+            dayTaskResults[dayIndex]![taskId] = isCompleted;
+          }
         } catch (_) {}
       }
       
       int totalCompleted = 0;
       int totalTasks = 0;
-      for (final entry in dayResults.entries) {
-        final completed = entry.value.where((v) => v).length;
+      for (final entry in dayTaskResults.entries) {
+        final taskMap = entry.value;
+        final completed = taskMap.values.where((v) => v).length;
+        final total = taskMap.length;
         totalCompleted += completed;
-        totalTasks += entry.value.length;
+        totalTasks += total;
         // Consider day completed if >50% tasks done
-        days[entry.key] = completed > entry.value.length / 2;
+        days[entry.key] = completed > total / 2;
       }
       
       if (mounted) {
@@ -554,7 +593,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     return Stack(
       children: [
         Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -567,19 +606,14 @@ class _RoutineDashboardState extends State<RoutineDashboard>
               totalXP: _totalXP,
               weeklyCompletion: _weeklyCompletion,
               weeklyDays: _weeklyDays,
-              onProfileTap: () async {
-                final result = await Navigator.pushNamed(context, '/profile-selection');
-                if (result == true) {
-                  await _loadTasks(); // Reload tasks if profile changed
-                }
-              },
+              onProfileTap: null,
             ),
 
             // Main Content
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _onRefresh,
-                color: AppTheme.lightTheme.primaryColor,
+                color: Theme.of(context).primaryColor,
                 child: _todayTasks.isEmpty
                     ? (_isLoading 
                         ? ListView(
@@ -594,15 +628,15 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                                   children: [
                                     Icon(
                                       Icons.today,
-                                      color: AppTheme.lightTheme.colorScheme.primary,
+                                      color: Theme.of(context).colorScheme.primary,
                                       size: 24,
                                     ),
                                     SizedBox(width: 2.w),
                                     Text(
                                       'Today\'s Tasks',
-                                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                        color: Theme.of(context).colorScheme.onSurface,
                                       ),
                                     ),
                                     const Spacer(),
@@ -611,7 +645,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                                       height: 16,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: AppTheme.lightTheme.colorScheme.primary,
+                                        color: Theme.of(context).colorScheme.primary,
                                       ),
                                     ),
                                   ],
@@ -623,17 +657,17 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                                 margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                                 height: 10.h,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.lightTheme.colorScheme.surface,
+                                  color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppTheme.lightTheme.colorScheme.outline.withOpacity(0.1),
+                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
                                   ),
                                 ),
                                 child: Center(
                                   child: Text(
                                     'Loading...',
-                                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                                      color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.4),
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                                     ),
                                   ),
                                 ),
@@ -659,18 +693,16 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                                   children: [
                                     Icon(
                                       Icons.today,
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.primary,
+                                      color: Theme.of(context).colorScheme.primary,
                                       size: 24,
                                     ),
                                     SizedBox(width: 2.w),
                                     Text(
                                       'Today\'s Tasks',
-                                      style: AppTheme
-                                          .lightTheme.textTheme.titleLarge
+                                      style: Theme.of(context).textTheme.titleLarge
                                           ?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                        color: Theme.of(context).colorScheme.onSurface,
                                       ),
                                     ),
                                     const Spacer(),
@@ -681,10 +713,25 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
                               SizedBox(height: 1.h),
 
-                              // Time-Grouped Task Sections
+                              // Time-Grouped Task Sections with Native Ads
                               _buildTimeSection('morning', _groupedTasks['morning']!),
+                              // Native Ad after Morning section
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                                child: const NativeAdWidget(placement: NativePlacement.routineMorning),
+                              ),
+                              
                               _buildTimeSection('afternoon', _groupedTasks['afternoon']!),
+                              // Native Ad after Afternoon section
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4.w),
+                                child: const NativeAdWidget(placement: NativePlacement.routineAfternoon),
+                              ),
+                              
                               _buildTimeSection('evening', _groupedTasks['evening']!),
+
+                              // Quick Tasks (local-only, device storage)
+                              const QuickTasksSection(),
 
                               // Native Ad at bottom of task list
                               Padding(
@@ -708,17 +755,17 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         currentIndex: _currentTabIndex,
         onTap: _onTabChanged,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-        selectedItemColor: AppTheme.lightTheme.primaryColor,
-        unselectedItemColor: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
         elevation: 8.0,
         items: [
           BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'schedule',
               color: _currentTabIndex == 0
-                  ? AppTheme.lightTheme.primaryColor
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: _tabLabels[0],
@@ -727,8 +774,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
             icon: CustomIconWidget(
               iconName: 'self_improvement',
               color: _currentTabIndex == 1
-                  ? AppTheme.lightTheme.primaryColor
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: _tabLabels[1],
@@ -737,8 +784,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
             icon: CustomIconWidget(
               iconName: 'book',
               color: _currentTabIndex == 2
-                  ? AppTheme.lightTheme.primaryColor
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: _tabLabels[2],
@@ -747,8 +794,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
             icon: CustomIconWidget(
               iconName: 'person',
               color: _currentTabIndex == 3
-                  ? AppTheme.lightTheme.primaryColor
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: _tabLabels[3],
@@ -760,12 +807,12 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       floatingActionButton: FloatingActionButton(
         key: _addTaskFabKey,
         onPressed: _showAddTaskBottomSheet,
-        backgroundColor: AppTheme.lightTheme.colorScheme.tertiary,
-        foregroundColor: AppTheme.lightTheme.colorScheme.onTertiary,
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+        foregroundColor: Theme.of(context).colorScheme.onTertiary,
         elevation: 6.0,
         child: CustomIconWidget(
           iconName: 'add',
-          color: AppTheme.lightTheme.colorScheme.onTertiary,
+          color: Theme.of(context).colorScheme.onTertiary,
           size: 28,
         ),
       ),
@@ -878,7 +925,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                       fontSize: 10.sp,
                       color: isSelected 
                           ? Colors.white 
-                          : AppTheme.lightTheme.colorScheme.onSurface,
+                          : Theme.of(context).colorScheme.onSurface,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
@@ -889,7 +936,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                       decoration: BoxDecoration(
                         color: isSelected 
                             ? Colors.white.withOpacity(0.3) 
-                            : AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -899,7 +946,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                           fontWeight: FontWeight.bold,
                           color: isSelected 
                               ? Colors.white 
-                              : AppTheme.lightTheme.colorScheme.primary,
+                              : Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -912,13 +959,13 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                   _selectedCategory = category['key']!;
                 });
               },
-              backgroundColor: AppTheme.lightTheme.colorScheme.surface,
-              selectedColor: AppTheme.lightTheme.colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              selectedColor: Theme.of(context).colorScheme.primary,
               checkmarkColor: Colors.transparent,
               side: BorderSide(
                 color: isSelected 
-                    ? AppTheme.lightTheme.colorScheme.primary 
-                    : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.3),
+                    ? Color(0xFF8B4513) 
+                    : Theme.of(context).colorScheme.outline.withOpacity(0.3),
               ),
               padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
             ),
@@ -951,23 +998,23 @@ class _RoutineDashboardState extends State<RoutineDashboard>
               SizedBox(width: 2.w),
               Text(
                 data['title']!,
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               SizedBox(width: 2.w),
               Text(
                 data['subtitle']!,
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: Colors.black45,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const Spacer(),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -975,7 +1022,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                   style: TextStyle(
                     fontSize: 10.sp,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -1023,6 +1070,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
               onTaskReschedule: () => _onTaskReschedule(task["id"]),
               onTaskDelete: () => _onTaskDelete(task["id"]),
               onTaskTrack: () => _showTrackingDialog(task),
+              onSessionPlay: task['linked_session_id'] != null
+                  ? () => _playLinkedSession(task['linked_session_id'].toString())
+                  : null,
               onTapLocked: (String reason, String status) => _showLockedTaskDialog(
                 context, 
                 task['title'] ?? 'Task', 
@@ -1051,15 +1101,15 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
-            AppTheme.lightTheme.colorScheme.tertiary.withOpacity(0.05),
+            Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            Theme.of(context).colorScheme.tertiary.withOpacity(0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
         ),
       ),
       child: Row(
@@ -1074,19 +1124,19 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                 CircularProgressIndicator(
                   value: progress,
                   strokeWidth: 4,
-                  backgroundColor: Colors.grey[200],
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   valueColor: AlwaysStoppedAnimation<Color>(
                     completedCount == totalCount && totalCount > 0
-                        ? AppTheme.getSuccessColor(true)
-                        : AppTheme.lightTheme.colorScheme.primary,
+                        ? AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light)
+                        : Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 Text(
                   '${(progress * 100).toInt()}%',
-                  style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 10.sp,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ],
@@ -1101,15 +1151,15 @@ class _RoutineDashboardState extends State<RoutineDashboard>
               children: [
                 Text(
                   'Daily Progress',
-                  style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 Text(
                   '$completedCount of $totalCount tasks',
-                  style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                    color: Colors.black54,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1133,8 +1183,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
       decoration: BoxDecoration(
         color: completedCount == totalCount && totalCount > 0
-            ? AppTheme.getSuccessColor(true).withOpacity(0.1)
-            : AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1),
+            ? AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light).withOpacity(0.1)
+            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1146,17 +1196,17 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                 : Icons.pending_actions,
             size: 16,
             color: completedCount == totalCount && totalCount > 0
-                ? AppTheme.getSuccessColor(true)
-                : AppTheme.lightTheme.colorScheme.primary,
+                ? AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light)
+                : Theme.of(context).colorScheme.primary,
           ),
           SizedBox(width: 1.w),
           Text(
             '$completedCount/$totalCount',
-            style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: completedCount == totalCount && totalCount > 0
-                  ? AppTheme.getSuccessColor(true)
-                  : AppTheme.lightTheme.colorScheme.primary,
+                  ? AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light)
+                  : Theme.of(context).colorScheme.primary,
             ),
           ),
         ],
@@ -1184,11 +1234,26 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         if (!mounted) break;
         final proceed = await MissedTaskFeedbackDialog.show(context, missedTask);
         if (!proceed) return; // User dismissed, don't complete
+        
+        // Mark the missed task as completed so it won't trigger the dialog again
+        final missedTaskId = missedTask['id'];
+        if (missedTaskId != null) {
+          try {
+            await _supabaseService.updateLocalTask(missedTaskId, {
+              'is_completed': true,
+              'task_status': 'completed', // ALSO set task_status!
+              'updated_at': DateTime.now().toIso8601String(),
+            });
+          } catch (e) {
+            debugPrint('Error marking missed task as completed: $e');
+          }
+        }
       }
     }
     
     final updates = {
       'is_completed': updatedStatus, // Send boolean, not int
+      'task_status': updatedStatus ? 'completed' : 'pending', // CRITICAL: keep task_status in sync
       'updated_at': DateTime.now().toIso8601String(),
     };
 
@@ -1235,7 +1300,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           SnackBar(
             content: const Text('Task marked incomplete'),
             duration: const Duration(seconds: 2),
-            backgroundColor: AppTheme.lightTheme.primaryColor,
+            backgroundColor: Theme.of(context).primaryColor,
           ),
         );
       }
@@ -1349,6 +1414,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         child: EditTaskBottomSheet(
           task: task,
           onTaskUpdated: (updatedTask) async {
+            // Capture messenger before async gap (bottom sheet pops before this runs)
+            final messenger = ScaffoldMessenger.of(context);
             try {
               await _supabaseService.updateLocalTask(taskId, {
                 'title': updatedTask['title'],
@@ -1360,24 +1427,38 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                 'duration': updatedTask['duration'],
                 'duration_minutes': updatedTask['duration_minutes'],
                 'is_inevitable': updatedTask['is_inevitable'],
+                'alarm_enabled': updatedTask['alarm_enabled'],
+                'alarm_sound': updatedTask['alarm_sound'],
+                'linked_session_id': updatedTask['linked_session_id'],
                 'updated_at': DateTime.now().toIso8601String(),
               });
               await _loadTasks();
+
+              // Reschedule or cancel alarm for wakeup tasks
+              if (updatedTask['category'] == 'wakeup') {
+                if (updatedTask['alarm_enabled'] == true) {
+                  final taskWithId = {...updatedTask, 'id': taskId};
+                  _scheduleWakeupAlarm(taskWithId);
+                } else {
+                  await AlarmService().cancelAlarm(taskId);
+                }
+              }
+
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: const Text('Task updated successfully!'),
-                    backgroundColor: AppTheme.getSuccessColor(true),
+                    backgroundColor: AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
                   ),
                 );
               }
             } catch (e) {
               debugPrint('Error updating task: $e');
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger.showSnackBar(
                   SnackBar(
                     content: Text('Failed to update task: $e'),
-                    backgroundColor: Theme.of(context).colorScheme.error,
+                    backgroundColor: Colors.red,
                   ),
                 );
               }
@@ -1418,8 +1499,24 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppTheme.lightTheme.colorScheme.primary,
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              hourMinuteColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              hourMinuteTextColor: Theme.of(context).colorScheme.onSurface,
+              dialHandColor: Theme.of(context).colorScheme.primary,
+              dialBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodColor: Theme.of(context).colorScheme.primary.withOpacity(0.12),
+              dayPeriodTextColor: Theme.of(context).colorScheme.onSurface,
+              dayPeriodBorderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+              entryModeIconColor: Theme.of(context).colorScheme.primary,
+              helpTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              cancelButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              confirmButtonStyle: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
           child: child!,
@@ -1438,7 +1535,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Task rescheduled to ${newTime.format(context)}'),
-              backgroundColor: AppTheme.getSuccessColor(true),
+              backgroundColor: AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
             ),
           );
         }
@@ -1511,6 +1608,42 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     );
   }
 
+  /// Play a linked guided session by fetching its data and navigating to media player
+  Future<void> _playLinkedSession(String sessionId) async {
+    try {
+      final client = await _supabaseService.client;
+      if (client == null) return;
+
+      final response = await client
+          .from('sessions')
+          .select()
+          .eq('id', sessionId)
+          .eq('is_active', true)
+          .limit(1);
+
+      if (response.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session not found or no longer available')),
+          );
+        }
+        return;
+      }
+
+      final session = Map<String, dynamic>.from(response.first);
+      if (mounted) {
+        Navigator.pushNamed(context, '/media-player', arguments: session);
+      }
+    } catch (e) {
+      debugPrint('Error playing linked session: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not load session: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _addTaskAsync(Map<String, dynamic> newTask) async {
     final userId =
         _supabaseService.currentUser?.id; // Use SupabaseService's currentUser
@@ -1538,6 +1671,11 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       await _supabaseService.createLocalTask(taskWithId);
       await _loadTasks();
       
+      // Schedule alarm for wakeup tasks
+      if (newTask['category'] == 'wakeup' && newTask['alarm_enabled'] == true) {
+        _scheduleWakeupAlarm(taskWithId);
+      }
+      
       // Show interstitial ad with frequency capping (every 3 task adds)
       AdsService().showInterstitialAdWithCapping(InterstitialPlacement.taskAdded);
       
@@ -1545,7 +1683,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Task added successfully!'),
-            backgroundColor: AppTheme.lightTheme.primaryColor,
+            backgroundColor: Theme.of(context).primaryColor,
           ),
         );
       }
@@ -1561,16 +1699,86 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       }
     }
   }
+  /// Reschedule all wakeup alarms on app load (survives restart)
+  void _rescheduleWakeupAlarms() {
+    for (final task in _todayTasks) {
+      if (task['category'] == 'wakeup' && task['alarm_enabled'] == true) {
+        _scheduleWakeupAlarm(task);
+      }
+    }
+  }
+
+  /// Schedule wakeup alarm for a task
+  void _scheduleWakeupAlarm(Map<String, dynamic> task) async {
+    try {
+      final timeStr = task['scheduledTime'] as String? ?? task['time'] as String?;
+      if (timeStr == null) return;
+
+      // Parse time string (format: "5:00 AM" or "17:00")
+      final now = DateTime.now();
+      TimeOfDay? timeOfDay;
+      
+      // Handle 12-hour format (e.g. "5:00 AM")
+      final amPmMatch = RegExp(r'(\d{1,2}):(\d{2})\s*(AM|PM)', caseSensitive: false).firstMatch(timeStr);
+      if (amPmMatch != null) {
+        int hour = int.parse(amPmMatch.group(1)!);
+        final minute = int.parse(amPmMatch.group(2)!);
+        final period = amPmMatch.group(3)!.toUpperCase();
+        
+        if (period == 'PM' && hour != 12) hour += 12;
+        if (period == 'AM' && hour == 12) hour = 0;
+        
+        timeOfDay = TimeOfDay(hour: hour, minute: minute);
+      } else {
+        // Handle 24-hour format (e.g. "17:00")
+        final parts = timeStr.split(':');
+        if (parts.length == 2) {
+          timeOfDay = TimeOfDay(
+            hour: int.tryParse(parts[0]) ?? 5,
+            minute: int.tryParse(parts[1]) ?? 0,
+          );
+        }
+      }
+      
+      if (timeOfDay == null) return;
+
+      // Calculate alarm time — if the time already passed today, schedule for tomorrow
+      var alarmTime = DateTime(now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
+      if (alarmTime.isBefore(now)) {
+        alarmTime = alarmTime.add(const Duration(days: 1));
+      }
+
+      final taskId = task['id'] as String;
+      final soundId = task['alarm_sound'] as String? ?? 'gentle_morning';
+      final taskTitle = task['title'] as String? ?? 'Wake Up';
+
+      final success = await AlarmService().scheduleWakeupAlarm(
+        taskId: taskId,
+        alarmTime: alarmTime,
+        soundId: soundId,
+        taskTitle: taskTitle,
+      );
+
+      if (success && mounted) {
+        debugPrint('Wakeup alarm scheduled for $taskTitle at $alarmTime');
+      }
+    } catch (e) {
+      debugPrint('Failed to schedule wakeup alarm: $e');
+    }
+  }
 
   Future<void> _deleteTask(String taskId) async {
     try {
+      // Cancel any alarm for this task before deleting
+      await AlarmService().cancelAlarm(taskId);
+
       await _supabaseService.deleteLocalTask(taskId);
       await _loadTasks();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Task deleted successfully'),
-            backgroundColor: AppTheme.lightTheme.colorScheme.error,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }

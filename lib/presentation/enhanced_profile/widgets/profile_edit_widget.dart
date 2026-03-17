@@ -1,4 +1,4 @@
-// lib/presentation/enhanced_profile/widgets/profile_edit_widget.dart
+﻿// lib/presentation/enhanced_profile/widgets/profile_edit_widget.dart
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -132,8 +132,7 @@ class _ProfileEditWidgetState extends State<ProfileEditWidget> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primary.withAlpha(26),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(26),
                   child: CustomIconWidget(
                     iconName: 'person',
                     color: Theme.of(context).colorScheme.primary,

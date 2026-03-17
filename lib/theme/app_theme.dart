@@ -24,30 +24,32 @@ class AppTheme {
   static const Color onSurfaceLight = Color(0xFF2C1810); // Deep brown
   static const Color onErrorLight = Color(0xFFFFFFFF);
 
-  // Dark theme colors - Pure Black Theme as default
+  // Dark theme colors - Material Design dark palette
+  // Primary uses 200-tonal (lighter/desaturated) version of earth brown
+  // Backgrounds are dark gray (#121212) not pure black per Material guidelines
   static const Color primaryDark =
-      Color(0xFFCD853F); // Sandy brown as primary in dark
+      Color(0xFFD2A679); // Lighter earth brown (200-tonal)
   static const Color primaryVariantDark =
-      Color(0xFF8B4513); // Earth brown variant
-  static const Color secondaryDark = Color(0xFFFF6B35); // Mindful orange
-  static const Color secondaryVariantDark = Color(0xFFE55A2B); // Darker orange
-  static const Color accentDark = Color(0xFF4A7C59); // Natural green
-  static const Color backgroundDark = Color(0xFF000000); // Pure black
-  static const Color surfaceDark = Color(0xFF121212); // Very dark gray
-  static const Color errorDark = Color(0xFFD4A574); // Gentle amber for errors
-  static const Color successDark = Color(0xFF4A7C59); // Natural green
-  static const Color warningDark = Color(0xFFD4A574); // Gentle amber
-  static const Color onPrimaryDark = Color(0xFF000000); // Black on primary
-  static const Color onSecondaryDark = Color(0xFF000000); // Black on secondary
-  static const Color onBackgroundDark = Color(0xFFFFFFFF); // White on black
-  static const Color onSurfaceDark = Color(0xFFFFFFFF); // White on surface
+      Color(0xFFB8874F); // Medium light brown
+  static const Color secondaryDark = Color(0xFFFFAB76); // Light orange (200-tonal)
+  static const Color secondaryVariantDark = Color(0xFFE09060); // Soft orange
+  static const Color accentDark = Color(0xFF81C784); // Light green (200-tonal)
+  static const Color backgroundDark = Color(0xFF121212); // Material dark background
+  static const Color surfaceDark = Color(0xFF1E1E1E); // Elevated surface
+  static const Color errorDark = Color(0xFFCF6679); // Material dark error pink
+  static const Color successDark = Color(0xFF81C784); // Light green
+  static const Color warningDark = Color(0xFFFFCC80); // Light amber
+  static const Color onPrimaryDark = Color(0xFF000000); // Black on light brown
+  static const Color onSecondaryDark = Color(0xFF000000); // Black on light orange
+  static const Color onBackgroundDark = Color(0xFFE0E0E0); // Light gray on dark bg
+  static const Color onSurfaceDark = Color(0xFFE0E0E0); // Light gray text on surface
   static const Color onErrorDark = Color(0xFF000000); // Black on error
 
   // Card and dialog colors
   static const Color cardLight = Color(0xFFFFFFFF);
-  static const Color cardDark = Color(0xFF1E1E1E); // Dark card background
+  static const Color cardDark = Color(0xFF2C2C2C); // Dark card (slightly elevated)
   static const Color dialogLight = Color(0xFFFFFFFF);
-  static const Color dialogDark = Color(0xFF1E1E1E); // Dark dialog background
+  static const Color dialogDark = Color(0xFF2C2C2C); // Dark dialog
 
   // Shadow colors - gentle elevation
   static const Color shadowLight = Color(0x33000000); // 20% opacity
@@ -56,16 +58,16 @@ class AppTheme {
   // Divider colors - minimal separation
   static const Color dividerLight =
       Color(0x4DCD853F); // 30% opacity sandy brown
-  static const Color dividerDark = Color(0x4DCD853F); // 30% opacity sandy brown
+  static const Color dividerDark = Color(0x33FFFFFF); // 20% opacity white
 
   // Text colors - wellness hierarchy
   static const Color textPrimaryLight = Color(0xFF2C1810); // Deep brown
   static const Color textSecondaryLight = Color(0xFF6B4423); // Medium brown
   static const Color textDisabledLight = Color(0x996B4423); // 60% medium brown
 
-  static const Color textPrimaryDark = Color(0xFFFFFFFF); // Pure white
-  static const Color textSecondaryDark = Color(0xFFE0E0E0); // Light gray
-  static const Color textDisabledDark = Color(0x99E0E0E0); // 60% light gray
+  static const Color textPrimaryDark = Color(0xFFE0E0E0); // Light gray (primary text)
+  static const Color textSecondaryDark = Color(0xFFB0B0B0); // Medium gray
+  static const Color textDisabledDark = Color(0x99B0B0B0); // 60% gray
 
   /// Light theme - Mindful Minimalism
   static ThemeData lightTheme = ThemeData(

@@ -14,7 +14,7 @@ class QuickToolsSection extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.w),
-          child: const Row(
+          child: Row(
             children: [
               Text('⚡', style: TextStyle(fontSize: 18)),
               SizedBox(width: 8),
@@ -23,7 +23,7 @@ class QuickToolsSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ],
@@ -40,7 +40,7 @@ class QuickToolsSection extends StatelessWidget {
                 emoji: '🧘',
                 label: 'Meditation\nTimer',
                 sublabel: 'Unguided',
-                gradient: const [Color(0xFF8B4513), Color(0xFF6B3410)],
+                gradient: [Theme.of(context).colorScheme.primary, Color(0xFF6B3410)],
                 onTap: () {
                   HapticFeedback.mediumImpact();
                   Navigator.pushNamed(context, '/meditation-timer');
@@ -116,12 +116,12 @@ class _ToolCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 24)),
+              Text(emoji, style: TextStyle(fontSize: 24)),
               const Spacer(),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.surface,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   height: 1.2,

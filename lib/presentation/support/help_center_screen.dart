@@ -12,9 +12,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
   // App theme colors matching the app
   final Color warmBackground = const Color(0xFFFDF8F3);
   final Color softPeach = const Color(0xFFFAF0E6);
-  final Color lightBrown = const Color(0xFFD4A574);
+  final Color lightBrown = Color(0xFFD4A574);
   final Color darkBrown = const Color(0xFF2C1810);
-  final Color accentBrown = const Color(0xFF8B4513);
+  final Color accentBrown = Color(0xFF8B4513);
 
   // Animation controllers
   late AnimationController _headerController;
@@ -188,18 +188,18 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: warmBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: softPeach,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: darkBrown, size: 24),
+          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.onSurface, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Help Center',
           style: TextStyle(
-            color: darkBrown,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 22.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -362,7 +362,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
     
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: lightBrown.withOpacity(0.2)),
         boxShadow: [
@@ -425,14 +425,14 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
                     style: TextStyle(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -511,7 +511,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
-                      color: darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -542,7 +542,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        softPeach,
+                         Theme.of(context).colorScheme.surfaceContainerHighest,
                         accentColor.withOpacity(0.05),
                       ],
                     ),
@@ -553,7 +553,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
                     faq['answer']!,
                     style: TextStyle(
                       fontSize: 15.sp,
-                      color: darkBrown.withOpacity(0.85),
+                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
                       height: 1.6,
                     ),
                   ),
@@ -617,7 +617,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
             style: TextStyle(
               fontSize: 20.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.h),

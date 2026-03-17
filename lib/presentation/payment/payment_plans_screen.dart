@@ -1,4 +1,4 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
@@ -149,7 +149,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                 Text('Checking for previous purchases...'),
               ],
             ),
-            backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -189,20 +189,20 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.close,
-              color: AppTheme.lightTheme.colorScheme.onSurface),
+              color: Theme.of(context).colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Premium Plans',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         centerTitle: true,
@@ -211,8 +211,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
             onPressed: _restorePurchases,
             child: Text(
               'Restore',
-              style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.primary,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -231,16 +231,16 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
             // Title
             Text(
               'Unlock Premium',
-              style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 1.h),
             Text(
               'Get unlimited access to all features',
-              style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
                     .withOpacity(0.7),
               ),
             ),
@@ -253,13 +253,13 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                 child: Column(
                   children: [
                     CircularProgressIndicator(
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     SizedBox(height: 2.h),
                     Text(
                       'Loading plans...',
-                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onSurface.withOpacity(0.5),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -282,8 +282,10 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         ),
       ),
 
-      // Bottom purchase button
-      bottomNavigationBar: _buildPurchaseButton(_plans[_selectedPlanIndex]),
+      // Bottom purchase button (safely clamp index in case plans list changed)
+      bottomNavigationBar: _buildPurchaseButton(
+        _plans[_selectedPlanIndex.clamp(0, _plans.length - 1)],
+      ),
     );
   }
 
@@ -292,9 +294,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
       padding: EdgeInsets.all(5.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.lightTheme.colorScheme.primary,
-            AppTheme.lightTheme.colorScheme.tertiary,
+          colors: [Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.tertiary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -302,8 +303,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
             blurRadius: 20,
             spreadRadius: 5,
           ),
@@ -355,19 +355,19 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.lightTheme.colorScheme.primary.withOpacity(0.1)
-              : AppTheme.lightTheme.colorScheme.surface,
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.primary
-                : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.3),
+                ? Color(0xFF8B4513)
+                : Theme.of(context).colorScheme.outline.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppTheme.lightTheme.colorScheme.primary
+                    color: Theme.of(context).colorScheme.primary
                         .withOpacity(0.2),
                     blurRadius: 12,
                     offset: Offset(0, 4),
@@ -392,12 +392,12 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isSelected
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.outline,
+                      ? Color(0xFF8B4513)
+                      : Theme.of(context).colorScheme.outline,
                   width: 2,
                 ),
                 color: isSelected
-                    ? AppTheme.lightTheme.colorScheme.primary
+                    ? Color(0xFF8B4513)
                     : Colors.transparent,
               ),
               child: isSelected
@@ -416,11 +416,11 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                       Flexible(
                         child: Text(
                           plan.name,
-                          style: AppTheme.lightTheme.textTheme.titleMedium
+                          style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                             fontWeight: FontWeight.bold,
                             color:
-                                AppTheme.lightTheme.colorScheme.onSurface,
+                                Theme.of(context).colorScheme.onSurface,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -436,8 +436,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                           ),
                           child: Text(
                             tagText,
-                            style: AppTheme
-                                .lightTheme.textTheme.labelSmall
+                            style: Theme.of(context).textTheme.labelSmall
                                 ?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -456,8 +455,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                             ? 'Best value for committed users'
                             : 'Perfect for trying out',
                     style:
-                        AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurface
+                        Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface
                           .withOpacity(0.6),
                       fontSize: 12,
                     ),
@@ -480,10 +479,10 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                     alignment: Alignment.centerRight,
                     child: Text(
                       displayPrice,
-                      style: AppTheme.lightTheme.textTheme.headlineSmall
+                      style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -494,8 +493,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                             ? monthlyEquiv
                             : '/month',
                     style:
-                        AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurface
+                        Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface
                           .withOpacity(0.5),
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -534,11 +533,11 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color:
-              AppTheme.lightTheme.colorScheme.outline.withOpacity(0.2),
+              Theme.of(context).colorScheme.outline.withOpacity(0.2),
         ),
       ),
       child: Column(
@@ -546,9 +545,9 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         children: [
           Text(
             'What you get',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 2.h),
@@ -559,14 +558,13 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                     Container(
                       padding: EdgeInsets.all(2.w),
                       decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.primary
+                        color: Theme.of(context).colorScheme.primary
                             .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         feature['icon'] as IconData,
-                        color:
-                            AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 20,
                       ),
                     ),
@@ -574,10 +572,9 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                     Expanded(
                       child: Text(
                         feature['text'] as String,
-                        style: AppTheme.lightTheme.textTheme.bodyLarge
+                        style: Theme.of(context).textTheme.bodyLarge
                             ?.copyWith(
-                          color: AppTheme
-                              .lightTheme.colorScheme.onSurface,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -611,20 +608,20 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
         Container(
           padding: EdgeInsets.all(3.w),
           decoration: BoxDecoration(
-            color: AppTheme.lightTheme.colorScheme.tertiary
+            color: Theme.of(context).colorScheme.tertiary
                 .withOpacity(0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon,
-              color: AppTheme.lightTheme.colorScheme.tertiary,
+              color: Theme.of(context).colorScheme.tertiary,
               size: 24),
         ),
         SizedBox(height: 1.h),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurface
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface
                 .withOpacity(0.7),
           ),
         ),
@@ -642,7 +639,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
     return Container(
       padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
@@ -666,8 +663,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                     onPressed:
                         _isProcessing ? null : _processPurchase,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          AppTheme.lightTheme.colorScheme.primary,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(vertical: 2.h),
                       shape: RoundedRectangleBorder(
@@ -694,8 +690,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                                 isLifetime
                                     ? 'Get Lifetime Access • $priceDisplay'
                                     : 'Start Premium • $priceDisplay/${plan.duration}',
-                                style: AppTheme
-                                    .lightTheme.textTheme.titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -715,8 +710,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
             isLifetime
                 ? 'One-time payment • Secured by Google Play'
                 : 'Cancel anytime • Managed by Google Play',
-            style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface
                   .withOpacity(0.5),
             ),
           ),
@@ -728,7 +723,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
   Widget _buildSuccessSheet(PaymentPlan plan) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -751,7 +746,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
 
           Text(
             'Welcome to Premium! 🎉',
-            style: AppTheme.lightTheme.textTheme.headlineSmall
+            style: Theme.of(context).textTheme.headlineSmall
                 ?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -766,8 +761,8 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                   : 'Your ${plan.name} subscription is now active. Enjoy all premium features!',
               textAlign: TextAlign.center,
               style:
-                  AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface
+                  Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
                     .withOpacity(0.7),
               ),
             ),
@@ -784,8 +779,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                   Navigator.pop(context, true); // Return success
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      AppTheme.lightTheme.colorScheme.primary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: EdgeInsets.symmetric(vertical: 2.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -793,7 +787,7 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
                 ),
                 child: Text(
                   'Start Exploring',
-                  style: AppTheme.lightTheme.textTheme.titleMedium
+                  style: Theme.of(context).textTheme.titleMedium
                       ?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

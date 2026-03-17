@@ -191,12 +191,12 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFF8B4513).withOpacity(0.4),
-                        const Color(0xFF8B4513).withOpacity(0.1),
+                        Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                        Theme.of(context).colorScheme.primary.withOpacity(0.1),
                         Colors.transparent,
                       ],
                     ),
-                    border: Border.all(color: const Color(0xFF8B4513).withOpacity(0.3), width: 2),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3), width: 2),
                   ),
                   child: const Center(
                     child: Text('🧘', style: TextStyle(fontSize: 40)),
@@ -232,10 +232,10 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                     margin: const EdgeInsets.only(right: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                     decoration: BoxDecoration(
-                      color: selected ? const Color(0xFF8B4513) : Colors.white.withOpacity(0.08),
+                      color: selected ? Color(0xFF8B4513) : Colors.white.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: selected ? const Color(0xFF8B4513) : Colors.white12,
+                        color: selected ? Color(0xFF8B4513) : Colors.white12,
                       ),
                     ),
                     child: Center(
@@ -337,14 +337,14 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                 height: 22.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8B4513), Color(0xFFCD853F)],
+                  gradient: LinearGradient(
+                    colors: [Theme.of(context).colorScheme.primary, Color(0xFFCD853F)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF8B4513).withOpacity(0.4),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -414,7 +414,7 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF8B4513).withOpacity(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(
                               _timerService.isRunning ? _glowAnimation.value * 0.3 : 0.1,
                             ),
                             blurRadius: 40,
@@ -433,7 +433,7 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                           progress: _timerService.progress,
                           strokeWidth: 4,
                           backgroundColor: Colors.white.withOpacity(0.08),
-                          progressColor: const Color(0xFF8B4513),
+                          progressColor: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -450,8 +450,8 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
                             shape: BoxShape.circle,
                             gradient: RadialGradient(
                               colors: [
-                                const Color(0xFF8B4513).withOpacity(0.15),
-                                const Color(0xFF8B4513).withOpacity(0.05),
+                                Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                                Theme.of(context).colorScheme.primary.withOpacity(0.05),
                                 Colors.transparent,
                               ],
                             ),
@@ -595,7 +595,7 @@ class _MeditationTimerScreenState extends State<MeditationTimerScreen>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
               decoration: BoxDecoration(
-                color: const Color(0xFF8B4513),
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: const Text(

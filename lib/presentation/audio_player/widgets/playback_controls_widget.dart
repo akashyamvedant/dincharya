@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -30,12 +30,12 @@ class PlaybackControlsWidget extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
       decoration: BoxDecoration(
-        color: AppTheme.darkTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
         border: Border(
           top: BorderSide(
             color:
-                AppTheme.darkTheme.colorScheme.outline.withValues(alpha: 0.2),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             width: 1.0,
           ),
         ),
@@ -53,7 +53,7 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.primaryContainer,
+                    color: Theme.of(context).colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(20.0),
                   ),
                   child: Row(
@@ -62,16 +62,16 @@ class PlaybackControlsWidget extends StatelessWidget {
                       CustomIconWidget(
                         iconName: 'speed',
                         color:
-                            AppTheme.darkTheme.colorScheme.onPrimaryContainer,
+                            Theme.of(context).colorScheme.onPrimaryContainer,
                         size: 16,
                       ),
                       SizedBox(width: 1.w),
                       Text(
                         '${playbackSpeed}x',
                         style:
-                            AppTheme.darkTheme.textTheme.labelMedium?.copyWith(
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
                           color:
-                              AppTheme.darkTheme.colorScheme.onPrimaryContainer,
+                              Theme.of(context).colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -87,11 +87,11 @@ class PlaybackControlsWidget extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                   decoration: BoxDecoration(
                     color: sleepTimerMinutes != null
-                        ? AppTheme.getAccentColor(false).withValues(alpha: 0.2)
-                        : AppTheme.darkTheme.colorScheme.surface,
+                        ? AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.2)
+                        : Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(20.0),
                     border: Border.all(
-                      color: AppTheme.darkTheme.colorScheme.outline
+                      color: Theme.of(context).colorScheme.outline
                           .withValues(alpha: 0.3),
                       width: 1.0,
                     ),
@@ -102,17 +102,17 @@ class PlaybackControlsWidget extends StatelessWidget {
                       CustomIconWidget(
                         iconName: 'bedtime',
                         color: sleepTimerMinutes != null
-                            ? AppTheme.getAccentColor(false)
-                            : AppTheme.darkTheme.colorScheme.onSurface,
+                            ? AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light)
+                            : Theme.of(context).colorScheme.onSurface,
                         size: 16,
                       ),
                       if (sleepTimerMinutes != null) ...[
                         SizedBox(width: 1.w),
                         Text(
                           '${sleepTimerMinutes}m',
-                          style: AppTheme.darkTheme.textTheme.labelMedium
+                          style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(
-                            color: AppTheme.getAccentColor(false),
+                            color: AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -136,17 +136,17 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(3.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.surface,
+                    color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.darkTheme.colorScheme.outline
+                      color: Theme.of(context).colorScheme.outline
                           .withValues(alpha: 0.3),
                       width: 1.0,
                     ),
                   ),
                   child: CustomIconWidget(
                     iconName: 'replay_30',
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                     size: 24,
                   ),
                 ),
@@ -158,17 +158,17 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(3.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.surface,
+                    color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.darkTheme.colorScheme.outline
+                      color: Theme.of(context).colorScheme.outline
                           .withValues(alpha: 0.3),
                       width: 1.0,
                     ),
                   ),
                   child: CustomIconWidget(
                     iconName: 'skip_previous',
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                     size: 28,
                   ),
                 ),
@@ -180,11 +180,11 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(4.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.darkTheme.colorScheme.primary
+                        color: Theme.of(context).colorScheme.primary
                             .withValues(alpha: 0.3),
                         blurRadius: 12.0,
                         offset: Offset(0, 4),
@@ -193,7 +193,7 @@ class PlaybackControlsWidget extends StatelessWidget {
                   ),
                   child: CustomIconWidget(
                     iconName: isPlaying ? 'pause' : 'play_arrow',
-                    color: AppTheme.darkTheme.colorScheme.onPrimary,
+                    color: Theme.of(context).colorScheme.onPrimary,
                     size: 36,
                   ),
                 ),
@@ -205,17 +205,17 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(3.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.surface,
+                    color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.darkTheme.colorScheme.outline
+                      color: Theme.of(context).colorScheme.outline
                           .withValues(alpha: 0.3),
                       width: 1.0,
                     ),
                   ),
                   child: CustomIconWidget(
                     iconName: 'skip_next',
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                     size: 28,
                   ),
                 ),
@@ -227,17 +227,17 @@ class PlaybackControlsWidget extends StatelessWidget {
                 child: Container(
                   padding: EdgeInsets.all(3.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkTheme.colorScheme.surface,
+                    color: Theme.of(context).colorScheme.surface,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: AppTheme.darkTheme.colorScheme.outline
+                      color: Theme.of(context).colorScheme.outline
                           .withValues(alpha: 0.3),
                       width: 1.0,
                     ),
                   ),
                   child: CustomIconWidget(
                     iconName: 'forward_30',
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                     size: 24,
                   ),
                 ),
@@ -254,7 +254,7 @@ class PlaybackControlsWidget extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.darkTheme.colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
       ),
@@ -265,22 +265,22 @@ class PlaybackControlsWidget extends StatelessWidget {
           children: [
             Text(
               'Playback Speed',
-              style: AppTheme.darkTheme.textTheme.titleMedium?.copyWith(
-                color: AppTheme.darkTheme.colorScheme.onSurface,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 2.h),
             ...speeds.map((speed) => ListTile(
                   title: Text(
                     '${speed}x',
-                    style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.darkTheme.colorScheme.onSurface,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   trailing: playbackSpeed == speed
                       ? CustomIconWidget(
                           iconName: 'check',
-                          color: AppTheme.darkTheme.colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         )
                       : null,

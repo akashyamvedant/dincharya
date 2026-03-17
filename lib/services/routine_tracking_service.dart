@@ -337,6 +337,8 @@ class RoutineTrackingService {
   }
 
   /// Track activity - ENHANCED VERSION with duration, completion %, ratings
+  /// [trackingDate] allows overriding the tracking date (for end-of-day processing
+  /// where missed tasks should be recorded under their actual date, not today)
   Future<void> trackActivity({
     required String activityName,
     required bool completed,
@@ -349,6 +351,7 @@ class RoutineTrackingService {
     int? qualityRating,
     String? skipReason,
     String? notes,
+    String? trackingDate, // Override date for end-of-day processing
   }) async {
     try {
       final currentUser = _supabase.currentUser;
@@ -362,6 +365,9 @@ class RoutineTrackingService {
         debugPrint('⚠️ Supabase not initialized');
         return;
       }
+
+      // Use provided tracking date or default to today
+      final effectiveDate = trackingDate ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
 
       // Calculate XP based on completion and difficulty
       int xpEarned = 0;
@@ -390,10 +396,10 @@ class RoutineTrackingService {
         'skip_reason': skipReason,
         'notes': notes,
         'xp_earned': xpEarned,
-        'tracking_date': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'tracking_date': effectiveDate,
       });
 
-      // Update user stats if completed
+      // Update user stats ONLY if completed (not for missed/skipped)
       if (completed) {
         await _updateUserStats(
           userId: currentUser.id,
@@ -402,7 +408,7 @@ class RoutineTrackingService {
         );
       }
 
-      debugPrint('✅ Tracked: $activityName - ${completed ? "Completed ($completionPercent%)" : "Missed"} +$xpEarned XP');
+      debugPrint('✅ Tracked: $activityName ($effectiveDate) - ${completed ? "Completed ($completionPercent%)" : "Missed"} +$xpEarned XP');
     } catch (e) {
       debugPrint('❌ Error tracking: $e');
     }

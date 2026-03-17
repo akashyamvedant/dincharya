@@ -1,4 +1,4 @@
-// lib/presentation/enhanced_profile/widgets/data_management_widget.dart
+﻿// lib/presentation/enhanced_profile/widgets/data_management_widget.dart
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
@@ -220,7 +220,7 @@ class DataManagementWidget extends StatelessWidget {
               backgroundColor:
                   Theme.of(context).colorScheme.outline.withAlpha(51),
               valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).colorScheme.primary,
+                Color(0xFF8B4513),
               ),
             ),
             SizedBox(height: 1.h),

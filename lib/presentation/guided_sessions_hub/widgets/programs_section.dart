@@ -76,16 +76,16 @@ class _ProgramsSectionState extends State<ProgramsSection> {
             children: [
               Text(
                 program['description'] ?? '',
-                style: TextStyle(color: Colors.grey[700], height: 1.4),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, height: 1.4),
               ),
               SizedBox(height: 2.h),
               Row(
                 children: [
-                  Icon(Icons.play_circle_outline, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
+                  Icon(Icons.play_circle_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  SizedBox(width: 4),
                   Text(
                     '${program['total_sessions'] ?? 0} sessions over ${program['duration_days'] ?? 7} days',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -167,27 +167,27 @@ class _ProgramsSectionState extends State<ProgramsSection> {
                 '📚',
                 style: TextStyle(fontSize: 18),
               ),
-              const SizedBox(width: 8),
-              const Text(
+               SizedBox(width: 8),
+              Text(
                 'Programs & Courses',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               if (_enrollments.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8B4513).withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     '${_enrollments.length} active',
-                    style: const TextStyle(
-                      color: Color(0xFF8B4513),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),

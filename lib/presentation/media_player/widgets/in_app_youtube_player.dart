@@ -1,4 +1,4 @@
-// In-App YouTube Player Widget - Clean Single Widget Design
+﻿// In-App YouTube Player Widget - Clean Single Widget Design
 // Plays YouTube videos inside the app without opening external apps
 
 import 'package:flutter/material.dart';
@@ -99,7 +99,7 @@ class _InAppYoutubePlayerState extends State<InAppYoutubePlayer> {
                   Text('Resuming from $min:${sec.toString().padLeft(2, '0')}'),
                 ],
               ),
-              backgroundColor: const Color(0xFF8B4513),
+              backgroundColor: Theme.of(context).colorScheme.primary,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               duration: const Duration(seconds: 2),

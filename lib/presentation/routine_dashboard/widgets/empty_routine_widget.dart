@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -21,7 +21,7 @@ class EmptyRoutineWidget extends StatelessWidget {
               width: 60.w,
               height: 30.h,
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.primaryContainer
+                color: Theme.of(context).colorScheme.primaryContainer
                     .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -30,14 +30,14 @@ class EmptyRoutineWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'self_improvement',
-                    color: AppTheme.lightTheme.colorScheme.primary
+                    color: Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.6),
                     size: 80,
                   ),
                   SizedBox(height: 2.h),
                   CustomIconWidget(
                     iconName: 'add_circle_outline',
-                    color: AppTheme.lightTheme.colorScheme.tertiary
+                    color: Theme.of(context).colorScheme.tertiary
                         .withValues(alpha: 0.8),
                     size: 40,
                   ),
@@ -50,8 +50,8 @@ class EmptyRoutineWidget extends StatelessWidget {
             // Title
             Text(
               'Begin Your Journey',
-              style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -62,8 +62,8 @@ class EmptyRoutineWidget extends StatelessWidget {
             // Description
             Text(
               'Create your first routine to start building discipline, peace, and productivity in your daily life.',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -82,19 +82,19 @@ class EmptyRoutineWidget extends StatelessWidget {
                 },
                 icon: CustomIconWidget(
                   iconName: 'add',
-                  color: AppTheme.lightTheme.colorScheme.onPrimary,
+                  color: Theme.of(context).colorScheme.onPrimary,
                   size: 20,
                 ),
                 label: Text(
                   'Build Your First Routine',
-                  style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onPrimary,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-                  foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   padding: EdgeInsets.symmetric(vertical: 2.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -113,13 +113,13 @@ class EmptyRoutineWidget extends StatelessWidget {
               },
               icon: CustomIconWidget(
                 iconName: 'explore',
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: Theme.of(context).colorScheme.primary,
                 size: 18,
               ),
               label: Text(
                 'Explore Guided Sessions',
-                style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -131,10 +131,10 @@ class EmptyRoutineWidget extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(4.w),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.2),
                 ),
               ),
@@ -142,14 +142,14 @@ class EmptyRoutineWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'format_quote',
-                    color: AppTheme.lightTheme.colorScheme.tertiary,
+                    color: Theme.of(context).colorScheme.tertiary,
                     size: 24,
                   ),
                   SizedBox(height: 1.h),
                   Text(
                     'योगः कर्मसु कौशलम्',
-                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
                       fontStyle: FontStyle.italic,
                     ),
@@ -158,8 +158,8 @@ class EmptyRoutineWidget extends StatelessWidget {
                   SizedBox(height: 0.5.h),
                   Text(
                     'Yoga is skill in action',
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontStyle: FontStyle.italic,
                     ),
                     textAlign: TextAlign.center,

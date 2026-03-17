@@ -5,6 +5,8 @@ import 'package:sizer/sizer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../services/theme_provider.dart';
+
 import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../services/auth_service.dart';
@@ -209,7 +211,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         };
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -234,6 +236,11 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               if (userData["subscriptionPlan"] != "Premium")
                 SizedBox(height: 2.h),
 
+              // Community Chat Card
+              _buildCommunityCard(),
+
+              SizedBox(height: 2.h),
+
               // Settings Sections
               _buildSimpleSettings(),
 
@@ -252,32 +259,32 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
         backgroundColor:
-            AppTheme.lightTheme.bottomNavigationBarTheme.backgroundColor,
+            Theme.of(context).bottomNavigationBarTheme.backgroundColor,
         selectedItemColor:
-            AppTheme.lightTheme.bottomNavigationBarTheme.selectedItemColor,
+            Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
         unselectedItemColor:
-            AppTheme.lightTheme.bottomNavigationBarTheme.unselectedItemColor,
+            Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         items: [
           BottomNavigationBarItem(
             icon: CustomIconWidget(
-              iconName: 'clock',
+              iconName: 'schedule',
               color: _currentIndex == 0
-                  ? AppTheme
-                      .lightTheme.bottomNavigationBarTheme.selectedItemColor!
-                  : AppTheme
-                      .lightTheme.bottomNavigationBarTheme.unselectedItemColor!,
+                  ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
+                      ?? Color(0xFF8B4513))
+                  : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
+                      ?? Theme.of(context).colorScheme.onSurfaceVariant),
               size: 24,
             ),
             label: 'Routine',
           ),
           BottomNavigationBarItem(
             icon: CustomIconWidget(
-              iconName: 'meditation',
+              iconName: 'self_improvement',
               color: _currentIndex == 1
-                  ? AppTheme
-                      .lightTheme.bottomNavigationBarTheme.selectedItemColor!
-                  : AppTheme
-                      .lightTheme.bottomNavigationBarTheme.unselectedItemColor!,
+                  ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
+                      ?? Color(0xFF8B4513))
+                  : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
+                      ?? Theme.of(context).colorScheme.onSurfaceVariant),
               size: 24,
             ),
             label: 'Guided',
@@ -286,10 +293,10 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             icon: CustomIconWidget(
               iconName: 'book',
               color: _currentIndex == 2
-                  ? AppTheme
-                      .lightTheme.bottomNavigationBarTheme.selectedItemColor!
-                  : AppTheme
-                      .lightTheme.bottomNavigationBarTheme.unselectedItemColor!,
+                  ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
+                      ?? Color(0xFF8B4513))
+                  : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
+                      ?? Theme.of(context).colorScheme.onSurfaceVariant),
               size: 24,
             ),
             label: 'Journal',
@@ -298,10 +305,10 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             icon: CustomIconWidget(
               iconName: 'person',
               color: _currentIndex == 3
-                  ? AppTheme
-                      .lightTheme.bottomNavigationBarTheme.selectedItemColor!
-                  : AppTheme
-                      .lightTheme.bottomNavigationBarTheme.unselectedItemColor!,
+                  ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
+                      ?? Color(0xFF8B4513))
+                  : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
+                      ?? Theme.of(context).colorScheme.onSurfaceVariant),
               size: 24,
             ),
             label: 'Me',
@@ -342,11 +349,11 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFFDF8F3), // Warm cream background
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor, // Warm cream background
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(
-                  color: Color(0xFFD4A574), // Brown border
+                side: BorderSide(
+                  color: Theme.of(context).colorScheme.secondary, // Brown border
                   width: 1,
                 ),
               ),
@@ -354,14 +361,14 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                 children: [
                   Icon(
                     Icons.logout_rounded,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 28,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Text(
                     'Logout',
-                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                      color: const Color(0xFF2C1810), // Dark brown text
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface, // Dark brown text
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -379,19 +386,19 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                             valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B4513)),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        SizedBox(width: 16),
                         Text(
                           'Logging out...',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF5D4037),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                           ),
                         ),
                       ],
                     )
                   : Text(
                       'Are you sure you want to logout?',
-                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF5D4037), // Medium brown text
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
               actions: isLoggingOut
@@ -448,7 +455,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8B4513), // Brown button
+                          backgroundColor: Theme.of(context).colorScheme.primary, // Brown button
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -491,19 +498,19 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFFDF8F3),
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: Color(0xFFD4A574), width: 1),
+                side: BorderSide(color: Theme.of(context).colorScheme.secondary, width: 1),
               ),
               title: Row(
                 children: [
                   Icon(Icons.lock_outline, color: Colors.orange, size: 28),
                   SizedBox(width: 2.w),
-                  const Text(
+                  Text(
                     'Change Password',
                     style: TextStyle(
-                      color: Color(0xFF2C1810),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -541,15 +548,15 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                     TextField(
                       controller: currentPasswordController,
                       obscureText: obscureCurrent,
-                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Current Password',
-                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
-                        prefixIcon: Icon(Icons.lock_outline, color: Color(0xFF8B4513)),
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock_outline, color: Theme.of(context).colorScheme.primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             obscureCurrent ? Icons.visibility : Icons.visibility_off,
-                            color: Color(0xFF8B4513),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
                         ),
@@ -558,14 +565,14 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                       ),
                     ),
                     SizedBox(height: 2.h),
@@ -574,15 +581,15 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                     TextField(
                       controller: newPasswordController,
                       obscureText: obscureNew,
-                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
                         labelText: 'New Password',
-                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
-                        prefixIcon: Icon(Icons.lock, color: Color(0xFF8B4513)),
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             obscureNew ? Icons.visibility : Icons.visibility_off,
-                            color: Color(0xFF8B4513),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           onPressed: () => setDialogState(() => obscureNew = !obscureNew),
                         ),
@@ -591,16 +598,16 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         helperText: 'Min 8 chars, upper, lower, number, special',
-                        helperStyle: TextStyle(color: Color(0xFF8B4513), fontSize: 11),
+                        helperStyle: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 11),
                         helperMaxLines: 2,
                       ),
                     ),
@@ -610,15 +617,15 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                     TextField(
                       controller: confirmPasswordController,
                       obscureText: obscureConfirm,
-                      style: const TextStyle(color: Color(0xFF2C1810)),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
                         labelText: 'Confirm New Password',
-                        labelStyle: TextStyle(color: Color(0xFF2C1810).withOpacity(0.7)),
-                        prefixIcon: Icon(Icons.lock_reset, color: Color(0xFF8B4513)),
+                        labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
+                        prefixIcon: Icon(Icons.lock_reset, color: Theme.of(context).colorScheme.primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             obscureConfirm ? Icons.visibility : Icons.visibility_off,
-                            color: Color(0xFF8B4513),
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
                         ),
@@ -627,14 +634,14 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFFD4A574)),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Color(0xFF8B4513), width: 2),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
                         ),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                       ),
                     ),
                   ],
@@ -715,7 +722,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B4513),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
                     shape: RoundedRectangleBorder(
@@ -751,15 +758,14 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.lightTheme.colorScheme.primary,
-            AppTheme.lightTheme.colorScheme.primary.withOpacity(0.8),
+          colors: [Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.primary.withOpacity(0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.lightTheme.colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -819,7 +825,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           SizedBox(height: 2.h),
           Text(
             userData["name"] as String,
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
@@ -837,7 +843,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               Flexible(
                 child: Text(
                   userData["email"] as String,
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white.withOpacity(0.9),
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -868,7 +874,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                   SizedBox(width: 1.w),
                   Text(
                     userData["subscriptionPlan"] as String,
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
@@ -907,8 +913,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           child: _buildModernStatCard(
             '${userData["journalEntries"]}',
             'Journals',
-            Icons.book,
-            AppTheme.lightTheme.colorScheme.primary,
+            Icons.book, Theme.of(context).colorScheme.primary,
           ),
         ),
       ],
@@ -920,7 +925,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 3.h, horizontal: 2.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: color.withOpacity(0.2),
@@ -951,7 +956,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           SizedBox(height: 1.5.h),
           Text(
             value,
-            style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -959,8 +964,8 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           SizedBox(height: 0.3.h),
           Text(
             label,
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface
                   .withOpacity(0.6),
               fontWeight: FontWeight.w500,
             ),
@@ -1027,7 +1032,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               children: [
                 Text(
                   isOnline ? 'Online & Synced' : 'Not Connected',
-                  style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isOnline ? Colors.green[700] : Colors.orange[700],
                   ),
@@ -1037,8 +1042,8 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                   isOnline
                       ? 'All your data is synced to the cloud'
                       : 'Please sign in to sync your data',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface
                         .withOpacity(0.7),
                   ),
                 ),
@@ -1086,8 +1091,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             _buildModernSettingsTile(
               'Edit Profile',
               'Update your personal information',
-              Icons.person_outline,
-              AppTheme.lightTheme.colorScheme.primary,
+              Icons.person_outline, Theme.of(context).colorScheme.primary,
               onTap: () async {
                 final result = await Navigator.pushNamed(
                   context,
@@ -1123,16 +1127,6 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               Colors.teal,
               onTap: () {
                 Navigator.pushNamed(context, '/history');
-              },
-            ),
-            _buildDivider(),
-            _buildModernSettingsTile(
-              'Change Profile',
-              'Switch your lifestyle routine',
-              Icons.swap_horiz,
-              Colors.purple,
-              onTap: () {
-                Navigator.pushNamed(context, '/profile-selection');
               },
             ),
             // Admin-only: Manage Sessions (hidden for regular users)
@@ -1186,6 +1180,29 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                );
+              },
+            ),
+          ],
+        ),
+
+        SizedBox(height: 2.h),
+
+        // Appearance
+        _buildModernSettingsCard(
+          title: 'Appearance',
+          children: [
+            _buildModernSwitchTile(
+              'Dark Mode',
+              'Switch to dark theme',
+              Icons.dark_mode,
+              Colors.indigo,
+              ThemeProvider().isDarkMode,
+              (value) {
+                // Only use ThemeProvider — ListenableBuilder in main.dart
+                // automatically rebuilds the entire widget tree
+                ThemeProvider().setThemeMode(
+                  value ? ThemeMode.dark : ThemeMode.light,
                 );
               },
             ),
@@ -1344,18 +1361,18 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           padding: EdgeInsets.only(left: 2.w, bottom: 1.5.h),
       child: Text(
         title,
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
-          color: AppTheme.lightTheme.colorScheme.onSurface,
+          color: Theme.of(context).colorScheme.onSurface,
         ),
       ),
         ),
         Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppTheme.lightTheme.colorScheme.outline
+              color: Theme.of(context).colorScheme.outline
                   .withValues(alpha: 0.1),
               width: 1,
             ),
@@ -1380,7 +1397,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
       height: 1,
       thickness: 1,
       indent: 16.w,
-      color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.1),
+      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
     );
   }
 
@@ -1391,8 +1408,8 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white,
-            Colors.white.withValues(alpha: 0.9),
+            Colors.grey[200]!,
+            Colors.grey[300]!,
           ],
         ),
       ),
@@ -1401,7 +1418,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           width: 22.w,
           height: 22.w,
           decoration: BoxDecoration(
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -1457,18 +1474,18 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                   children: [
                     Text(
         title,
-        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: isPrimary
                             ? iconColor
-                            : AppTheme.lightTheme.colorScheme.onSurface,
+                            : Theme.of(context).colorScheme.onSurface,
         ),
       ),
                     SizedBox(height: 0.3.h),
                     Text(
         subtitle,
-        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onSurface
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: 0.6),
         ),
       ),
@@ -1477,7 +1494,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               ),
               Icon(
                 Icons.chevron_right,
-              color: AppTheme.lightTheme.colorScheme.onSurface
+              color: Theme.of(context).colorScheme.onSurface
                     .withValues(alpha: 0.3),
                 size: 20,
               ),
@@ -1519,15 +1536,15 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               children: [
                 Text(
         title,
-        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
         ),
       ),
                 SizedBox(height: 0.3.h),
                 Text(
         subtitle,
-        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.6),
         ),
       ),
@@ -1544,15 +1561,114 @@ class _ProfileSettingsState extends State<ProfileSettings> {
     );
   }
 
+  Widget _buildCommunityCard() {
+    final primaryColor = Color(0xFF8B4513);
+
+    return _buildModernSettingsCard(
+      title: 'Community',
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => Navigator.pushNamed(context, '/community'),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(3.w),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          primaryColor,
+                          primaryColor.withValues(alpha: 0.75),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.groups_rounded,
+                      color: Colors.white,
+                      size: 5.5.w,
+                    ),
+                  ),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Community Chat',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            SizedBox(width: 2.w),
+                            // Live indicator dot
+                            Container(
+                              width: 2.w,
+                              height: 2.w,
+                              decoration: BoxDecoration(
+                                color: AppTheme.successLight,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.successLight.withValues(alpha: 0.5),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 0.3.h),
+                        Text(
+                          'Connect with fellow practitioners 💬',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.3),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSubscriptionCard(Map<String, dynamic> userData) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            AppTheme.lightTheme.colorScheme.primary,
-            AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+          colors: [Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1560,8 +1676,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: Offset(0, 4),
           ),
@@ -1581,7 +1696,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
               Expanded(
                 child: Text(
                   'Upgrade to Premium',
-                  style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1595,7 +1710,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                 ),
                 child: Text(
                   '₹199/month',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1606,7 +1721,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           SizedBox(height: 2.h),
           Text(
             'Unlock unlimited features:',
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
@@ -1630,7 +1745,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                         Text(
                           feature,
                           style:
-                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
@@ -1644,8 +1759,8 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             child: ElevatedButton(
               onPressed: () => _showSubscriptionDialog(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppTheme.lightTheme.colorScheme.primary,
+                backgroundColor: Theme.of(context).cardColor,
+                foregroundColor: Theme.of(context).colorScheme.primary,
                 padding: EdgeInsets.symmetric(vertical: 2.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

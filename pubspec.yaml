@@ -1,6 +1,6 @@
 name: dincharya
 description: A new Flutter project.
-version: 1.0.0+10
+version: 1.0.0+12
 environment: 
   sdk: ^3.6.0
 dependencies: 
@@ -68,6 +68,11 @@ dependencies:
   
   # Web support
   web: any
+  
+  # Yoga Teacher — Phase 1
+  flutter_tts: ^4.2.0              # Hindi/English voice guidance
+  lottie: ^3.3.2                   # Lightweight pose animations
+  camera: ^0.12.0                # For self-practice PIP view
 
 dev_dependencies:
   flutter_test:
@@ -81,6 +86,7 @@ flutter:
   assets: 
     - assets/
     - assets/images/
+    - assets/sounds/
     - .env
 
 flutter_launcher_icons:

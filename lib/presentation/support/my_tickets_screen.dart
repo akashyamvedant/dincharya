@@ -65,18 +65,18 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: warmBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: softPeach,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: darkBrown, size: 22),
+          icon: Icon(Icons.arrow_back_ios, color: Theme.of(context).colorScheme.onSurface, size: 22),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'My Tickets',
           style: TextStyle(
-            color: darkBrown,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 20.sp,
             fontWeight: FontWeight.bold,
           ),
@@ -112,7 +112,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           label: Text(
             'New Ticket',
             style: TextStyle(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               fontWeight: FontWeight.bold,
               fontSize: 13.sp,
             ),
@@ -185,7 +185,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                   gradient: isSelected
                       ? LinearGradient(colors: [accentBrown, lightBrown])
                       : null,
-                  color: isSelected ? null : Colors.white,
+                   color: isSelected ? null : Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected ? Colors.transparent : lightBrown.withOpacity(0.3),
@@ -205,7 +205,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                     Icon(
                       f['icon'] as IconData,
                       size: 16,
-                      color: isSelected ? Colors.white : darkBrown.withOpacity(0.6),
+                       color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                     ),
                     SizedBox(width: 1.5.w),
                     Text(
@@ -213,7 +213,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       style: TextStyle(
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : darkBrown.withOpacity(0.7),
+                         color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                     if (count > 0) ...[
@@ -269,7 +269,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
             style: TextStyle(
               fontSize: 18.sp,
               fontWeight: FontWeight.bold,
-              color: darkBrown,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           SizedBox(height: 1.h),
@@ -279,7 +279,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                 : 'इस category में कोई ticket नहीं है',
             style: TextStyle(
               fontSize: 14.sp,
-              color: darkBrown.withOpacity(0.5),
+               color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
         ],
@@ -312,7 +312,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
       child: Container(
         margin: EdgeInsets.only(bottom: 2.h),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: lightBrown.withOpacity(0.15)),
           boxShadow: [
@@ -332,14 +332,14 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                 gradient: LinearGradient(
                   colors: [
                     (statusConfig['color'] as Color).withOpacity(0.08),
-                    Colors.white,
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(18),
-                  topRight: Radius.circular(18),
-                ),
-              ),
+                     Theme.of(context).colorScheme.surface,
+                   ],
+                 ),
+                 borderRadius: const BorderRadius.only(
+                   topLeft: Radius.circular(18),
+                   topRight: Radius.circular(18),
+                 ),
+               ),
               child: Row(
                 children: [
                   // Category icon
@@ -365,7 +365,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                           style: TextStyle(
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w700,
-                            color: darkBrown,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -430,7 +430,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       message,
                       style: TextStyle(
                         fontSize: 13.sp,
-                        color: darkBrown.withOpacity(0.6),
+                         color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                         height: 1.4,
                       ),
                       maxLines: 2,
@@ -444,7 +444,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
               decoration: BoxDecoration(
-                color: warmCream.withOpacity(0.5),
+                 color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(18),
                   bottomRight: Radius.circular(18),
@@ -486,14 +486,14 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       Icon(
                         Icons.access_time_rounded,
                         size: 14,
-                        color: darkBrown.withOpacity(0.4),
+                           color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                       ),
                       SizedBox(width: 1.w),
                       Text(
                         _formatDate(createdAt),
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: darkBrown.withOpacity(0.4),
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
                           fontWeight: FontWeight.w500,
                         ),
                       ),

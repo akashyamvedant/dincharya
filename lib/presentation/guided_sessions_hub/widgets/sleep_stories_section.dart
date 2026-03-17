@@ -34,7 +34,7 @@ class SleepStoriesSection extends StatelessWidget {
       'title': 'Temple Bells',
       'subtitle': 'Sacred evening ambiance',
       'emoji': '🔔',
-      'gradient': [Color(0xFF3E2723), Color(0xFF6D4C41)],
+      'gradient': [Color(0xFF3E2723), Color(0xFF5D4037)],
       'route': '/soundscape',
     },
     {
@@ -55,14 +55,14 @@ class SleepStoriesSection extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 4.w),
           child: Row(
             children: [
-              const Text('🌙', style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              const Text(
+               Text('🌙', style: TextStyle(fontSize: 20)),
+               SizedBox(width: 8),
+              Text(
                 'Sleep & Relax',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C1810),
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -71,7 +71,7 @@ class SleepStoriesSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF8B4513).withOpacity(0.7),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                 ),
               ),
             ],
@@ -130,8 +130,8 @@ class SleepStoriesSection extends StatelessWidget {
               children: [
                 Text(
                   story['title'] as String,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.surface,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),

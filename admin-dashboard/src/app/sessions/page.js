@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
+import Link from 'next/link';
+import MediaUploader from '@/components/MediaUploader';
 
 export default function SessionsPage() {
   const supabase = createClient();
@@ -13,6 +15,7 @@ export default function SessionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [linkedPoses, setLinkedPoses] = useState({});
   const [form, setForm] = useState({
     title: '', title_hindi: '', description: '', category: '',
     media_type: 'audio', media_url: '', thumbnail_url: '',
@@ -33,7 +36,14 @@ export default function SessionsPage() {
     setLoading(false);
   }, [filter, premiumFilter, search]);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => { fetchSessions(); fetchLinkedPoses(); }, [fetchSessions]);
+
+  const fetchLinkedPoses = async () => {
+    const { data } = await supabase.from('yoga_poses').select('id, name, linked_session_id, total_steps, is_active');
+    const map = {};
+    (data || []).forEach(p => { if (p.linked_session_id) map[p.linked_session_id] = p; });
+    setLinkedPoses(map);
+  };
 
   useEffect(() => {
     async function loadCategories() {
@@ -137,7 +147,10 @@ export default function SessionsPage() {
             {sessions.length} sessions • {sessions.filter(s => s.is_active).length} active • {sessions.filter(s => s.is_premium).length} premium
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>+ New Session</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/sessions/yoga-poses"><button className="btn">🪷 Manage Poses</button></Link>
+          <button className="btn btn-primary" onClick={openCreate}>+ New Session</button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -166,6 +179,7 @@ export default function SessionsPage() {
                 <th>Order</th>
                 <th>Session</th>
                 <th>Category</th>
+                <th>Yoga Pose</th>
                 <th>Media</th>
                 <th>Duration</th>
                 <th>Difficulty</th>
@@ -191,6 +205,18 @@ export default function SessionsPage() {
                     </div>
                   </td>
                   <td><span className="badge">{s.category}</span></td>
+                  <td>
+                    {linkedPoses[s.id] ? (
+                      <Link href={`/sessions/yoga-poses/${linkedPoses[s.id].id}/steps`}
+                        style={{ textDecoration: 'none', fontSize: 11 }}>
+                        <span className="badge badge-success" style={{ cursor: 'pointer' }}>
+                          🧘 {linkedPoses[s.id].total_steps || 0} steps
+                        </span>
+                      </Link>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
+                    )}
+                  </td>
                   <td title={s.media_type}>{mediaIcon(s.media_type)}</td>
                   <td>{formatDuration(s.duration)}</td>
                   <td>
@@ -273,27 +299,60 @@ export default function SessionsPage() {
               </div>
               <div className="form-group">
                 <label>Media URL</label>
-                <input className="form-input" value={form.media_url} onChange={e => setForm({ ...form, media_url: e.target.value })} placeholder="Primary media file URL" />
+                <MediaUploader
+                  bucket="session-media"
+                  folder="sessions"
+                  accept={form.media_type === 'audio' ? 'audio/*' : form.media_type === 'video' ? 'video/*' : form.media_type === 'image' ? 'image/*' : '*/*'}
+                  value={form.media_url}
+                  onChange={(url) => setForm({ ...form, media_url: url })}
+                  maxSizeMB={100}
+                />
               </div>
               <div className="form-group">
-                <label>Audio URL</label>
-                <input className="form-input" value={form.audio_url} onChange={e => setForm({ ...form, audio_url: e.target.value })} placeholder="Separate audio URL (optional)" />
+                <label>🎵 Audio</label>
+                <MediaUploader
+                  bucket="session-media"
+                  folder="audio"
+                  accept="audio/*"
+                  value={form.audio_url}
+                  onChange={(url) => setForm({ ...form, audio_url: url })}
+                  maxSizeMB={100}
+                />
               </div>
               <div className="form-group">
-                <label>Video URL</label>
-                <input className="form-input" value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })} placeholder="Supabase video URL" />
+                <label>🎬 Video</label>
+                <MediaUploader
+                  bucket="session-media"
+                  folder="video"
+                  accept="video/*"
+                  value={form.video_url}
+                  onChange={(url) => setForm({ ...form, video_url: url })}
+                  maxSizeMB={200}
+                />
               </div>
               <div className="form-group">
-                <label>YouTube URL</label>
-                <input className="form-input" value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} placeholder="YouTube video URL" />
+                <label>▶️ YouTube URL</label>
+                <input className="form-input" value={form.youtube_url} onChange={e => setForm({ ...form, youtube_url: e.target.value })} placeholder="https://youtube.com/watch?v=..." />
               </div>
               <div className="form-group">
-                <label>Thumbnail URL</label>
-                <input className="form-input" value={form.thumbnail_url} onChange={e => setForm({ ...form, thumbnail_url: e.target.value })} />
+                <label>🖼️ Thumbnail</label>
+                <MediaUploader
+                  bucket="session-media"
+                  folder="thumbnails"
+                  accept="image/*"
+                  value={form.thumbnail_url}
+                  onChange={(url) => setForm({ ...form, thumbnail_url: url })}
+                />
               </div>
               <div className="form-group">
-                <label>Instructor Avatar URL</label>
-                <input className="form-input" value={form.instructor_avatar_url} onChange={e => setForm({ ...form, instructor_avatar_url: e.target.value })} />
+                <label>👤 Instructor Avatar</label>
+                <MediaUploader
+                  bucket="session-media"
+                  folder="avatars"
+                  accept="image/*"
+                  value={form.instructor_avatar_url}
+                  onChange={(url) => setForm({ ...form, instructor_avatar_url: url })}
+                />
               </div>
               <div className="form-group">
                 <label>Duration (seconds)</label>

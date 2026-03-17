@@ -1,4 +1,5 @@
 // lib/services/supabase_service.dart
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -80,12 +81,78 @@ class SupabaseService {
     return _isInitialized ? _client : null;
   }
 
-  // Get current user
+  // Get current user (sync — may be null on cold start before session restore)
   User? get currentUser {
     if (!_isInitialized) {
       return null;
     }
     return _client.auth.currentUser;
+  }
+
+  /// Get authenticated user, AWAITING session restoration if needed.
+  ///
+  /// supabase_flutter v2 does NOT await session refresh in Supabase.initialize().
+  /// `currentUser` is null immediately after a cold start until the async
+  /// session restore completes. This method properly waits for it.
+  ///
+  /// Returns the User if signed in, null if signed out (after up to 5s wait).
+  Future<User?> getAuthenticatedUser() async {
+    // Ensure Supabase SDK is initialized first
+    final c = await client;
+    if (c == null) return null;
+
+    // Fast path: session already restored
+    final existingUser = _client.auth.currentUser;
+    if (existingUser != null) return existingUser;
+
+    // Slow path: session not restored yet — wait for auth state change stream.
+    // supabase_flutter v2 fires INITIAL_SESSION event once session is loaded
+    // from local storage (even if no user is logged in).
+    try {
+      final completer = Completer<User?>();
+
+      late StreamSubscription<AuthState> sub;
+      sub = _client.auth.onAuthStateChange.listen(
+        (data) {
+          debugPrint('🔑 Auth state event: ${data.event}, user: ${data.session?.user.id}');
+          // INITIAL_SESSION fires once storage has been checked.
+          // SIGNED_IN fires when a session is freshly authenticated.
+          if (data.event == AuthChangeEvent.initialSession ||
+              data.event == AuthChangeEvent.signedIn ||
+              data.event == AuthChangeEvent.tokenRefreshed) {
+            if (!completer.isCompleted) {
+              completer.complete(data.session?.user);
+              sub.cancel();
+            }
+          }
+          // SIGNED_OUT or null session means definitively not logged in
+          if (data.event == AuthChangeEvent.signedOut) {
+            if (!completer.isCompleted) {
+              completer.complete(null);
+              sub.cancel();
+            }
+          }
+        },
+        onError: (e) {
+          debugPrint('❌ auth stream error: $e');
+          if (!completer.isCompleted) completer.complete(null);
+        },
+      );
+
+      // Timeout after 5 seconds — if no event, session is gone/expired
+      final user = await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          sub.cancel();
+          debugPrint('⏰ Auth session wait timed out — treating as not logged in');
+          return null;
+        },
+      );
+      return user;
+    } catch (e) {
+      debugPrint('❌ Error waiting for auth session: $e');
+      return null;
+    }
   }
 
   // Authentication methods with input validation
@@ -382,6 +449,9 @@ class SupabaseService {
         'duration_minutes': taskData['duration_minutes'],
         'icon': taskData['icon']?.toString().trim(),
         'is_inevitable': taskData['is_inevitable'],
+        'alarm_enabled': taskData['alarm_enabled'] ?? false,
+        'alarm_sound': taskData['alarm_sound']?.toString().trim(),
+        'linked_session_id': taskData['linked_session_id']?.toString().trim(),
         'due_date': taskData['due_date'],
         'priority': taskData['priority'],
         'status': taskData['status'],
@@ -420,6 +490,13 @@ class SupabaseService {
         final key = entry.key;
         final value = entry.value;
 
+        // linked_session_id must be handled before null-skip
+        // because null is a valid value (unlink session)
+        if (key == 'linked_session_id') {
+          sanitizedUpdates[key] = value?.toString().trim();
+          continue;
+        }
+
         if (value == null) continue;
         if (key == 'title' &&
             Validators.isValidString(value.toString(), maxLength: 200)) {
@@ -454,6 +531,16 @@ class SupabaseService {
         } else if (key == 'due_date') {
           sanitizedUpdates[key] = value;
         } else if (key == 'is_completed' && value is bool) {
+          sanitizedUpdates[key] = value;
+        } else if (key == 'alarm_enabled' && value is bool) {
+          sanitizedUpdates[key] = value;
+        } else if (key == 'alarm_sound' &&
+            Validators.isValidString(value.toString(), maxLength: 100)) {
+          sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'task_status' &&
+            Validators.isValidString(value.toString(), maxLength: 50)) {
+          sanitizedUpdates[key] = value.toString().trim();
+        } else if (key == 'status_updated_at') {
           sanitizedUpdates[key] = value;
         }
       }

@@ -184,7 +184,7 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _creamBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Sessions Admin',
@@ -378,7 +378,7 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
     return Card(
       key: ValueKey(session['id']),
       margin: EdgeInsets.only(bottom: 2.h),
-      color: const Color(0xFFFDF8F3),
+      color: Theme.of(context).scaffoldBackgroundColor,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -459,7 +459,7 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16.sp,
-                            color: const Color(0xFF2C1810),
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -557,13 +557,13 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: color ?? const Color(0xFF5D4037)),
+        Icon(icon, size: 14, color: color ?? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)),
         SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
             fontSize: 14.sp,
-            color: const Color(0xFF5D4037),
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
             fontWeight: FontWeight.w500,
           ),
         ),

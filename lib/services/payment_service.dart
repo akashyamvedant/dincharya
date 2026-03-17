@@ -380,8 +380,13 @@ class PaymentService {
 
       // Determine plan details
       final plan = _currentPlan ?? _planFromProductId(purchase.productID);
-      final pricing = GeoPricing.getPricing(GeoPricing.detectTier());
-      final amountInPaisa = (plan.price * 100).toInt();
+
+      // Use Google Play's ACTUAL price (what was charged), not fallback pricing
+      // This ensures the amount in Supabase matches the real charge
+      final googleProduct = getProduct(purchase.productID);
+      final double actualPrice = googleProduct?.rawPrice ?? plan.price;
+      final String actualCurrency = googleProduct?.currencyCode ?? plan.currency;
+      final amountInSmallestUnit = (actualPrice * 100).toInt();
 
       // Calculate expiry
       final now = DateTime.now();
@@ -413,10 +418,13 @@ class PaymentService {
         debugPrint('⚠️ Could not deactivate old subs (non-blocking): $e');
       }
 
+      // Generate unique order ID for deduplication
+      final uniqueOrderId = 'gp_${purchase.purchaseID ?? DateTime.now().millisecondsSinceEpoch}_${DateTime.now().millisecondsSinceEpoch}';
+
       // Save new subscription
       // Using existing razorpay_* columns for backward compatibility
       // razorpay_payment_id → stores Google Play purchase ID
-      // razorpay_order_id → stores unique purchase ID (for dedup)
+      // razorpay_order_id → stores unique order ID (for dedup)
       // razorpay_signature → stores purchase token for verification
       await client.from('subscriptions').insert({
         'user_id': userId,
@@ -424,10 +432,10 @@ class PaymentService {
         'plan_name': plan.name,
         'status': 'active',
         'razorpay_payment_id': purchase.purchaseID ?? '',
-        'razorpay_order_id': purchase.purchaseID ?? 'gp_${DateTime.now().millisecondsSinceEpoch}',
+        'razorpay_order_id': uniqueOrderId,
         'razorpay_signature': _extractPurchaseToken(purchase),
-        'amount': amountInPaisa,
-        'currency': pricing.currencyCode,
+        'amount': amountInSmallestUnit,
+        'currency': actualCurrency,
         'started_at': now.toIso8601String(),
         'expires_at': expiresAt.toIso8601String(),
         'is_trial': false,
@@ -439,9 +447,9 @@ class PaymentService {
           'user_id': userId,
           'event_type': 'payment_success',
           'razorpay_payment_id': purchase.purchaseID ?? '',
-          'razorpay_order_id': purchase.productID,
-          'amount': amountInPaisa,
-          'currency': pricing.currencyCode,
+          'razorpay_order_id': uniqueOrderId,
+          'amount': amountInSmallestUnit,
+          'currency': actualCurrency,
           'status': 'success',
           'metadata': {
             'provider': 'google_play',
@@ -449,6 +457,8 @@ class PaymentService {
             'plan_id': plan.id,
             'plan_name': plan.name,
             'duration': plan.duration,
+            'google_play_price': googleProduct?.price ?? 'unknown',
+            'google_play_raw_price': actualPrice,
           },
         });
       } catch (e) {

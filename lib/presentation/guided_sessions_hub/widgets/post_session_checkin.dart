@@ -45,14 +45,14 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
   // Particle system for celebratory background
   final List<_Particle> _particles = [];
 
-  static const Color primaryBrown = Color(0xFF8B4513);
+  static Color primaryBrown = Color(0xFF5D4037);
   static const Color warmCream = Color(0xFFFFF8F0);
 
   final List<Map<String, dynamic>> _moods = [
     {'emoji': '😌', 'label': 'Peaceful', 'color': Color(0xFF4A7C59)},
     {'emoji': '😊', 'label': 'Happy', 'color': Color(0xFFCD853F)},
-    {'emoji': '🧘', 'label': 'Focused', 'color': Color(0xFF8B4513)},
-    {'emoji': '😴', 'label': 'Relaxed', 'color': Color(0xFF6D4C41)},
+    {'emoji': '🧘', 'label': 'Focused', 'color': Color(0xFF5D4037)},
+    {'emoji': '😴', 'label': 'Relaxed', 'color': Color(0xFF5D4037)},
     {'emoji': '⚡', 'label': 'Energized', 'color': Color(0xFFFF6B35)},
     {'emoji': '😐', 'label': 'Neutral', 'color': Color(0xFFB8732E)},
   ];
@@ -127,7 +127,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
     return FadeTransition(
       opacity: _fadeAnim,
       child: Material(
-        color: Colors.black54,
+        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.9),
         child: SafeArea(
           child: Center(
             child: SlideTransition(
@@ -136,7 +136,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
                 margin: EdgeInsets.symmetric(horizontal: 5.w),
                 padding: EdgeInsets.all(6.w),
                 decoration: BoxDecoration(
-                  color: warmCream,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
@@ -197,7 +197,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.check_rounded,
             color: Colors.white,
             size: 32,
@@ -209,7 +209,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF2C1810),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 0.5.h),
@@ -217,7 +217,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           '${widget.sessionTitle} • ${durationMin} min',
           style: TextStyle(
             fontSize: 13,
-            color: const Color(0xFF6B4423).withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
           ),
           textAlign: TextAlign.center,
         ),
@@ -270,7 +270,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF2C1810),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 2.h),
@@ -288,12 +288,12 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
                 decoration: BoxDecoration(
                   color: isSelected
                       ? (mood['color'] as Color).withOpacity(0.15)
-                      : Colors.white,
+                      : Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isSelected
                         ? mood['color'] as Color
-                        : Colors.grey.shade200,
+                        : Theme.of(context).colorScheme.outline,
                     width: isSelected ? 2 : 1,
                   ),
                   boxShadow: isSelected
@@ -307,8 +307,8 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(mood['emoji'] as String, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 6),
+                    Text(mood['emoji'] as String, style:  TextStyle(fontSize: 20)),
+                     SizedBox(width: 6),
                     Text(
                       mood['label'] as String,
                       style: TextStyle(
@@ -316,7 +316,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                         color: isSelected
                             ? mood['color'] as Color
-                            : const Color(0xFF6B4423),
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -338,13 +338,13 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF2C1810),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 1.h),
         Text(
           'How energized do you feel?',
-          style: TextStyle(fontSize: 13, color: const Color(0xFF6B4423).withOpacity(0.7)),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7)),
         ),
         SizedBox(height: 3.h),
         Row(
@@ -362,8 +362,8 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
                   height: 44,
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Color.lerp(const Color(0xFFD4A574), const Color(0xFF4A7C59), i / 4)
-                        : Colors.grey.shade100,
+                        ? Color.lerp(Color(0xFFD4A574), const Color(0xFF4A7C59), i / 4)
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
                     shape: BoxShape.circle,
                     boxShadow: isSelected
                         ? [BoxShadow(
@@ -406,15 +406,15 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF2C1810),
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 2.h),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: TextField(
             controller: _notesController,
@@ -443,7 +443,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
           },
           child: Text(
             _currentStep == 0 ? 'Skip' : 'Back',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            style: TextStyle(color: Color(0xFF6B4423), fontSize: 14),
           ),
         ),
         const Spacer(),
@@ -457,7 +457,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: _currentStep == 0 && _selectedMood.isEmpty
-                    ? [Colors.grey.shade300, Colors.grey.shade400]
+                    ? [Theme.of(context).colorScheme.outline, Colors.grey.shade400]
                     : [primaryBrown, primaryBrown.withOpacity(0.8)],
               ),
               borderRadius: BorderRadius.circular(25),
@@ -471,7 +471,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
             ),
             child: Text(
               _currentStep >= 2 ? 'Done ✨' : 'Next',
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 15,

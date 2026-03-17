@@ -1,9 +1,22 @@
 // lib/services/notification_service.dart
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:timezone/timezone.dart' as tz;
+import '../main.dart' show navigatorKey;
+import '../routes/app_routes.dart';
+
+/// Top-level background handler for notifications received when app is killed.
+/// MUST be a top-level function (not a method) and annotated with @pragma.
+@pragma('vm:entry-point')
+void _onBackgroundNotificationResponse(NotificationResponse response) {
+  // This runs in a headless isolate — can't navigate directly.
+  // Store the payload so it can be read when app starts.
+  debugPrint('🔔 Background notification response: ${response.payload}');
+  // The app will handle this via getNotificationAppLaunchDetails() on startup.
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -14,6 +27,11 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
+
+  // Store pending alarm payload (set from launch details check)
+  String? _pendingAlarmPayload;
+  String? get pendingAlarmPayload => _pendingAlarmPayload;
+  void clearPendingAlarmPayload() => _pendingAlarmPayload = null;
 
   // Initialize notification service
   Future<void> initialize() async {
@@ -49,6 +67,10 @@ class NotificationService {
       await _flutterLocalNotificationsPlugin.initialize(
         initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
+        // CRITICAL: Register background handler so alarm notifications
+        // are processed even when app was killed
+        onDidReceiveBackgroundNotificationResponse:
+            _onBackgroundNotificationResponse,
       );
 
       _isInitialized = true;
@@ -56,6 +78,55 @@ class NotificationService {
     } catch (e) {
       debugPrint('Failed to initialize notification service: $e');
     }
+  }
+
+  /// Check if the app was launched by tapping an alarm notification.
+  /// Call this AFTER initialize() and AFTER the navigator is ready.
+  /// Returns true if an alarm payload was found and should be navigated to.
+  Future<bool> checkForAlarmLaunch() async {
+    try {
+      final launchDetails = await _flutterLocalNotificationsPlugin
+          .getNotificationAppLaunchDetails();
+
+      if (launchDetails == null || !launchDetails.didNotificationLaunchApp) {
+        return false;
+      }
+
+      final response = launchDetails.notificationResponse;
+      if (response == null || response.payload == null) return false;
+
+      final payload = response.payload!;
+      debugPrint('🚀 App launched from notification: $payload');
+
+      try {
+        final data = jsonDecode(payload) as Map<String, dynamic>;
+        if (data['type'] == 'wakeup_alarm') {
+          debugPrint('⏰ Cold-start alarm detected — storing payload for navigation');
+          _pendingAlarmPayload = payload;
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Error parsing launch notification payload: $e');
+      }
+    } catch (e) {
+      debugPrint('Error checking launch notification: $e');
+    }
+    return false;
+  }
+
+  /// Navigate to alarm screen using pending payload.
+  /// Call this after the navigator key is available (e.g., after first frame).
+  void navigateToPendingAlarm() {
+    if (_pendingAlarmPayload == null) return;
+    
+    final payload = _pendingAlarmPayload!;
+    _pendingAlarmPayload = null;
+    
+    debugPrint('⏰ Navigating to AlarmRingScreen from pending payload');
+    navigatorKey.currentState?.pushNamed(
+      AppRoutes.alarmRing,
+      arguments: payload,
+    );
   }
 
   // Request notification permission
@@ -74,11 +145,24 @@ class NotificationService {
     }
   }
 
-  // Handle notification tap
+  // Handle notification tap — navigates to AlarmRingScreen for alarm notifications
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
-    // Handle navigation based on payload
-    // You can use a global navigator key or callback here
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+
+    try {
+      final data = jsonDecode(payload) as Map<String, dynamic>;
+      if (data['type'] == 'wakeup_alarm') {
+        debugPrint('🔔 Alarm notification tapped — opening AlarmRingScreen');
+        navigatorKey.currentState?.pushNamed(
+          AppRoutes.alarmRing,
+          arguments: payload,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error handling notification tap: $e');
+    }
   }
 
   // Show instant notification

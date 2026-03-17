@@ -139,7 +139,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
   Color _getCategoryColor() {
     switch (_category) {
       case 'meditation':
-        return const Color(0xFF8B4513);
+        return Color(0xFF8B4513);
       case 'pranayama':
         return const Color(0xFF4A7C59);
       case 'yoga':
@@ -171,7 +171,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
     final color = _getCategoryColor();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5F0),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // App Bar
@@ -242,7 +242,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -256,7 +256,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                         _description,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[700],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           height: 1.5,
                         ),
                       ),
@@ -274,10 +274,10 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                     children: [
                       Text(
                         _isEnrolled ? 'Your Journey' : 'Sessions',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF2C1810),
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const Spacer(),
@@ -313,11 +313,11 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   padding: EdgeInsets.all(8.w),
                   child: Column(
                     children: [
-                      Icon(Icons.info_outline, size: 48, color: Colors.grey[400]),
+                      Icon(Icons.info_outline, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       SizedBox(height: 1.h),
                       Text(
                         'Sessions are being prepared',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -374,7 +374,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
               const Spacer(),
               Text(
                 '$_currentIndex / $_totalSessions',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -384,7 +384,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: Colors.grey[200],
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -418,12 +418,12 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
             color: isCurrent
                 ? color.withOpacity(0.08)
                 : isLocked
-                    ? Colors.grey[100]
-                    : Colors.white,
+                    ? Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5)
+                    : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
             border: isCurrent
                 ? Border.all(color: color, width: 2)
-                : Border.all(color: Colors.grey.withOpacity(0.1)),
+                : Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.3)),
             boxShadow: isCurrent
                 ? [BoxShadow(color: color.withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))]
                 : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
@@ -440,17 +440,17 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       ? const Color(0xFF4A7C59)
                       : isCurrent
                           ? color
-                          : Colors.grey[300],
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
                 child: Center(
                   child: isCompleted
                       ? const Icon(Icons.check, color: Colors.white, size: 22)
                       : isLocked
-                          ? Icon(Icons.lock_outline, color: Colors.grey[500], size: 18)
+                          ? Icon(Icons.lock_outline, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 18)
                           : Text(
                               '$dayNumber',
                               style: TextStyle(
-                                color: isCurrent ? Colors.white : Colors.grey[600],
+                                color: isCurrent ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -469,7 +469,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       'Day $dayNumber',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isCurrent ? color : Colors.grey[500],
+                        color: isCurrent ? color : Theme.of(context).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
@@ -480,7 +480,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: isLocked ? Colors.grey[400] : const Color(0xFF2C1810),
+                        color: isLocked ? Colors.grey[400] : Theme.of(context).colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -490,7 +490,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                       '$durationMin min',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[500],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -515,7 +515,7 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
                   ),
                 )
               else if (isCompleted)
-                Icon(Icons.replay, color: Colors.grey[400], size: 20)
+                Icon(Icons.replay, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20)
               else if (!_isEnrolled)
                 Icon(Icons.play_circle_outline, color: color.withOpacity(0.5), size: 24),
             ],

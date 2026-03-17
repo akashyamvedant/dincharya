@@ -13,6 +13,7 @@ class TaskCardWidget extends StatelessWidget {
   final VoidCallback onTaskReschedule;
   final VoidCallback onTaskDelete;
   final VoidCallback? onTaskTrack;
+  final VoidCallback? onSessionPlay; // Callback to play linked guided session
   final String? nextTaskTime; // For completion window validation
   final String? sectionEndTime; // Section end time (12 PM, 5 PM, 10 PM)
   final void Function(String reason, String status)? onTapLocked; // Callback when locked task is tapped
@@ -26,6 +27,7 @@ class TaskCardWidget extends StatelessWidget {
     required this.onTaskReschedule,
     required this.onTaskDelete,
     this.onTaskTrack,
+    this.onSessionPlay,
     this.nextTaskTime,
     this.sectionEndTime,
     this.onTapLocked,
@@ -59,8 +61,8 @@ class TaskCardWidget extends StatelessWidget {
 
     return Dismissible(
       key: Key('task_${task["id"]}'),
-      background: _buildSwipeBackground(isLeftSwipe: false),
-      secondaryBackground: _buildSwipeBackground(isLeftSwipe: true),
+      background: _buildSwipeBackground(context, isLeftSwipe: false),
+      secondaryBackground: _buildSwipeBackground(context, isLeftSwipe: true),
       onDismissed: (direction) {
         if (direction == DismissDirection.startToEnd) {
           // Swipe right - Quick actions
@@ -107,8 +109,8 @@ class TaskCardWidget extends StatelessWidget {
           child: Card(
             elevation: isCompleted ? 1.0 : (isHighlighted ? 8.0 : 3.0),
             color: isCompleted
-                ? AppTheme.lightTheme.colorScheme.surface.withValues(alpha: 0.7)
-                : AppTheme.lightTheme.colorScheme.surface,
+                ? Theme.of(context).colorScheme.surface.withValues(alpha: 0.7)
+                : Theme.of(context).colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
               side: isHighlighted
@@ -119,7 +121,7 @@ class TaskCardWidget extends StatelessWidget {
                   : isCompleted
                       ? BorderSide(
                           color:
-                              AppTheme.getSuccessColor(true).withValues(alpha: 0.3))
+                              AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.3))
                       : BorderSide.none,
             ),
           child: Padding(
@@ -153,12 +155,12 @@ class TaskCardWidget extends StatelessWidget {
                         children: [
                           Text(
                             title,
-                            style: AppTheme.lightTheme.textTheme.titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                               color: isCompleted
-                                  ? AppTheme
-                                      .lightTheme.colorScheme.onSurfaceVariant
-                                  : AppTheme.lightTheme.colorScheme.onSurface,
+                                  ? Theme.of(context)
+                                      .colorScheme.onSurfaceVariant
+                                  : Theme.of(context).colorScheme.onSurface,
                               decoration: isCompleted
                                   ? TextDecoration.lineThrough
                                   : null,
@@ -178,8 +180,8 @@ class TaskCardWidget extends StatelessWidget {
                                 children: [
                                   CustomIconWidget(
                                     iconName: 'schedule',
-                                    color: AppTheme
-                                        .lightTheme.colorScheme.onSurfaceVariant,
+                                    color: Theme.of(context)
+                                        .colorScheme.onSurfaceVariant,
                                     size: 14,
                                   ),
                                   SizedBox(width: 1.w),
@@ -187,10 +189,10 @@ class TaskCardWidget extends StatelessWidget {
                                     TaskCategory.showDuration(task["category"] ?? task["type"]) && duration.isNotEmpty
                                         ? '$scheduledTime • $duration'
                                         : scheduledTime,
-                                    style: AppTheme.lightTheme.textTheme.bodySmall
+                                    style: Theme.of(context).textTheme.bodySmall
                                         ?.copyWith(
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.onSurfaceVariant,
+                                      color: Theme.of(context)
+                                          .colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -240,7 +242,7 @@ class TaskCardWidget extends StatelessWidget {
                         isCompleted: isCompleted,
                         progress: progress,
                         onTap: isCompletable ? onTaskCompleted : () {},
-                        completedColor: AppTheme.getSuccessColor(true),
+                        completedColor: AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
                         size: 48,
                       )
                     else
@@ -261,12 +263,12 @@ class TaskCardWidget extends StatelessWidget {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: blockReason == 'Window closed' 
-                                  ? Colors.red.shade50 
-                                  : Colors.grey.shade200,
+                                  ? Colors.red.withOpacity(0.1) 
+                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
                               border: Border.all(
                                 color: blockReason == 'Window closed' 
                                     ? Colors.red.shade300 
-                                    : Colors.grey.shade400,
+                                    : Theme.of(context).colorScheme.outline,
                                 width: 2,
                               ),
                             ),
@@ -280,14 +282,14 @@ class TaskCardWidget extends StatelessWidget {
                                   size: 20,
                                   color: blockReason == 'Window closed' 
                                       ? Colors.red.shade400 
-                                      : Colors.grey.shade600,
+                                      : Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                                 if (blockReason.isNotEmpty && blockReason.contains('min'))
                                   Text(
                                     blockReason.split(' ')[0],
                                     style: TextStyle(
                                       fontSize: 8,
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -304,12 +306,55 @@ class TaskCardWidget extends StatelessWidget {
                   SizedBox(height: 1.5.h),
                   Text(
                     description,
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+
+                // Linked Session — Play button
+                if (!isCompleted && task['linked_session_id'] != null && onSessionPlay != null) ...[
+                  SizedBox(height: 1.h),
+                  GestureDetector(
+                    onTap: onSessionPlay,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                      decoration: BoxDecoration(
+                        color: _getTaskTypeColor().withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getTaskTypeColor().withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.play_circle_filled,
+                            size: 18,
+                            color: _getTaskTypeColor(),
+                          ),
+                          SizedBox(width: 1.5.w),
+                          Text(
+                            'Start Session',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _getTaskTypeColor(),
+                            ),
+                          ),
+                          SizedBox(width: 1.w),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: _getTaskTypeColor().withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
 
@@ -321,14 +366,14 @@ class TaskCardWidget extends StatelessWidget {
                       Icon(
                         Icons.touch_app,
                         size: 14,
-                        color: Colors.grey[500],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       SizedBox(width: 1.w),
                       Text(
                         'Tap circle to complete',
                         style:
-                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[500],
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -341,10 +386,10 @@ class TaskCardWidget extends StatelessWidget {
                   SizedBox(height: 1.5.h),
                   LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: AppTheme.lightTheme.colorScheme.outline
+                    backgroundColor: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.2),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.lightTheme.colorScheme.primary,
+                      Theme.of(context).colorScheme.primary,
                     ),
                     minHeight: 4,
                   ),
@@ -360,13 +405,13 @@ class TaskCardWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSwipeBackground({required bool isLeftSwipe}) {
+  Widget _buildSwipeBackground(BuildContext context, {required bool isLeftSwipe}) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 0.5.h),
       decoration: BoxDecoration(
         color: isLeftSwipe
-            ? AppTheme.lightTheme.colorScheme.error.withValues(alpha: 0.1)
-            : AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+            ? Theme.of(context).colorScheme.error.withValues(alpha: 0.1)
+            : Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: isLeftSwipe ? Alignment.centerRight : Alignment.centerLeft,
@@ -377,17 +422,17 @@ class TaskCardWidget extends StatelessWidget {
           CustomIconWidget(
             iconName: isLeftSwipe ? 'delete' : 'edit',
             color: isLeftSwipe
-                ? AppTheme.lightTheme.colorScheme.error
-                : AppTheme.lightTheme.colorScheme.primary,
+                ? Theme.of(context).colorScheme.error
+                : Theme.of(context).colorScheme.primary,
             size: 28,
           ),
           SizedBox(height: 0.5.h),
           Text(
             isLeftSwipe ? 'Delete' : 'Edit',
-            style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: isLeftSwipe
-                  ? AppTheme.lightTheme.colorScheme.error
-                  : AppTheme.lightTheme.colorScheme.primary,
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -411,7 +456,7 @@ class TaskCardWidget extends StatelessWidget {
           ),
           padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 2.h),
           decoration: BoxDecoration(
-            color: const Color(0xFFFDF8F3), // Warm cream background
+            color: Theme.of(context).scaffoldBackgroundColor, // Warm cream background
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
@@ -430,7 +475,7 @@ class TaskCardWidget extends StatelessWidget {
                   width: 12.w,
                   height: 0.5.h,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF5D4037).withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.outline,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -442,7 +487,7 @@ class TaskCardWidget extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C1810),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 SizedBox(height: 0.5.h),
@@ -450,7 +495,7 @@ class TaskCardWidget extends StatelessWidget {
                   taskTitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF5D4037).withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -463,7 +508,7 @@ class TaskCardWidget extends StatelessWidget {
                   context,
                   icon: Icons.edit_outlined,
                   iconColor: Colors.blue[700]!,
-                  bgColor: Colors.blue[50]!,
+                  bgColor: Colors.blue.withOpacity(0.1),
                   title: 'Edit Task',
                   subtitle: 'Modify task details',
                   onTap: () {
@@ -477,7 +522,7 @@ class TaskCardWidget extends StatelessWidget {
                   context,
                   icon: Icons.schedule_outlined,
                   iconColor: Colors.orange[700]!,
-                  bgColor: Colors.orange[50]!,
+                  bgColor: Colors.orange.withOpacity(0.1),
                   title: 'Reschedule',
                   subtitle: 'Change time',
                   onTap: () {
@@ -507,7 +552,7 @@ class TaskCardWidget extends StatelessWidget {
                   context,
                   icon: Icons.check_circle_outline,
                   iconColor: Colors.green[700]!,
-                  bgColor: Colors.green[50]!,
+                  bgColor: Colors.green.withOpacity(0.1),
                   title: 'Mark Done',
                   subtitle: 'Complete this task',
                   onTap: () {
@@ -546,14 +591,14 @@ class TaskCardWidget extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: const Color(0xFF5D4037).withOpacity(0.1),
+              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Theme.of(context).shadowColor.withOpacity(0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -582,7 +627,7 @@ class TaskCardWidget extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF2C1810),
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     SizedBox(height: 2),
@@ -590,7 +635,7 @@ class TaskCardWidget extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: const Color(0xFF5D4037).withOpacity(0.6),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -599,7 +644,7 @@ class TaskCardWidget extends StatelessWidget {
               // Arrow
               Icon(
                 Icons.chevron_right,
-                color: const Color(0xFF5D4037).withOpacity(0.4),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 size: 24,
               ),
             ],
@@ -616,7 +661,7 @@ class TaskCardWidget extends StatelessWidget {
       builder: (context) => Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -626,14 +671,14 @@ class TaskCardWidget extends StatelessWidget {
               width: 12.w,
               height: 0.5.h,
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             SizedBox(height: 2.h),
             Text(
               'Task Options',
-              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -703,16 +748,16 @@ class TaskCardWidget extends StatelessWidget {
       leading: CustomIconWidget(
         iconName: icon,
         color: isDestructive
-            ? AppTheme.lightTheme.colorScheme.error
-            : AppTheme.lightTheme.colorScheme.primary,
+            ? Theme.of(context).colorScheme.error
+            : Theme.of(context).colorScheme.primary,
         size: 24,
       ),
       title: Text(
         title,
-        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: isDestructive
-              ? AppTheme.lightTheme.colorScheme.error
-              : AppTheme.lightTheme.colorScheme.onSurface,
+              ? Theme.of(context).colorScheme.error
+              : Theme.of(context).colorScheme.onSurface,
           fontWeight: FontWeight.w500,
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../services/auth_service.dart';
+import '../../services/supabase_service.dart';
 import '../../core/utils/validators.dart';
 import './widgets/auth_footer_widget.dart';
 import './widgets/auth_header_widget.dart';
@@ -106,7 +107,7 @@ class _SignUpScreenState extends State<SignUpScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Welcome to DinCharya! Let\'s set up your lifestyle.'),
-              backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.primary,
             ),
           );
 
@@ -152,9 +153,36 @@ class _SignUpScreenState extends State<SignUpScreen>
         // Success haptic feedback
         HapticFeedback.lightImpact();
 
-        // Navigate to lifestyle selection (new user)
+        // Google sign-in might be a returning user — check if they already have a profile
         if (mounted) {
-          Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
+          final supabaseService = SupabaseService();
+          final userId = supabaseService.currentUser?.id;
+          bool hasProfile = false;
+          
+          if (userId != null) {
+            try {
+              final client = await supabaseService.client;
+              if (client != null) {
+                final profileData = await client
+                    .from('user_profiles')
+                    .select('lifestyle_profile')
+                    .eq('id', userId)
+                    .limit(1);
+                hasProfile = profileData != null && 
+                    (profileData as List).isNotEmpty &&
+                    profileData[0]['lifestyle_profile'] != null &&
+                    profileData[0]['lifestyle_profile'].toString().isNotEmpty;
+              }
+            } catch (e) {
+              debugPrint('Error checking profile: $e');
+            }
+          }
+          
+          if (hasProfile) {
+            Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
+          }
         }
       } else {
         setState(() {
@@ -182,7 +210,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -346,7 +374,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                             _agreeToTerms = value ?? false;
                           });
                         },
-                  activeColor: AppTheme.lightTheme.colorScheme.primary,
+                  activeColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -356,31 +384,31 @@ class _SignUpScreenState extends State<SignUpScreen>
                 child: RichText(
                   text: TextSpan(
                     text: 'I agree to the ',
-                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     children: [
                       TextSpan(
                         text: 'Terms of Service',
                         style:
-                            AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       TextSpan(
                         text: ' and ',
                         style:
-                            AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       TextSpan(
                         text: 'Privacy Policy',
                         style:
-                            AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -398,10 +426,10 @@ class _SignUpScreenState extends State<SignUpScreen>
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.errorContainer,
+                color: Theme.of(context).colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.lightTheme.colorScheme.error
+                  color: Theme.of(context).colorScheme.error
                       .withValues(alpha: 0.3),
                   width: 1,
                 ),
@@ -410,15 +438,15 @@ class _SignUpScreenState extends State<SignUpScreen>
                 children: [
                   Icon(
                     Icons.error_outline,
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                     size: 20,
                   ),
                   SizedBox(width: 2.w),
                   Expanded(
                     child: Text(
                       _errorMessage!,
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onErrorContainer,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -443,20 +471,19 @@ class _SignUpScreenState extends State<SignUpScreen>
                         ? LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              AppTheme.lightTheme.colorScheme.primary,
-                              AppTheme.lightTheme.colorScheme.secondary,
+                            colors: [Theme.of(context).colorScheme.primary,
+                              Color(0xFFD4A574),
                             ],
                           )
                         : null,
                     color: !_isFormValid || _isLoading
-                        ? AppTheme.lightTheme.colorScheme.onSurfaceVariant
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
                             .withValues(alpha: 0.3)
                         : null,
                     boxShadow: _isFormValid && !_isLoading
                         ? [
                             BoxShadow(
-                              color: AppTheme.lightTheme.colorScheme.primary
+                              color: Theme.of(context).colorScheme.primary
                                   .withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
@@ -470,7 +497,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor:
-                          AppTheme.lightTheme.colorScheme.onPrimary,
+                          Theme.of(context).colorScheme.onPrimary,
                       elevation: 0,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
@@ -487,17 +514,17 @@ class _SignUpScreenState extends State<SignUpScreen>
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppTheme.lightTheme.colorScheme.onPrimary,
+                                    Theme.of(context).colorScheme.onPrimary,
                                   ),
                                 ),
                               ),
                               SizedBox(width: 3.w),
                               Text(
                                 'Creating Account...',
-                                style: AppTheme.lightTheme.textTheme.titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                   color:
-                                      AppTheme.lightTheme.colorScheme.onPrimary,
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -505,9 +532,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                           )
                         : Text(
                             'Create Account',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onPrimary,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -524,7 +551,7 @@ class _SignUpScreenState extends State<SignUpScreen>
             children: [
               Expanded(
                 child: Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                   thickness: 1,
                 ),
@@ -533,15 +560,15 @@ class _SignUpScreenState extends State<SignUpScreen>
                 padding: EdgeInsets.symmetric(horizontal: 3.w),
                 child: Text(
                   'OR',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
               Expanded(
                 child: Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                   thickness: 1,
                 ),
@@ -558,22 +585,22 @@ class _SignUpScreenState extends State<SignUpScreen>
               onPressed: _isLoading ? null : _handleGoogleSignUp,
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.5),
                   width: 1.5,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+                backgroundColor: Theme.of(context).colorScheme.surface,
               ),
               icon: GoogleIconWidget(
                 size: 24,
               ),
               label: Text(
                 'Continue with Google',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -603,7 +630,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -614,19 +641,19 @@ class _SignUpScreenState extends State<SignUpScreen>
         keyboardType: keyboardType,
         obscureText: isPassword ? !isPasswordVisible : false,
         enabled: !_isLoading,
-        style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-          color: AppTheme.lightTheme.colorScheme.onSurface,
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
         ),
         decoration: InputDecoration(
           labelText: labelText,
           hintText: hintText,
           filled: true,
-          fillColor: AppTheme.lightTheme.colorScheme.surface,
+          fillColor: Theme.of(context).colorScheme.surface,
           prefixIcon: Padding(
             padding: EdgeInsets.all(3.w),
             child: CustomIconWidget(
               iconName: iconName,
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
               size: 20,
             ),
           ),
@@ -638,7 +665,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     child: CustomIconWidget(
                       iconName:
                           isPasswordVisible ? 'visibility_off' : 'visibility',
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 20,
                     ),
                   ),
@@ -647,34 +674,34 @@ class _SignUpScreenState extends State<SignUpScreen>
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: AppTheme.lightTheme.colorScheme.outline
+              color: Theme.of(context).colorScheme.outline
                   .withValues(alpha: 0.3),
             ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: AppTheme.lightTheme.colorScheme.outline
+              color: Theme.of(context).colorScheme.outline
                   .withValues(alpha: 0.3),
             ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
               width: 2,
             ),
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: AppTheme.lightTheme.colorScheme.error,
+              color: Theme.of(context).colorScheme.error,
             ),
           ),
           focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: AppTheme.lightTheme.colorScheme.error,
+              color: Theme.of(context).colorScheme.error,
               width: 2,
             ),
           ),

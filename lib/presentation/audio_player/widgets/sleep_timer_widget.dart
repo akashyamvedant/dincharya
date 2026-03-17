@@ -26,12 +26,12 @@ class SleepTimerWidget extends StatelessWidget {
     return Container(
       height: 50.h,
       decoration: BoxDecoration(
-        color: AppTheme.darkTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20.0)),
         border: Border(
           top: BorderSide(
             color:
-                AppTheme.darkTheme.colorScheme.outline.withValues(alpha: 0.2),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             width: 1.0,
           ),
         ),
@@ -44,7 +44,7 @@ class SleepTimerWidget extends StatelessWidget {
             width: 10.w,
             height: 0.5.h,
             decoration: BoxDecoration(
-              color: AppTheme.darkTheme.colorScheme.onSurfaceVariant
+              color: Theme.of(context).colorScheme.onSurfaceVariant
                   .withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2.0),
             ),
@@ -58,8 +58,8 @@ class SleepTimerWidget extends StatelessWidget {
               children: [
                 Text(
                   'Sleep Timer',
-                  style: AppTheme.darkTheme.textTheme.titleMedium?.copyWith(
-                    color: AppTheme.darkTheme.colorScheme.onSurface,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -68,17 +68,17 @@ class SleepTimerWidget extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.all(2.w),
                     decoration: BoxDecoration(
-                      color: AppTheme.darkTheme.colorScheme.surface,
+                      color: Theme.of(context).colorScheme.surface,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppTheme.darkTheme.colorScheme.outline
+                        color: Theme.of(context).colorScheme.outline
                             .withValues(alpha: 0.3),
                         width: 1.0,
                       ),
                     ),
                     child: CustomIconWidget(
                       iconName: 'close',
-                      color: AppTheme.darkTheme.colorScheme.onSurface,
+                      color: Theme.of(context).colorScheme.onSurface,
                       size: 16,
                     ),
                   ),
@@ -89,7 +89,7 @@ class SleepTimerWidget extends StatelessWidget {
 
           Divider(
             color:
-                AppTheme.darkTheme.colorScheme.outline.withValues(alpha: 0.2),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             height: 1,
           ),
 
@@ -107,26 +107,26 @@ class SleepTimerWidget extends StatelessWidget {
                     leading: Container(
                       padding: EdgeInsets.all(2.w),
                       decoration: BoxDecoration(
-                        color: AppTheme.getAccentColor(false)
+                        color: AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light)
                             .withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: CustomIconWidget(
                         iconName: 'stop_circle',
-                        color: AppTheme.getAccentColor(false),
+                        color: AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light),
                         size: 24,
                       ),
                     ),
                     title: Text(
                       'End of session',
-                      style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.darkTheme.colorScheme.onSurface,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     subtitle: Text(
                       'Stop when session completes',
-                      style: AppTheme.darkTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.darkTheme.colorScheme.onSurfaceVariant,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                     onTap: () {
@@ -142,19 +142,19 @@ class SleepTimerWidget extends StatelessWidget {
                   leading: Container(
                     padding: EdgeInsets.all(2.w),
                     decoration: BoxDecoration(
-                      color: AppTheme.darkTheme.colorScheme.primaryContainer,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8.0),
                     ),
                     child: CustomIconWidget(
                       iconName: 'timer',
-                      color: AppTheme.darkTheme.colorScheme.onPrimaryContainer,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                       size: 24,
                     ),
                   ),
                   title: Text(
                     option["label"],
-                    style: AppTheme.darkTheme.textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.darkTheme.colorScheme.onSurface,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   onTap: () => onTimerSet(option["minutes"]),

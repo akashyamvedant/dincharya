@@ -10,6 +10,7 @@ class TaskCategory {
   final Color color;
   final bool hasDuration;    // Whether duration field should show
   final bool isInevitable;   // Whether this task happens regardless (wakeup, eat, sleep)
+  final bool hasGuidedSessions; // Whether guided sessions can be linked (meditation, yoga, pranayama)
 
   const TaskCategory({
     required this.id,
@@ -18,6 +19,7 @@ class TaskCategory {
     required this.color,
     this.hasDuration = true,
     this.isInevitable = false,
+    this.hasGuidedSessions = false,
   });
 
   /// All available task categories
@@ -45,6 +47,7 @@ class TaskCategory {
       color: Color(0xFF7E57C2),  // Deep Purple
       hasDuration: true,
       isInevitable: false,
+      hasGuidedSessions: true,
     ),
     TaskCategory(
       id: 'yoga',
@@ -53,6 +56,7 @@ class TaskCategory {
       color: Color(0xFF5D4037),  // Brown (app primary)
       hasDuration: true,
       isInevitable: false,
+      hasGuidedSessions: true,
     ),
     TaskCategory(
       id: 'pranayama',
@@ -61,6 +65,7 @@ class TaskCategory {
       color: Color(0xFF26A69A),  // Teal
       hasDuration: true,
       isInevitable: false,
+      hasGuidedSessions: true,
     ),
     TaskCategory(
       id: 'exercise',

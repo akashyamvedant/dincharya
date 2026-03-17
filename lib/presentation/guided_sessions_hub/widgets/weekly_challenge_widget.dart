@@ -21,8 +21,6 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
   late AnimationController _animController;
 
   static const int _targetDays = 7;
-  static const Color _primaryBrown = Color(0xFF8B4513);
-  static const Color _darkBrown = Color(0xFF2C1810);
   static const Color _gold = Color(0xFFDAA520);
 
   @override
@@ -62,6 +60,8 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
 
   @override
   Widget build(BuildContext context) {
+    final _primaryBrown = Theme.of(context).colorScheme.primary;
+    final _darkBrown = Theme.of(context).colorScheme.onSurface;
     final progress = (_daysCompleted / _targetDays).clamp(0.0, 1.0);
     final isComplete = _daysCompleted >= _targetDays;
 
@@ -69,8 +69,8 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: isComplete
-              ? [const Color(0xFFFFF8E1), const Color(0xFFFFF3C4)]
-              : [const Color(0xFFFFF8F0), const Color(0xFFFDF5EC)],
+              ? [Theme.of(context).colorScheme.primary.withOpacity(0.12), Theme.of(context).colorScheme.primary.withOpacity(0.08)]
+              : [Theme.of(context).colorScheme.surfaceContainerHighest, Theme.of(context).colorScheme.surface],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -162,7 +162,7 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                                     ? _primaryBrown
                                     : isToday
                                         ? _primaryBrown.withOpacity(0.15)
-                                        : Colors.grey.shade200,
+                                        : Theme.of(context).colorScheme.outline,
                                 border: isToday
                                     ? Border.all(color: _primaryBrown, width: 2)
                                     : null,

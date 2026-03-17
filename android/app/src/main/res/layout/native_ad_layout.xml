@@ -12,6 +12,7 @@
     android:layout_height="wrap_content">
 
     <LinearLayout
+        android:id="@+id/ad_card_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
@@ -47,7 +48,7 @@
                     android:id="@+id/ad_headline"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="#2C1810"
+                    android:textColor="@color/ad_headline_text"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:maxLines="2"
@@ -64,7 +65,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textSize="12sp"
-                        android:textColor="#666666"
+                        android:textColor="@color/ad_subtext"
                         android:maxLines="1"
                         android:ellipsize="end" />
 
@@ -90,7 +91,7 @@
                 android:layout_height="wrap_content"
                 android:text="Ad"
                 android:textSize="10sp"
-                android:textColor="#8B4513"
+                android:textColor="@color/ad_badge_text"
                 android:background="@drawable/ad_badge_background"
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="4dp" />
@@ -103,7 +104,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="13sp"
-            android:textColor="#444444"
+            android:textColor="@color/ad_body_text"
             android:layout_marginTop="8dp"
             android:maxLines="2"
             android:ellipsize="end" />
@@ -129,7 +130,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:textColor="#666666"
+                android:textColor="@color/ad_subtext"
                 android:paddingEnd="8dp" />
 
             <TextView
@@ -137,7 +138,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:textColor="#666666"
+                android:textColor="@color/ad_subtext"
                 android:paddingEnd="8dp" />
 
             <View

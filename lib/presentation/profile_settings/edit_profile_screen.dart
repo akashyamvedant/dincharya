@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -424,31 +424,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     if (_isInitialLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: Text('Edit Profile'),
-          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+          backgroundColor: Theme.of(context).colorScheme.primary,
           foregroundColor: Colors.white,
         ),
         body: Center(
           child: CircularProgressIndicator(
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           'Edit Profile',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
         ),
-        backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -506,14 +506,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: AppTheme.lightTheme.colorScheme.primary,
+                                color: Theme.of(context).colorScheme.primary,
                                 width: 3,
                               ),
                             ),
                             child: ClipOval(
                               child: _isUploadingImage
                                   ? Container(
-                                      color: AppTheme.lightTheme.colorScheme.primary,
+                                      color: Theme.of(context).colorScheme.primary,
                                       child: Center(
                                         child: CircularProgressIndicator(
                                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -551,7 +551,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             child: Container(
                               padding: EdgeInsets.all(2.5.w),
                               decoration: BoxDecoration(
-                                color: AppTheme.lightTheme.colorScheme.primary,
+                                color: Theme.of(context).colorScheme.primary,
                                 shape: BoxShape.circle,
                                 border: Border.all(color: Colors.white, width: 2.5),
                                 boxShadow: [
@@ -578,14 +578,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       icon: Icon(
                         Icons.photo_library,
                         size: 18,
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       label: Text(
                         _selectedImage != null
                             ? 'Change Photo'
                             : 'Add Photo',
                         style: TextStyle(
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -642,8 +642,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 padding: EdgeInsets.only(top: 0.5.h, left: 2.w),
                 child: Text(
                   'Email cannot be changed',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.6),
                   ),
                 ),
@@ -667,10 +667,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 padding: EdgeInsets.only(top: 0.5.h, left: 2.w),
                 child: Text(
                   '${_bioController.text.length}/500 characters',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: _bioController.text.length > 500
                         ? Colors.red
-                        : AppTheme.lightTheme.colorScheme.onSurface
+                        : Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: 0.6),
                   ),
                 ),
@@ -684,7 +684,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveProfile,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                     padding: EdgeInsets.symmetric(vertical: 3.h),
                     shape: RoundedRectangleBorder(
@@ -734,9 +734,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildSectionLabel(String label) {
     return Text(
       label,
-      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w600,
-        color: AppTheme.lightTheme.colorScheme.onSurface,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -765,36 +765,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         prefixIcon: Icon(
           icon,
           color: enabled
-              ? AppTheme.lightTheme.colorScheme.primary
-              : AppTheme.lightTheme.colorScheme.onSurface.withValues(alpha: 0.4),
+              ? Color(0xFF8B4513)
+              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
         ),
         filled: true,
         fillColor: enabled
-            ? AppTheme.lightTheme.colorScheme.surface
-            : AppTheme.lightTheme.colorScheme.surface.withValues(alpha: 0.5),
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
             width: 2,
           ),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
         errorBorder: OutlineInputBorder(
@@ -812,7 +812,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
       ),
-      style: AppTheme.lightTheme.textTheme.bodyLarge,
+      style: Theme.of(context).textTheme.bodyLarge,
     );
   }
 
@@ -822,9 +822,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppTheme.lightTheme.colorScheme.primary,
-            AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.8),
+          colors: [Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
           ],
         ),
       ),

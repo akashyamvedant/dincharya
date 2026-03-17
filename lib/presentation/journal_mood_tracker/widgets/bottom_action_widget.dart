@@ -57,16 +57,16 @@ class _BottomActionWidgetState extends State<BottomActionWidget>
 
   @override
   Widget build(BuildContext context) {
-    const warmBrown = Color(0xFF8B4513);
-    const warmAmber = Color(0xFFD4A574);
+    final warmBrown = Theme.of(context).colorScheme.primary;
+    final warmAmber = Theme.of(context).colorScheme.secondary;
 
     return Container(
       padding: EdgeInsets.all(3.5.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white,
-            const Color(0xFFFFF8F0),
+            Theme.of(context).cardColor,
+            Theme.of(context).scaffoldBackgroundColor,
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -90,7 +90,7 @@ class _BottomActionWidgetState extends State<BottomActionWidget>
             children: [
               Text(
                 'Add to entry',
-                style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: warmBrown,
                   letterSpacing: 0.3,
@@ -123,8 +123,8 @@ class _BottomActionWidgetState extends State<BottomActionWidget>
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [warmBrown, Color(0xFFa05a2c)],
+                    gradient: LinearGradient(
+                      colors: [warmBrown, warmBrown.withOpacity(0.8)],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
                     ),

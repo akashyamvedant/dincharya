@@ -29,7 +29,7 @@ class ProgramCardWidget extends StatelessWidget {
     final currentIndex = isEnrolled ? (enrollment!['current_session_index'] as int? ?? 0) : 0;
     final progress = totalSessions > 0 ? currentIndex / totalSessions : 0.0;
 
-    final Color cardColor = _getCategoryColor(category);
+    final Color cardColor = _getCategoryColor(context, category);
     final Color cardColorLight = cardColor.withOpacity(0.12);
 
     return GestureDetector(
@@ -86,8 +86,8 @@ class ProgramCardWidget extends StatelessWidget {
               // Title
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.surface,
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
                   height: 1.2,
@@ -158,7 +158,7 @@ class ProgramCardWidget extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 6,
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Theme.of(context).colorScheme.surface.withOpacity(0.2),
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
@@ -175,15 +175,15 @@ class ProgramCardWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: Colors.white30),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                      Icon(Icons.add_rounded, color: Theme.of(context).colorScheme.surface, size: 16),
                       SizedBox(width: 4),
                       Text(
                         'Start Program',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -213,10 +213,10 @@ class ProgramCardWidget extends StatelessWidget {
     );
   }
 
-  Color _getCategoryColor(String category) {
+  Color _getCategoryColor(BuildContext context, String category) {
     switch (category) {
       case 'meditation':
-        return const Color(0xFF8B4513);
+        return Theme.of(context).colorScheme.primary;
       case 'pranayama':
         return const Color(0xFF4A7C59);
       case 'yoga':
@@ -224,7 +224,7 @@ class ProgramCardWidget extends StatelessWidget {
       case 'mixed':
         return const Color(0xFFCD853F);
       default:
-        return const Color(0xFF8B4513);
+        return Theme.of(context).colorScheme.primary;
     }
   }
 

@@ -91,14 +91,18 @@ class SubscriptionManager extends ChangeNotifier {
   /// Refresh subscription status from Supabase
   Future<void> refresh() async {
     try {
-      final userId = _supabase.currentUser?.id;
-      if (userId == null) {
+      // CRITICAL: await client FIRST to ensure Supabase is initialized.
+      // On cold start, currentUser is null until auth session is restored.
+      final client = await _supabase.client;
+      if (client == null) {
+        debugPrint('⚠️ SubscriptionManager: Supabase client is null');
         _setFree();
         return;
       }
-
-      final client = await _supabase.client;
-      if (client == null) {
+      
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) {
+        debugPrint('⚠️ SubscriptionManager: User not authenticated');
         _setFree();
         return;
       }

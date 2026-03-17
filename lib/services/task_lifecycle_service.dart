@@ -23,17 +23,56 @@ class TaskLifecycleService {
   
   static const String _lastActiveDateKey = 'last_active_date';
   
+  /// Guard against concurrent calls (e.g., rapid app resume)
+  static bool _isProcessing = false;
+  
   /// Check if day changed and process accordingly
   /// Call this on app open / routine dashboard load
+  /// Handles multi-day gaps (e.g., app backgrounded Sat → Mon)
   Future<bool> checkAndProcessDayChange() async {
+    // Concurrency guard: prevent double-processing
+    if (_isProcessing) {
+      debugPrint('⚠️ Day change check already in progress — skipping');
+      return false;
+    }
+    _isProcessing = true;
+    
     try {
+      // CRITICAL: Use getAuthenticatedUser() NOT currentUser(?).id
+      // supabase_flutter v2 restores sessions ASYNCHRONOUSLY after
+      // Supabase.initialize() — currentUser is NULL on cold start for
+      // up to several seconds. getAuthenticatedUser() waits for the
+      // INITIAL_SESSION event before returning.
+      final user = await _supabase.getAuthenticatedUser();
+      
+      if (user == null) {
+        debugPrint('⚠️ Day change check skipped: user not authenticated (session not restored yet)');
+        return false;
+      }
+      
+      final userId = user.id;
+      
       final prefs = await SharedPreferences.getInstance();
       final lastActiveDate = prefs.getString(_lastActiveDateKey);
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       
       if (lastActiveDate != null && lastActiveDate != today) {
-        debugPrint('📅 Day changed from $lastActiveDate to $today');
-        await _processEndOfDay(lastActiveDate);
+        // Calculate how many days were missed
+        final lastDate = DateTime.parse(lastActiveDate);
+        final todayDate = DateTime.parse(today);
+        final daysMissed = todayDate.difference(lastDate).inDays;
+        
+        debugPrint('📅 Day changed from $lastActiveDate to $today ($daysMissed day(s) gap)');
+        
+        // Process each missed day individually
+        // This ensures multi-day gaps (e.g. Sat→Mon) don't skip intermediate days
+        for (int i = 0; i < daysMissed; i++) {
+          final dateToProcess = lastDate.add(Duration(days: i));
+          final dateStr = DateFormat('yyyy-MM-dd').format(dateToProcess);
+          debugPrint('📋 Processing missed day: $dateStr');
+          await _processEndOfDay(dateStr);
+        }
+        
         await prefs.setString(_lastActiveDateKey, today);
         return true; // Day changed
       } else if (lastActiveDate == null) {
@@ -45,6 +84,8 @@ class TaskLifecycleService {
     } catch (e) {
       debugPrint('❌ Error checking day change: $e');
       return false;
+    } finally {
+      _isProcessing = false;
     }
   }
   
@@ -56,13 +97,20 @@ class TaskLifecycleService {
   /// Process end of day - reset ACTIVE PROFILE tasks, then track missed ones
   Future<void> _processEndOfDay(String date) async {
     try {
+      // CRITICAL: Use getAuthenticatedUser() to properly wait for session
+      // restoration on cold start (supabase_flutter v2 async session issue)
       final client = await _supabase.client;
-      final userId = _supabase.currentUser?.id;
-      
-      if (client == null || userId == null) {
-        debugPrint('❌ Cannot process end of day: client=$client, userId=$userId');
+      if (client == null) {
+        debugPrint('❌ Cannot process end of day: Supabase client is null');
         return;
       }
+      
+      final user = await _supabase.getAuthenticatedUser();
+      if (user == null) {
+        debugPrint('❌ Cannot process end of day: user not authenticated');
+        return;
+      }
+      final userId = user.id;
 
       // Get user's active lifestyle profile
       final profileData = await client
@@ -114,6 +162,7 @@ class TaskLifecycleService {
               taskId: task['id'],
               skipReason: 'auto_missed_end_of_day',
               notes: 'Automatically marked as missed at end of day ($date)',
+              trackingDate: date, // Use the actual date, NOT DateTime.now()
             );
             debugPrint('📝 Tracked missed: ${task['title']}');
           }
@@ -171,12 +220,16 @@ class TaskLifecycleService {
           continue; // Skip to next task
         }
         
-        // Calculate deadline (next task's time or end of day)
+        // Calculate deadline (next task's time, or grace period for last task)
         int deadlineMinutes;
         if (i < tasks.length - 1) {
           deadlineMinutes = _parseTimeToMinutes(tasks[i + 1]['time'] ?? '23:59');
         } else {
-          deadlineMinutes = 23 * 60 + 59; // 11:59 PM
+          // Last task of day: give 60 minutes grace period instead of 11:59 PM
+          deadlineMinutes = taskMinutes + 60;
+          if (deadlineMinutes > 23 * 60 + 59) {
+            deadlineMinutes = 23 * 60 + 59;
+          }
         }
         
         String newStatus;
@@ -192,7 +245,7 @@ class TaskLifecycleService {
             newStatus = TaskStatus.overdue; // Past scheduled time but still completable
           }
         } else {
-          // Past deadline - missed
+          // Past deadline (with grace period) - missed
           newStatus = TaskStatus.missed;
         }
         
@@ -288,12 +341,16 @@ class TaskLifecycleService {
     // Calculate unlock time (10 min before scheduled time)
     final unlockMinutes = taskMinutes - unlockMinutesBefore;
     
-    // Calculate deadline (next task's time or end of day)
+    // Calculate deadline (next task's time, or grace period for last task)
     int deadlineMinutes;
     if (nextTaskTime != null && nextTaskTime.isNotEmpty) {
       deadlineMinutes = _parseTimeToMinutesStatic(nextTaskTime);
     } else {
-      deadlineMinutes = 23 * 60 + 59; // 11:59 PM
+      // Last task: 60 min grace period
+      deadlineMinutes = taskMinutes + 60;
+      if (deadlineMinutes > 23 * 60 + 59) {
+        deadlineMinutes = 23 * 60 + 59;
+      }
     }
     
     // Check if current time is within completion window
@@ -332,12 +389,16 @@ class TaskLifecycleService {
       }
     }
     
-    // Calculate deadline
+    // Calculate deadline (next task's time, or grace period for last task)
     int deadlineMinutes;
     if (nextTaskTime != null && nextTaskTime.isNotEmpty) {
       deadlineMinutes = _parseTimeToMinutesStatic(nextTaskTime);
     } else {
-      deadlineMinutes = 23 * 60 + 59;
+      // Last task: 60 min grace period
+      deadlineMinutes = taskMinutes + 60;
+      if (deadlineMinutes > 23 * 60 + 59) {
+        deadlineMinutes = 23 * 60 + 59;
+      }
     }
     
     if (currentMinutes >= deadlineMinutes) {

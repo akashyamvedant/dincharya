@@ -105,7 +105,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
   Color _getMoodDotColor(int moodRating) {
     switch (moodRating) {
       case 1: return const Color(0xFF8B7355);
-      case 2: return const Color(0xFFD4A574);
+      case 2: return Theme.of(context).colorScheme.secondary;
       case 3: return const Color(0xFF7CB342);
       case 4: return const Color(0xFFE67E22);
       case 5: return const Color(0xFFD35400);
@@ -127,15 +127,15 @@ class _CalendarWidgetState extends State<CalendarWidget>
 
   @override
   Widget build(BuildContext context) {
-    const warmBrown = Color(0xFF8B4513);
-    const warmAmber = Color(0xFFD4A574);
+    final warmBrown = Theme.of(context).colorScheme.primary;
+    final warmAmber = Theme.of(context).colorScheme.secondary;
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white,
-            const Color(0xFFFFF8F0),
+            Theme.of(context).cardColor,
+            Theme.of(context).scaffoldBackgroundColor,
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -198,7 +198,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
                   children: [
                     Text(
                       '${_getMonthName(_currentMonth.month)} ${_currentMonth.year}',
-                      style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: warmBrown,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -294,7 +294,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
               ? null
               : isToday
                   ? warmBrown.withOpacity(0.08)
-                  : Colors.white.withOpacity(0.7),
+                  : Theme.of(context).cardColor.withOpacity(0.7),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
@@ -333,7 +333,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
               '${day.day}',
               style: TextStyle(
                 fontSize: 14.sp,
-                color: isSelected ? Colors.white : Colors.grey[800],
+                color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                 fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.w600,
               ),
             ),
@@ -447,7 +447,7 @@ class _CalendarWidgetState extends State<CalendarWidget>
                         '$dayNumber',
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: isSelected ? Colors.white : Colors.grey[800],
+                          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
                           fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.w500,
                         ),
                       ),

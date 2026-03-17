@@ -9,6 +9,7 @@ const navItems = [
     { href: '/', label: 'Dashboard', icon: '📊' },
     { href: '/users', label: 'Users', icon: '👥' },
     { href: '/sessions', label: 'Sessions', icon: '🧘' },
+    { href: '/sessions/yoga-poses', label: 'Yoga Poses', icon: '🪷' },
     { href: '/programs', label: 'Programs', icon: '📋' },
     { href: '/subscriptions', label: 'Subscriptions', icon: '💎' },
     { href: '/content', label: 'Content', icon: '📝' },
@@ -66,7 +67,10 @@ export default function Sidebar({ onSearchOpen }) {
 
             <nav className="sidebar-nav">
                 {navItems.map(item => (
-                    <Link key={item.href} href={item.href} className={pathname === item.href ? 'active' : ''}>
+                    <Link key={item.href} href={item.href} className={
+                        (item.href === '/' ? pathname === '/' : pathname === item.href || (item.href !== '/sessions' && pathname.startsWith(item.href + '/')))
+                        ? 'active' : ''
+                    }>
                         <span className="nav-icon">{item.icon}</span>
                         <span className="sidebar-label">{item.label}</span>
                         {item.badgeKey && badges[item.badgeKey] > 0 && (

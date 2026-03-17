@@ -121,7 +121,7 @@ class _CelebrationOverlayState extends State<CelebrationOverlay>
       const Color(0xFFE91E63), // pink
       const Color(0xFFCD853F), // sandy brown
       const Color(0xFFFFD700), // gold
-      const Color(0xFF8B4513), // earth brown
+      Color(0xFF8B4513), // earth brown
     ];
 
     for (int i = 0; i < 40; i++) {

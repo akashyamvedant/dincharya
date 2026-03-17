@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -39,9 +39,9 @@ class ProfileStepWidget extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.lightTheme.colorScheme.primary
+                    Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.1),
-                    AppTheme.lightTheme.colorScheme.secondary
+                    Theme.of(context).colorScheme.secondary
                         .withValues(alpha: 0.1),
                   ],
                 ),
@@ -51,13 +51,13 @@ class ProfileStepWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'person',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 64,
                   ),
                   SizedBox(height: 1.h),
                   CustomIconWidget(
                     iconName: 'edit',
-                    color: AppTheme.lightTheme.colorScheme.secondary,
+                    color: Theme.of(context).colorScheme.secondary,
                     size: 24,
                   ),
                 ],
@@ -70,9 +70,9 @@ class ProfileStepWidget extends StatelessWidget {
           // Headline
           Text(
             'Tell us about yourself',
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -82,7 +82,7 @@ class ProfileStepWidget extends StatelessWidget {
           // Description
           Text(
             'Help us personalize your DinCharya experience',
-            style: AppTheme.lightTheme.textTheme.bodyLarge,
+            style: Theme.of(context).textTheme.bodyLarge,
             textAlign: TextAlign.center,
           ),
 
@@ -91,7 +91,7 @@ class ProfileStepWidget extends StatelessWidget {
           // Enhanced Name input with validation feedback
           Text(
             'Your Name',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -111,27 +111,27 @@ class ProfileStepWidget extends StatelessWidget {
               prefixIcon: Icon(
                 Icons.person_outline,
                 color: userName.isNotEmpty
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    ? Color(0xFF8B4513)
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               suffixIcon: userName.isNotEmpty
                   ? Icon(
                       Icons.check_circle,
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 20,
                     )
                   : null,
               filled: true,
               fillColor: userName.isNotEmpty
-                  ? AppTheme.lightTheme.colorScheme.primary
+                  ? Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.05)
-                  : AppTheme.lightTheme.colorScheme.surface,
+                  : Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
                   color: userName.isNotEmpty
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.outline,
+                      ? Color(0xFF8B4513)
+                      : Theme.of(context).colorScheme.outline,
                 ),
               ),
             ),
@@ -143,14 +143,14 @@ class ProfileStepWidget extends StatelessWidget {
           // Age group selection
           Text(
             'Age Group',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
           SizedBox(height: 1.h),
           Text(
             'This helps us suggest appropriate routines',
-            style: AppTheme.lightTheme.textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           SizedBox(height: 2.h),
 
@@ -160,7 +160,7 @@ class ProfileStepWidget extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.lightTheme.colorScheme.outline,
+                color: Theme.of(context).colorScheme.outline,
               ),
             ),
             child: Column(
@@ -177,7 +177,7 @@ class ProfileStepWidget extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppTheme.lightTheme.colorScheme.primary
+                          ? Theme.of(context).colorScheme.primary
                               .withValues(alpha: 0.1)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
@@ -187,8 +187,8 @@ class ProfileStepWidget extends StatelessWidget {
                         CustomIconWidget(
                           iconName: _getAgeGroupIcon(group),
                           color: isSelected
-                              ? AppTheme.lightTheme.colorScheme.primary
-                              : AppTheme.lightTheme.colorScheme.onSurface,
+                              ? Color(0xFF8B4513)
+                              : Theme.of(context).colorScheme.onSurface,
                           size: 24,
                         ),
                         SizedBox(width: 3.w),
@@ -198,25 +198,24 @@ class ProfileStepWidget extends StatelessWidget {
                             children: [
                               Text(
                                 group,
-                                style: AppTheme.lightTheme.textTheme.bodyLarge
+                                style: Theme.of(context).textTheme.bodyLarge
                                     ?.copyWith(
                                   fontWeight: isSelected
                                       ? FontWeight.w600
                                       : FontWeight.w400,
                                   color: isSelected
-                                      ? AppTheme.lightTheme.colorScheme.primary
-                                      : AppTheme
-                                          .lightTheme.colorScheme.onSurface,
+                                      ? Color(0xFF8B4513)
+                                      : Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               Text(
                                 _getAgeGroupDescription(group),
-                                style: AppTheme.lightTheme.textTheme.bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                   color: isSelected
-                                      ? AppTheme.lightTheme.colorScheme.primary
+                                      ? Theme.of(context).colorScheme.primary
                                           .withValues(alpha: 0.7)
-                                      : AppTheme.lightTheme.colorScheme
+                                      : Theme.of(context).colorScheme
                                           .onSurfaceVariant,
                                 ),
                               ),
@@ -226,7 +225,7 @@ class ProfileStepWidget extends StatelessWidget {
                         if (isSelected)
                           CustomIconWidget(
                             iconName: 'check_circle',
-                            color: AppTheme.lightTheme.colorScheme.primary,
+                            color: Theme.of(context).colorScheme.primary,
                             size: 20,
                           ),
                       ],

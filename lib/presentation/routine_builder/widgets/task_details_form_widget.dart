@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -118,7 +118,7 @@ class TaskDetailsFormWidget extends StatelessWidget {
                   icon: CustomIconWidget(
                     iconName: 'remove',
                     color: selectedDuration > 5
-                        ? Theme.of(context).colorScheme.primary
+                        ? Color(0xFF8B4513)
                         : Theme.of(context).disabledColor,
                     size: 20,
                   ),
@@ -134,7 +134,7 @@ class TaskDetailsFormWidget extends StatelessWidget {
                   icon: CustomIconWidget(
                     iconName: 'add',
                     color: selectedDuration < 120
-                        ? Theme.of(context).colorScheme.primary
+                        ? Color(0xFF8B4513)
                         : Theme.of(context).disabledColor,
                     size: 20,
                   ),

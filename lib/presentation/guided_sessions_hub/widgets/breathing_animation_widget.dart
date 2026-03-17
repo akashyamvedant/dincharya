@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -63,12 +63,12 @@ class _BreathingAnimationWidgetState extends State<BreathingAnimationWidget>
               width: 8.w,
               height: 8.w,
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.primary
+                color: Theme.of(context).colorScheme.primary
                     .withValues(alpha: 0.8),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.lightTheme.colorScheme.primary
+                    color: Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.3),
                     blurRadius: 8,
                     spreadRadius: 2,
@@ -78,7 +78,7 @@ class _BreathingAnimationWidgetState extends State<BreathingAnimationWidget>
               child: Center(
                 child: CustomIconWidget(
                   iconName: 'air',
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   size: 16,
                 ),
               ),

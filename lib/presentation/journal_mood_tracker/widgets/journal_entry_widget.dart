@@ -61,17 +61,17 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget>
 
   @override
   Widget build(BuildContext context) {
-    const warmBrown = Color(0xFF8B4513);
-    const warmAmber = Color(0xFFD4A574);
-    const parchment = Color(0xFFFFF8F0);
-    const inkBrown = Color(0xFF3E2723);
+    final warmBrown = Theme.of(context).colorScheme.primary;
+    final warmAmber = Theme.of(context).colorScheme.secondary;
+    final parchment = Theme.of(context).scaffoldBackgroundColor;
+    final inkBrown = Theme.of(context).colorScheme.onSurface;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Colors.white,
+            Theme.of(context).cardColor,
             parchment,
           ],
           begin: Alignment.topCenter,
@@ -152,7 +152,7 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget>
           SizedBox(width: 2.w),
           Text(
             'Your Thoughts',
-            style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: warmBrown,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
@@ -233,7 +233,7 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget>
           Expanded(
             child: Text(
               _getRandomPrompt(),
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: warmBrown.withOpacity(0.6),
                 fontStyle: FontStyle.italic,
                 height: 1.4,
@@ -250,35 +250,47 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget>
       margin: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
       padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDF5E6),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: warmBrown.withOpacity(0.12),
         ),
       ),
-      child: TextField(
-        controller: widget.controller,
-        focusNode: _focusNode,
-        maxLines: null,
-        minLines: 6,
-        textInputAction: TextInputAction.newline,
-        cursorColor: warmBrown,
-        cursorWidth: 2,
-        style: TextStyle(
-          fontSize: 14.sp,
-          height: 1.9,
-          color: inkBrown,
-          letterSpacing: 0.2,
-        ),
-        decoration: InputDecoration(
-          hintText: 'Start writing here...',
-          hintStyle: TextStyle(
-            fontSize: 14.sp,
-            color: warmBrown.withOpacity(0.35),
-            fontStyle: FontStyle.italic,
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          textTheme: Theme.of(context).textTheme.copyWith(
+            bodyLarge: TextStyle(color: inkBrown),
+            bodyMedium: TextStyle(color: inkBrown),
+            titleMedium: TextStyle(color: inkBrown),
           ),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(vertical: 1.h),
+          inputDecorationTheme: const InputDecorationTheme(
+            border: InputBorder.none,
+          ),
+        ),
+        child: TextField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          maxLines: null,
+          minLines: 6,
+          textInputAction: TextInputAction.newline,
+          cursorColor: warmBrown,
+          cursorWidth: 2,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            fontSize: 14.sp,
+            height: 1.9,
+            color: inkBrown,
+            letterSpacing: 0.2,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Start writing here...',
+            hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 14.sp,
+              color: warmBrown.withOpacity(0.35),
+              fontStyle: FontStyle.italic,
+            ),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 1.h),
+          ),
         ),
       ),
     );
@@ -376,16 +388,16 @@ class _JournalEntryWidgetState extends State<JournalEntryWidget>
           children: [
             Text(
               value,
-              style: TextStyle(
-                fontSize: 13.sp,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontSize: 14.sp,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 10.sp,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 12.sp,
                 color: color.withOpacity(0.5),
               ),
             ),

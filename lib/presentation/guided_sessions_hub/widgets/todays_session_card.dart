@@ -16,7 +16,7 @@ class TodaysSessionCard extends StatelessWidget {
     required this.onStart,
   });
 
-  static const Color primaryBrown = Color(0xFF8B4513);
+
 
   @override
   Widget build(BuildContext context) {
@@ -41,8 +41,8 @@ class TodaysSessionCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFF2C1810),
-              primaryBrown,
+              Theme.of(context).colorScheme.onSurface,
+              Theme.of(context).colorScheme.primary,
               const Color(0xFFB8651A),
             ],
             begin: Alignment.topLeft,
@@ -51,7 +51,7 @@ class TodaysSessionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: primaryBrown.withOpacity(0.4),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -123,7 +123,7 @@ class TodaysSessionCard extends StatelessWidget {
                           Text(
                             title,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               height: 1.2,
@@ -186,12 +186,12 @@ class TodaysSessionCard extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.play_arrow_rounded,
-                                    color: const Color(0xFF2C1810), size: 20),
-                                const SizedBox(width: 4),
+                                    color: Theme.of(context).colorScheme.onSurface, size: 20),
+                                SizedBox(width: 4),
                                 Text(
                                   'Start Now',
                                   style: TextStyle(
-                                    color: const Color(0xFF2C1810),
+                                    color: Theme.of(context).colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),

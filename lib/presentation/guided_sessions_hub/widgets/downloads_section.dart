@@ -18,8 +18,8 @@ class _DownloadsSectionState extends State<DownloadsSection> {
   int _fileCount = 0;
   String _cacheSize = '0 B';
 
-  static const Color _primaryBrown = Color(0xFF8B4513);
-  static const Color _darkBrown = Color(0xFF2C1810);
+  static Color _primaryBrown = Color(0xFF5D4037);
+
 
   @override
   void initState() {
@@ -80,14 +80,14 @@ class _DownloadsSectionState extends State<DownloadsSection> {
           children: [
             Row(
               children: [
-                const Icon(Icons.download_done_rounded, color: _primaryBrown, size: 22),
+                Icon(Icons.download_done_rounded, color: _primaryBrown, size: 22),
                 SizedBox(width: 2.w),
                 Text(
                   'My Downloads',
                   style: TextStyle(
                     fontSize: 17.sp,
                     fontWeight: FontWeight.bold,
-                    color: _darkBrown,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -125,7 +125,7 @@ class _DownloadsSectionState extends State<DownloadsSection> {
                   color: _primaryBrown.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.folder_outlined, color: _primaryBrown, size: 28),
+                child: Icon(Icons.folder_outlined, color: _primaryBrown, size: 28),
               ),
               SizedBox(width: 4.w),
               Column(
@@ -136,7 +136,7 @@ class _DownloadsSectionState extends State<DownloadsSection> {
                     style: TextStyle(
                       fontSize: 13.sp,
                       fontWeight: FontWeight.w600,
-                      color: _darkBrown,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 0.3.h),
@@ -144,7 +144,7 @@ class _DownloadsSectionState extends State<DownloadsSection> {
                     'Using $_cacheSize of storage',
                     style: TextStyle(
                       fontSize: 11.sp,
-                      color: _darkBrown.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.6),
                     ),
                   ),
                 ],

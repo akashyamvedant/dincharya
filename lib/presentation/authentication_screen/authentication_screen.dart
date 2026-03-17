@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -183,23 +183,26 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       if (userId != null) {
         final client = await supabaseService.client;
         if (client != null) {
-          // Check if user has any tasks created (indicates they completed lifestyle setup)
-          final tasksData = await client
-              .from('tasks')
-              .select('id')
-              .eq('user_id', userId)
+          // Check if user has a lifestyle_profile set (indicates they completed profile selection)
+          final profileData = await client
+              .from('user_profiles')
+              .select('lifestyle_profile')
+              .eq('id', userId)
               .limit(1);
           
-          final hasTasks = tasksData != null && (tasksData as List).isNotEmpty;
+          final hasProfile = profileData != null && 
+              (profileData as List).isNotEmpty &&
+              profileData[0]['lifestyle_profile'] != null &&
+              profileData[0]['lifestyle_profile'].toString().isNotEmpty;
           
-          if (hasTasks) {
-            // User has tasks - they've completed setup, go to dashboard
+          if (hasProfile) {
+            // User has already chosen a lifestyle profile - go to dashboard
             Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
             return;
           }
         }
       }
-      // No tasks = new user or never completed setup - go to profile selection
+      // No lifestyle profile = new user or never completed setup - go to profile selection
       Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
     } catch (e) {
       debugPrint('Error checking lifestyle profile: $e');
@@ -211,7 +214,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),

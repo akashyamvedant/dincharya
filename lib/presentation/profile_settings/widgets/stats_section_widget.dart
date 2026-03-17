@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -32,7 +32,7 @@ class StatsSection extends StatelessWidget {
         children: [
           Text(
             'Your Progress',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -53,28 +53,27 @@ class StatsSection extends StatelessWidget {
                 'Current Streak',
                 '${userData["currentStreak"]} days',
                 'local_fire_department',
-                AppTheme.lightTheme.colorScheme.tertiary,
+                Theme.of(context).colorScheme.tertiary,
               ),
               _buildStatCard(
                 context,
                 'Meditation Time',
                 _formatMeditationTime(userData["totalMeditationTime"] as int),
-                'self_improvement',
-                AppTheme.lightTheme.colorScheme.primary,
+                'self_improvement', Theme.of(context).colorScheme.primary,
               ),
               _buildStatCard(
                 context,
                 'Routines Done',
                 '${userData["completedRoutines"]}',
                 'check_circle',
-                AppTheme.getSuccessColor(true),
+                AppTheme.getSuccessColor(Theme.of(context).brightness == Brightness.light),
               ),
               _buildStatCard(
                 context,
                 'Journal Entries',
                 '${userData["journalEntries"]}',
                 'book',
-                AppTheme.lightTheme.colorScheme.secondary,
+                Color(0xFFD4A574),
               ),
             ],
           ),
@@ -85,7 +84,7 @@ class StatsSection extends StatelessWidget {
           if ((userData["achievements"] as List).isNotEmpty) ...[
             Text(
               'Recent Achievements',
-              style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -99,11 +98,11 @@ class StatsSection extends StatelessWidget {
                   padding:
                       EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.colorScheme.primary
+                    color: Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppTheme.lightTheme.colorScheme.primary
+                      color: Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.3),
                     ),
                   ),
@@ -112,15 +111,15 @@ class StatsSection extends StatelessWidget {
                     children: [
                       CustomIconWidget(
                         iconName: 'emoji_events',
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         size: 16,
                       ),
                       SizedBox(width: 1.w),
                       Text(
                         achievement as String,
                         style:
-                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                            Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -145,15 +144,15 @@ class StatsSection extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -169,8 +168,8 @@ class StatsSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurface
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.7),
                   ),
                   maxLines: 2,
@@ -194,7 +193,7 @@ class StatsSection extends StatelessWidget {
           SizedBox(height: 1.h),
           Text(
             value,
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: color,
             ),

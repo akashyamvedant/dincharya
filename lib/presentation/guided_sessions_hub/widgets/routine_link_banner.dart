@@ -111,7 +111,7 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F0EB),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE0D5C8)),
         ),
@@ -124,7 +124,7 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSpiritual
-                    ? const Color(0xFF8B4513).withOpacity(0.12)
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
                     : const Color(0xFFFF7043).withOpacity(0.12),
               ),
               child: Center(
@@ -134,7 +134,7 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+             SizedBox(width: 12),
 
             // Task info
             Expanded(
@@ -144,16 +144,16 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                   Text(
                     'From your routine',
                     style: TextStyle(
-                      color: const Color(0xFF8B4513).withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     name.toString(),
-                    style: const TextStyle(
-                      color: Color(0xFF2C1810),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -164,7 +164,7 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                     Text(
                       time,
                       style: TextStyle(
-                        color: const Color(0xFF8B4513).withOpacity(0.5),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
                         fontSize: 11,
                       ),
                     ),
@@ -211,13 +211,13 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSpiritual
-                      ? const Color(0xFF8B4513)
+                      ? Theme.of(context).colorScheme.primary
                       : const Color(0xFFFF7043),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
                       color: (isSpiritual
-                              ? const Color(0xFF8B4513)
+                              ? Theme.of(context).colorScheme.primary
                               : const Color(0xFFFF7043))
                           .withOpacity(0.25),
                       blurRadius: 6,
@@ -225,15 +225,15 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                     ),
                   ],
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16),
+                    Icon(Icons.play_arrow_rounded, color: Theme.of(context).colorScheme.surface, size: 16),
                     SizedBox(width: 4),
                     Text(
                       'Start',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),

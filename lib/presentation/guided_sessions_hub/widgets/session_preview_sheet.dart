@@ -21,7 +21,7 @@ class SessionPreviewSheet extends StatefulWidget {
     required this.isFavorite,
   });
 
-  static const Color primaryBrown = Color(0xFF8B4513);
+  static Color primaryBrown = Color(0xFF5D4037);
 
   @override
   State<SessionPreviewSheet> createState() => _SessionPreviewSheetState();
@@ -113,11 +113,11 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
     final ytId = _extractYoutubeId(youtubeUrl);
     final thumbnailUrl = ytId != null ? 'https://img.youtube.com/vi/$ytId/hqdefault.jpg' : null;
 
-    const primaryBrown = SessionPreviewSheet.primaryBrown;
+    final primaryBrown = SessionPreviewSheet.primaryBrown;
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFFDF8F3),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
@@ -130,7 +130,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -151,7 +151,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
                           thumbnailUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey[300],
+                            color: Theme.of(context).colorScheme.outline,
                             child: const Icon(Icons.image, size: 40),
                           ),
                         ),
@@ -166,14 +166,14 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
                     style: TextStyle(
                       fontSize: 20.sp,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF2C1810),
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (titleHindi != null && titleHindi.isNotEmpty) ...[
                     SizedBox(height: 0.3.h),
                     Text(
                       titleHindi,
-                      style: TextStyle(fontSize: 14.sp, color: const Color(0xFF5D4037)),
+                      style: TextStyle(fontSize: 14.sp, color: Theme.of(context).colorScheme.primary),
                     ),
                   ],
 
@@ -200,7 +200,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
                     description,
                     style: TextStyle(
                       fontSize: 13.sp,
-                      color: const Color(0xFF5D4037),
+                      color: Theme.of(context).colorScheme.primary,
                       height: 1.5,
                     ),
                   ),
@@ -240,7 +240,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryBrown,
-                            foregroundColor: Colors.white,
+                            foregroundColor: Theme.of(context).colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -277,7 +277,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
           style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
+          side: BorderSide(color: Theme.of(context).colorScheme.outline),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -342,7 +342,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
           style: TextStyle(color: primaryBrown, fontWeight: FontWeight.w600, fontSize: 12),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: Colors.grey.shade300),
+          side: BorderSide(color: Theme.of(context).colorScheme.outline),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -367,7 +367,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
             style: TextStyle(
               fontSize: 11.sp,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF5D4037),
+              color: Color(0xFF5D4037),
             ),
           ),
         ],

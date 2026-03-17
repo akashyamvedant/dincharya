@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -128,7 +128,7 @@ class _OnboardingFlowState extends State<OnboardingFlow>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -139,7 +139,7 @@ class _OnboardingFlowState extends State<OnboardingFlow>
             SizedBox(height: 2.h),
             Text(
               'Creating your personalized routine...',
-              style: AppTheme.lightTheme.textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
           ],
@@ -193,7 +193,7 @@ class _OnboardingFlowState extends State<OnboardingFlow>
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -202,19 +202,19 @@ class _OnboardingFlowState extends State<OnboardingFlow>
               children: [
                 CustomIconWidget(
                   iconName: 'celebration',
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 48,
                 ),
                 SizedBox(height: 2.h),
                 Text(
                   'Welcome to DinCharya!',
-                  style: AppTheme.lightTheme.textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleLarge,
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 1.h),
                 Text(
                   'Your personalized routine is ready!',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -277,7 +277,7 @@ class _OnboardingFlowState extends State<OnboardingFlow>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -301,16 +301,15 @@ class _OnboardingFlowState extends State<OnboardingFlow>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: isCompleted
-                              ? AppTheme.lightTheme.colorScheme.primary
+                              ? Color(0xFF8B4513)
                               : isActive
-                                  ? AppTheme.lightTheme.colorScheme.primary
-                                  : AppTheme.lightTheme.colorScheme.primary
+                                  ? Color(0xFF8B4513)
+                                  : Theme.of(context).colorScheme.primary
                                       .withValues(alpha: 0.3),
                           boxShadow: isActive
                               ? [
                                   BoxShadow(
-                                    color: AppTheme
-                                        .lightTheme.colorScheme.primary
+                                    color: Theme.of(context).colorScheme.primary
                                         .withValues(alpha: 0.3),
                                     blurRadius: 8,
                                     spreadRadius: 2,
@@ -333,8 +332,8 @@ class _OnboardingFlowState extends State<OnboardingFlow>
                     onPressed: _skipOnboarding,
                     child: Text(
                       _isUserLoggedIn ? 'Skip' : 'Continue',
-                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -431,8 +430,8 @@ class _OnboardingFlowState extends State<OnboardingFlow>
                         onPressed: _canProceed() ? _nextStep : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _canProceed()
-                              ? AppTheme.lightTheme.colorScheme.primary
-                              : AppTheme.lightTheme.colorScheme.primary
+                              ? Color(0xFF8B4513)
+                              : Theme.of(context).colorScheme.primary
                                   .withValues(alpha: 0.3),
                           foregroundColor: Colors.white,
                           elevation: _canProceed() ? 4 : 0,
@@ -448,7 +447,7 @@ class _OnboardingFlowState extends State<OnboardingFlow>
                               _currentStep == _totalSteps - 1
                                   ? 'Complete'
                                   : 'Continue',
-                              style: AppTheme.lightTheme.textTheme.titleMedium
+                              style: Theme.of(context).textTheme.titleMedium
                                   ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,

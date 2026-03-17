@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -119,8 +119,7 @@ class ScheduleSectionWidget extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(3.w),
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -165,12 +164,12 @@ class ScheduleSectionWidget extends StatelessWidget {
                   height: 5.h,
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? Theme.of(context).colorScheme.primary
+                        ? Color(0xFF8B4513)
                         : Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isSelected
-                          ? Theme.of(context).colorScheme.primary
+                          ? Color(0xFF8B4513)
                           : Theme.of(context).dividerColor,
                       width: 1,
                     ),

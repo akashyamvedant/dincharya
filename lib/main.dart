@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +14,17 @@ import './services/notification_service.dart';
 import './services/routine_tracking_service.dart';
 import './services/supabase_service.dart';
 import './services/subscription_manager.dart';
+import './services/alarm_service.dart';
+import './services/theme_provider.dart';
+import './services/task_lifecycle_service.dart';
 import 'core/app_export.dart';
+
+/// Global navigator key for navigation from services (e.g., notification taps)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// Global notifier: fires when a day change is detected at app level.
+/// RoutineDashboard listens to this to refresh its UI.
+final ValueNotifier<int> dayChangeNotifier = ValueNotifier<int>(0);
 
 // lib/main.dart
 
@@ -50,6 +62,16 @@ void main() async {
     debugPrint('Failed to set device orientation: $e');
   }
 
+  // Enable edge-to-edge display for Android 15+ (SDK 35) compatibility.
+  // This fixes Play Console recommendation: "Edge-to-edge may not display for all users"
+  // and handles deprecated LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+  ));
+
   // Start the app immediately for faster startup
   runApp(const MyApp());
 
@@ -75,7 +97,17 @@ void _initializeServicesInBackground() async {
     debugPrint('Failed to initialize Supabase: $e');
   }
 
-  // Initialize services with error handling
+  // CRITICAL: Initialize SubscriptionManager BEFORE AdsService!
+  // AdsService checks isPremium during init — if SubscriptionManager isn't
+  // loaded yet, premium users get treated as free → ads load for them.
+  try {
+    await SubscriptionManager().initialize();
+    debugPrint('✅ Subscription manager initialized: ${SubscriptionManager().isPremium ? "PREMIUM" : "FREE"}');
+  } catch (e) {
+    debugPrint('Failed to initialize subscription manager: $e');
+  }
+
+  // Initialize ads service (AFTER SubscriptionManager so premium check works)
   try {
     await AdsService().initialize();
     debugPrint('Ads service initialized successfully');
@@ -88,6 +120,14 @@ void _initializeServicesInBackground() async {
     debugPrint('✅ Notification service initialized successfully');
   } catch (e) {
     debugPrint('Failed to initialize notification service: $e');
+  }
+
+  // Initialize alarm service (AFTER notification service)
+  try {
+    await AlarmService().initialize();
+    debugPrint('✅ Alarm service initialized successfully');
+  } catch (e) {
+    debugPrint('Failed to initialize alarm service: $e');
   }
 
   // Initialize routine tracking service for notifications
@@ -106,14 +146,6 @@ void _initializeServicesInBackground() async {
     debugPrint('Failed to initialize payment service: $e');
   }
 
-  // Initialize subscription manager (checks premium status)
-  try {
-    await SubscriptionManager().initialize();
-    debugPrint('✅ Subscription manager initialized: ${SubscriptionManager().isPremium ? "PREMIUM" : "FREE"}');
-  } catch (e) {
-    debugPrint('Failed to initialize subscription manager: $e');
-  }
-
   // Log security initialization
   SecurityConfig.logSecurityEvent('APP_INITIALIZED',
       details: 'All services initialized');
@@ -127,9 +159,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
-  bool _isDarkMode = true; // Default to dark mode (pure black)
   String _initialRoute = AppRoutes.splashScreen;
   bool _isInitialized = false;
+  
+  final ThemeProvider _themeProvider = ThemeProvider();
   
   // App Open Ad tracking
   bool _isShowingAd = false;
@@ -143,6 +176,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   static const int _minSecondsInBackground = 30; // 30 seconds - reasonable time away
   int _appLaunchCount = 0;
   static const int _showAfterLaunches = 3; // Show after 3rd launch for better UX
+  
+  // Layer 2: Midnight cross-over timer
+  Timer? _midnightTimer;
 
   @override
   void initState() {
@@ -154,6 +190,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   
   @override
   void dispose() {
+    _midnightTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -170,7 +207,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
   
-  // App lifecycle observer - for App Open Ad
+  // App lifecycle observer — handles day change + App Open Ad
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     debugPrint('📱 App lifecycle: $state');
@@ -179,9 +216,50 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // App going to background - record time
       _appPausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
-      // App coming to foreground - show App Open Ad
+      // Layer 1: Check day change on EVERY resume (regardless of active tab)
+      _checkDayChangeOnResume();
+      // Existing: Show App Open Ad
       _showAppOpenAdOnResume();
+      // Layer 2: Re-schedule midnight timer (in case timer was lost in background)
+      _scheduleMidnightCheck();
     }
+  }
+  
+  /// Layer 1: App-level day change detection.
+  /// This fires on EVERY app resume, unlike RoutineDashboard's observer
+  /// which only works when that specific widget is mounted/alive.
+  Future<void> _checkDayChangeOnResume() async {
+    try {
+      final dayChanged = await TaskLifecycleService().checkAndProcessDayChange();
+      if (dayChanged) {
+        debugPrint('📅 [App-Level] Day changed! Tasks reset. Notifying UI...');
+        dayChangeNotifier.value = DateTime.now().millisecondsSinceEpoch;
+      }
+    } catch (e) {
+      debugPrint('❌ App-level day change check failed: $e');
+    }
+  }
+  
+  /// Layer 2: Schedule a timer to fire right after next midnight.
+  /// Handles the edge case where the app stays open through midnight.
+  /// Only fires if the app process is alive — if Android kills the process,
+  /// Layer 1 handles it on next cold start/resume.
+  void _scheduleMidnightCheck() {
+    _midnightTimer?.cancel();
+    
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    // Add 5 seconds buffer to ensure we're definitely past midnight
+    final duration = nextMidnight.difference(now) + const Duration(seconds: 5);
+    
+    _midnightTimer = Timer(duration, () async {
+      debugPrint('🕛 Midnight crossed — checking day change...');
+      await _checkDayChangeOnResume();
+      // Reschedule for next midnight
+      _scheduleMidnightCheck();
+    });
+    
+    debugPrint('⏰ Midnight check scheduled: ${duration.inMinutes}m from now');
   }
   
   // Show App Open Ad when app resumes from background (ONCE per session)
@@ -237,7 +315,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _initializeApp() async {
     try {
       await Future.wait([
-        _loadThemePreference(),
+        _themeProvider.initialize(),
         _determineInitialRoute(),
       ]);
 
@@ -248,9 +326,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       SecurityConfig.logSecurityEvent('APP_READY',
           details: 'App initialization complete');
       
-      // Show App Open Ad on app launch (not from background)
-      if (_appLaunchCount >= _showAfterLaunches) {
-        _showAppOpenAdOnResume(isFromBackground: false);
+      // Layer 1: Check day change on cold start
+      _checkDayChangeOnResume();
+      
+      // Layer 2: Start midnight cross-over timer
+      _scheduleMidnightCheck();
+      
+      // CRITICAL: Check if app was launched from alarm notification tap.
+      // If so, navigate to AlarmRingScreen INSTEAD of showing App Open Ad.
+      final notifService = NotificationService();
+      final hasAlarmLaunch = await notifService.checkForAlarmLaunch();
+      
+      if (hasAlarmLaunch) {
+        // Navigate to alarm screen after first frame (navigator needs to be ready)
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          notifService.navigateToPendingAlarm();
+        });
+      } else {
+        // Show App Open Ad on app launch (not from background)
+        if (_appLaunchCount >= _showAfterLaunches) {
+          _showAppOpenAdOnResume(isFromBackground: false);
+        }
       }
     } catch (e) {
       debugPrint('Failed to initialize app: $e');
@@ -259,27 +355,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // Set default values on failure
       setState(() {
-        _isDarkMode = true;
         _initialRoute = AppRoutes.splashScreen;
         _isInitialized = true;
       });
     }
   }
 
-  // Load theme preference
-  Future<void> _loadThemePreference() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _isDarkMode = prefs.getBool('is_dark_mode') ?? true; // Default to dark
-      });
-    } catch (e) {
-      debugPrint('Failed to load theme preference: $e');
-      SecurityConfig.logSecurityEvent('THEME_LOAD_FAILED',
-          details: e.toString());
-      // Keep default dark mode
-    }
-  }
+
 
   // Determine initial route based on authentication status
   Future<void> _determineInitialRoute() async {
@@ -327,23 +409,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     return Sizer(
       builder: (context, orientation, deviceType) {
-        return MaterialApp(
-          title: 'DinCharya',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-          builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(1.0),
-              ),
-              child: child!,
-            );
-          },
-          initialRoute: _initialRoute,
-          routes: AppRoutes.routes,
-          onGenerateRoute: AppRoutes.onGenerateRoute,
+        return ListenableBuilder(
+          listenable: _themeProvider,
+          builder: (context, _) {
+            return MaterialApp(
+              navigatorKey: navigatorKey,
+              title: 'DinCharya',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: _themeProvider.themeMode,
+              builder: (context, child) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(1.0),
+                  ),
+                  child: child!,
+                );
+              },
+              initialRoute: _initialRoute,
+              routes: AppRoutes.routes,
+              onGenerateRoute: AppRoutes.onGenerateRoute,
           // Add error handling for navigation
           onUnknownRoute: (settings) {
             SecurityConfig.logSecurityEvent('UNKNOWN_ROUTE',
@@ -370,6 +456,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 ),
               ),
             );
+          },
+        );
           },
         );
       },

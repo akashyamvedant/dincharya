@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppTheme.lightTheme.primaryColor,
+        systemNavigationBarColor: Theme.of(context).primaryColor,
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
@@ -158,8 +158,8 @@ class _SplashScreenState extends State<SplashScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                AppTheme.lightTheme.primaryColor,
-                AppTheme.lightTheme.colorScheme.secondary,
+                Theme.of(context).primaryColor,
+                Color(0xFFD4A574),
                 const Color(0xFFFFE4B5), // Sunrise color
               ],
               stops: const [0.0, 0.6, 1.0],
@@ -198,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen>
                             opacity: _logoFadeAnimation.value,
                             child: Text(
                               'DinCharya',
-                              style: AppTheme.lightTheme.textTheme.headlineLarge
+                              style: Theme.of(context).textTheme.headlineLarge
                                   ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -219,7 +219,7 @@ class _SplashScreenState extends State<SplashScreen>
                             opacity: _logoFadeAnimation.value * 0.8,
                             child: Text(
                               'दिनचर्या - Daily Wellness Routine',
-                              style: AppTheme.lightTheme.textTheme.bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 letterSpacing: 0.5,
@@ -245,7 +245,7 @@ class _SplashScreenState extends State<SplashScreen>
                         Text(
                           'Preparing your wellness journey...',
                           style:
-                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.white.withValues(alpha: 0.8),
                           ),
                           textAlign: TextAlign.center,
@@ -271,7 +271,7 @@ class _SplashScreenState extends State<SplashScreen>
                               SizedBox(height: 2.h),
                               Text(
                                 'Something went wrong',
-                                style: AppTheme.lightTheme.textTheme.titleSmall
+                                style: Theme.of(context).textTheme.titleSmall
                                     ?.copyWith(
                                   color: Colors.white,
                                 ),
@@ -279,7 +279,7 @@ class _SplashScreenState extends State<SplashScreen>
                               SizedBox(height: 1.h),
                               Text(
                                 'Please check your connection and try again.',
-                                style: AppTheme.lightTheme.textTheme.bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                   color: Colors.white.withValues(alpha: 0.8),
                                 ),
@@ -291,9 +291,9 @@ class _SplashScreenState extends State<SplashScreen>
                                 child: ElevatedButton(
                                   onPressed: _retryInitialization,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: Theme.of(context).cardColor,
                                     foregroundColor:
-                                        AppTheme.lightTheme.primaryColor,
+                                        Theme.of(context).primaryColor,
                                     padding:
                                         EdgeInsets.symmetric(vertical: 2.h),
                                     shape: RoundedRectangleBorder(
@@ -302,10 +302,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   ),
                                   child: Text(
                                     'Try Again',
-                                    style: AppTheme
-                                        .lightTheme.textTheme.labelLarge
+                                    style: Theme.of(context).textTheme.labelLarge
                                         ?.copyWith(
-                                      color: AppTheme.lightTheme.primaryColor,
+                                      color: Theme.of(context).primaryColor,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),

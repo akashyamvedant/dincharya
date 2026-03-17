@@ -22,7 +22,6 @@ class AdsService {
   AppOpenAd? _appOpenAd;
 
   bool _isInitialized = false;
-  bool _isPremiumUser = false;
   
   // Completer so widgets can await initialization
   Completer<void> _initCompleter = Completer<void>();
@@ -112,22 +111,22 @@ class AdsService {
     debugPrint('✅ Full-screen ads pre-load initiated');
   }
   
-  // Sync premium status from SubscriptionManager
+  // Sync premium status from SubscriptionManager and dispose ads if premium
   Future<void> _syncPremiumStatus() async {
     try {
       final subManager = SubscriptionManager();
+      // SubscriptionManager should already be initialized (main.dart does it first)
+      // But call initialize() with forceRefresh=false just to be safe
       await subManager.initialize();
-      _isPremiumUser = subManager.isPremium;
-      debugPrint('👤 Premium status synced from SubscriptionManager: $_isPremiumUser');
+      debugPrint('👤 Premium status: ${subManager.isPremium}');
       
       // Dispose loaded ads if user is premium (save memory)
-      if (_isPremiumUser) {
+      if (subManager.isPremium) {
         _disposeAllAds();
         debugPrint('🧹 Ads disposed — premium user');
       }
     } catch (e) {
       debugPrint('❌ Premium sync error: $e');
-      _isPremiumUser = false;
     }
   }
 
@@ -396,6 +395,12 @@ class AdsService {
   }
 
   Future<bool> showInterstitialAd() async {
+    // SAFETY GUARD: Never show to premium users
+    if (!shouldShowAds) {
+      debugPrint('👑 Interstitial blocked — premium user or not initialized');
+      return false;
+    }
+    
     if (_interstitialAd == null) {
       debugPrint('⚠️ Interstitial not ready');
       await loadInterstitialAd();
@@ -403,6 +408,12 @@ class AdsService {
     }
 
     _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('📺 Interstitial: Full screen content shown');
+      },
+      onAdImpression: (ad) {
+        debugPrint('👀 Interstitial: ✅ IMPRESSION RECORDED');
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _interstitialAd = null;
@@ -499,6 +510,12 @@ class AdsService {
     bool rewarded = false;
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('📺 Rewarded [${placement.name}]: Full screen content shown');
+      },
+      onAdImpression: (ad) {
+        debugPrint('👀 Rewarded [${placement.name}]: ✅ IMPRESSION RECORDED');
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewardedAds.remove(placement);
@@ -585,6 +602,12 @@ class AdsService {
     bool rewarded = false;
 
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('📺 Rewarded (legacy): Full screen content shown');
+      },
+      onAdImpression: (ad) {
+        debugPrint('👀 Rewarded (legacy): ✅ IMPRESSION RECORDED');
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _rewardedAd = null;
@@ -681,6 +704,12 @@ class AdsService {
   }
 
   Future<void> showAppOpenAd() async {
+    // SAFETY GUARD: Never show to premium users
+    if (!shouldShowAds) {
+      debugPrint('👑 App Open ad blocked — premium user or not initialized');
+      return;
+    }
+    
     // Check for valid (non-expired) ad
     if (_appOpenAd == null || !_isAppOpenAdValid()) {
       debugPrint('⚠️ App Open ad not ready or expired');
@@ -689,6 +718,12 @@ class AdsService {
     }
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('📺 App Open: Full screen content shown');
+      },
+      onAdImpression: (ad) {
+        debugPrint('👀 App Open: ✅ IMPRESSION RECORDED');
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _appOpenAd = null;

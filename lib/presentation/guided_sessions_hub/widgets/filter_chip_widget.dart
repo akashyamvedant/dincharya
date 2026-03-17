@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -25,12 +25,12 @@ class FilterChipWidget extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
         decoration: BoxDecoration(
           color: selectedValue != 'All'
-              ? AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1)
-              : AppTheme.lightTheme.colorScheme.surface,
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
+              : Theme.of(context).colorScheme.surface,
           border: Border.all(
             color: selectedValue != 'All'
-                ? AppTheme.lightTheme.colorScheme.primary
-                : AppTheme.lightTheme.colorScheme.outline,
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.outline,
           ),
           borderRadius: BorderRadius.circular(20),
         ),
@@ -39,10 +39,10 @@ class FilterChipWidget extends StatelessWidget {
           children: [
             Text(
               selectedValue == 'All' ? label : selectedValue,
-              style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: selectedValue != 'All'
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight:
                     selectedValue != 'All' ? FontWeight.w600 : FontWeight.w400,
               ),
@@ -51,8 +51,8 @@ class FilterChipWidget extends StatelessWidget {
             CustomIconWidget(
               iconName: 'keyboard_arrow_down',
               color: selectedValue != 'All'
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 16,
             ),
           ],
@@ -67,7 +67,7 @@ class FilterChipWidget extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -78,7 +78,7 @@ class FilterChipWidget extends StatelessWidget {
               height: 4,
               margin: EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -86,7 +86,7 @@ class FilterChipWidget extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
               child: Text(
                 'Select $label',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -96,7 +96,7 @@ class FilterChipWidget extends StatelessWidget {
                   trailing: selectedValue == option
                       ? CustomIconWidget(
                           iconName: 'check',
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           size: 20,
                         )
                       : null,

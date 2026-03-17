@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS public.local_tasks (
   task_status TEXT DEFAULT 'pending',
   status_updated_at TIMESTAMPTZ,
   deadline_time TEXT,
+  linked_session_id UUID REFERENCES public.sessions(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

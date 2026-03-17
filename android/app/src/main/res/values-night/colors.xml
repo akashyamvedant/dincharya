@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark theme colors for native ad -->
+<resources>
+    <color name="ad_card_background">#FF1E1E1E</color>
+    <color name="ad_card_border">#FF333333</color>
+    <color name="ad_headline_text">#FFE0E0E0</color>
+    <color name="ad_body_text">#FFB0B0B0</color>
+    <color name="ad_subtext">#FF909090</color>
+    <color name="ad_badge_text">#FFD4A574</color>
+</resources>

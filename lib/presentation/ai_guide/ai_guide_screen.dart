@@ -75,13 +75,54 @@ class _AiGuideScreenState extends State<AiGuideScreen>
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
 
-    // Welcome message
-    _messages.add(_ChatMessage(
-      text:
-          'Namaste! 🙏 Main **Disha** hoon — aapki personal Ayurvedic wellness guide.\n\nAap mujhse kuch bhi pooch sakte hain — meditation, pranayama, yoga, daily routine, ya dosha ke baare mein.\n\nKaise help kar sakti hoon aaj? ✨',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+    // Load saved conversation from Supabase
+    _loadSavedConversation();
+  }
+
+  Future<void> _loadSavedConversation() async {
+    try {
+      final savedMessages = await _ai.loadChatHistory();
+      if (mounted) {
+        setState(() {
+          if (savedMessages.isNotEmpty) {
+            _messages.clear();
+            for (final msg in savedMessages) {
+              _messages.add(_ChatMessage(
+                text: msg['content'] as String? ?? '',
+                isUser: (msg['role'] as String) == 'user',
+                timestamp: DateTime.tryParse(msg['created_at'] as String? ?? '') ?? DateTime.now(),
+                imageUrl: msg['image_url'] as String?,
+              ));
+            }
+            _showSuggestions = false;
+          } else {
+            // No history — show welcome message
+            _messages.add(_ChatMessage(
+              text:
+                  'Namaste! 🙏 Main **Disha** hoon — aapki personal Ayurvedic wellness guide.\n\nAap mujhse kuch bhi pooch sakte hain — meditation, pranayama, yoga, daily routine, ya dosha ke baare mein.\n\nKaise help kar sakti hoon aaj? ✨',
+              isUser: false,
+              timestamp: DateTime.now(),
+            ));
+          }
+
+
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMessage(
+            text:
+                'Namaste! 🙏 Main **Disha** hoon — aapki personal Ayurvedic wellness guide.\n\nAap mujhse kuch bhi pooch sakte hain — meditation, pranayama, yoga, daily routine, ya dosha ke baare mein.\n\nKaise help kar sakti hoon aaj? ✨',
+            isUser: false,
+            timestamp: DateTime.now(),
+          ));
+
+
+        });
+      }
+    }
   }
 
   @override
@@ -128,6 +169,9 @@ class _AiGuideScreenState extends State<AiGuideScreen>
       _isGeneratingImage = wantsImage;
     });
 
+    // Save user message to Supabase (fire-and-forget)
+    _ai.saveMessage(role: 'user', content: userMsg);
+
     _scrollToBottom();
 
     // Add placeholder for streaming response
@@ -155,9 +199,12 @@ class _AiGuideScreenState extends State<AiGuideScreen>
         }
       },
       onDone: () async {
+        // Save AI text response to Supabase
+        final aiText = _messages[aiIndex].text;
+
         if (wantsImage && mounted) {
           setState(() => _isGeneratingImage = true);
-          final imgPrompt = _ai.buildImagePrompt(userMsg);
+          final imgPrompt = await _ai.buildImagePrompt(userMsg);
           final imageUrl = await _ai.generateImage(imgPrompt);
           if (mounted) {
             setState(() {
@@ -171,8 +218,14 @@ class _AiGuideScreenState extends State<AiGuideScreen>
               _isTyping = false;
             });
           }
+          // Save AI response with image URL to Supabase
+          _ai.saveMessage(role: 'assistant', content: aiText, imageUrl: imageUrl);
         } else {
           if (mounted) setState(() => _isTyping = false);
+          // Save AI text-only response to Supabase
+          if (aiText.isNotEmpty) {
+            _ai.saveMessage(role: 'assistant', content: aiText);
+          }
         }
         _scrollToBottom();
       },
@@ -199,7 +252,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _creamBg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Animated gradient background
@@ -234,9 +287,9 @@ class _AiGuideScreenState extends State<AiGuideScreen>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                _creamBg,
-                Color.lerp(_warmWhite, _softPeach, _bgAnimController.value)!,
-                _creamBg,
+                Theme.of(context).scaffoldBackgroundColor,
+                Color.lerp(Theme.of(context).colorScheme.surface, Theme.of(context).colorScheme.surfaceContainerHighest, _bgAnimController.value)!,
+                Theme.of(context).scaffoldBackgroundColor,
               ],
               stops: [0.0, 0.5 + _bgAnimController.value * 0.2, 1.0],
             ),
@@ -264,7 +317,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.2.h),
           decoration: BoxDecoration(
-            color: _warmWhite.withOpacity(0.85),
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.85),
             border: Border(
               bottom: BorderSide(
                 color: _saffronGold.withOpacity(0.15),
@@ -290,7 +343,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                     color: _richBrown.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.arrow_back_ios_new, color: _darkBrown, size: 18),
+                  child: Icon(Icons.arrow_back_ios_new, color: Theme.of(context).colorScheme.onSurface, size: 18),
                 ),
               ),
               SizedBox(width: 3.w),
@@ -337,7 +390,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                     Text(
                       'Disha — AI Guide',
                       style: TextStyle(
-                        color: _darkBrown,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.3,
@@ -401,24 +454,25 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                     color: _richBrown.withOpacity(0.06),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.more_vert, color: _darkBrown, size: 18),
+                  child: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurface, size: 18),
                 ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 8,
-                color: _warmWhite,
-                onSelected: (value) {
+                color: Theme.of(context).colorScheme.surface,
+                onSelected: (value) async {
                   if (value == 'clear') {
                     HapticFeedback.mediumImpact();
                     setState(() {
                       _messages.clear();
                       _showSuggestions = true;
-                      _ai.clearHistory();
                       _messages.add(_ChatMessage(
                         text: 'Fresh start! 🌿 Kaise help karun aaj?',
                         isUser: false,
                         timestamp: DateTime.now(),
                       ));
                     });
+                    // Clear from Supabase too (async)
+                    await _ai.clearHistory();
                   }
                 },
                 itemBuilder: (context) => [
@@ -428,7 +482,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                       children: [
                         Icon(Icons.refresh_rounded, color: _richBrown, size: 18),
                         const SizedBox(width: 10),
-                        Text('New Conversation', style: TextStyle(color: _darkBrown)),
+                        Text('New Conversation', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                       ],
                     ),
                   ),
@@ -488,7 +542,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Theme.of(context).colorScheme.surface.withOpacity(0.8),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: _saffronGold.withOpacity(0.15)),
                     boxShadow: [
@@ -566,7 +620,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                   'Suggestions',
                   style: TextStyle(
                     fontSize: 12,
-                    color: _darkBrown.withOpacity(0.5),
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
                   ),
@@ -594,7 +648,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.75),
+                          color: Theme.of(context).colorScheme.surface.withOpacity(0.75),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: _saffronGold.withOpacity(0.25),
@@ -613,7 +667,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                             suggestions[i],
                             style: TextStyle(
                               fontSize: 12.5,
-                              color: _richBrown,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -641,7 +695,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
         child: Container(
           padding: EdgeInsets.fromLTRB(3.w, 1.h, 2.w, MediaQuery.of(context).padding.bottom + 1.h),
           decoration: BoxDecoration(
-            color: _warmWhite.withOpacity(0.85),
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.85),
             border: Border(
               top: BorderSide(color: _saffronGold.withOpacity(0.12), width: 0.5),
             ),
@@ -658,7 +712,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.surface.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: _mutedGold.withOpacity(0.3)),
                     boxShadow: [
@@ -675,30 +729,42 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                       ),
                     ],
                   ),
-                  child: TextField(
-                    controller: _textController,
-                    focusNode: _focusNode,
-                    maxLines: 4,
-                    minLines: 1,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      hintText: 'Ask Disha anything...',
-                      hintStyle: TextStyle(
-                        color: _darkBrown.withOpacity(0.3),
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w400,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      textTheme: Theme.of(context).textTheme.copyWith(
+                        bodyLarge: const TextStyle(color: Color(0xFF1A1A2E)),
+                        bodyMedium: const TextStyle(color: Color(0xFF1A1A2E)),
+                        titleMedium: const TextStyle(color: Color(0xFF1A1A2E)),
                       ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.5.h),
-                      prefixIcon: Padding(
-                        padding: EdgeInsets.only(left: 3.w),
-                        child: Icon(Icons.chat_bubble_outline_rounded, color: _saffronGold.withOpacity(0.4), size: 20),
+                      inputDecorationTheme: const InputDecorationTheme(
+                        border: InputBorder.none,
                       ),
-                      prefixIconConstraints: const BoxConstraints(minWidth: 40),
                     ),
-                    style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14.5, height: 1.4),
-                    cursorColor: _saffronGold,
-                    onSubmitted: _sendMessage,
+                    child: TextField(
+                      controller: _textController,
+                      focusNode: _focusNode,
+                      maxLines: 4,
+                      minLines: 1,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Ask Disha anything...',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.5.h),
+                        prefixIcon: Padding(
+                          padding: EdgeInsets.only(left: 3.w),
+                          child: Icon(Icons.chat_bubble_outline_rounded, color: _saffronGold.withOpacity(0.4), size: 20),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                      ),
+                      style: const TextStyle(color: Color(0xFF1A1A2E), fontSize: 14.5, height: 1.4),
+                      cursorColor: _saffronGold,
+                      onSubmitted: _sendMessage,
+                    ),
                   ),
                 ),
               ),
@@ -884,7 +950,7 @@ class _PremiumMessageBubble extends StatelessWidget {
                 _formatTimeStatic(message.timestamp),
                 style: TextStyle(
                   fontSize: 9.5,
-                  color: _darkBrown.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -950,7 +1016,7 @@ class _PremiumMessageBubble extends StatelessWidget {
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.82),
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.82),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(20),
@@ -974,7 +1040,7 @@ class _PremiumMessageBubble extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (message.text.isNotEmpty)
-                _MarkdownLite(text: message.text, baseColor: _darkBrown),
+                _MarkdownLite(text: message.text, baseColor: Theme.of(context).colorScheme.onSurface),
               if (message.imageUrl != null) ...[
                 SizedBox(height: 1.5.h),
                 _buildImageWidget(message.imageUrl!),
@@ -1206,7 +1272,7 @@ class _MarkdownLite extends StatelessWidget {
           text: match.group(1),
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF8B4513),
+            color: Theme.of(context).colorScheme.primary,
           ),
         ));
       } else if (match.group(2) != null) {

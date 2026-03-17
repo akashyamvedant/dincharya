@@ -51,7 +51,7 @@ class AuthFormWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.lightTheme.colorScheme.shadow
+                  color: Theme.of(context).colorScheme.shadow
                       .withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
@@ -65,53 +65,53 @@ class AuthFormWidget extends StatelessWidget {
               autocorrect: false,
               enableSuggestions: true,
               enabled: !isLoading,
-              style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               decoration: InputDecoration(
                 labelText: 'Email Address',
                 hintText: 'Enter your email',
                 filled: true,
-                fillColor: AppTheme.lightTheme.colorScheme.surface,
+                fillColor: Theme.of(context).colorScheme.surface,
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(3.w),
                   child: CustomIconWidget(
                     iconName: 'email',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     width: 2,
                   ),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                     width: 2,
                   ),
                 ),
@@ -136,7 +136,7 @@ class AuthFormWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.lightTheme.colorScheme.shadow
+                  color: Theme.of(context).colorScheme.shadow
                       .withValues(alpha: 0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
@@ -148,19 +148,19 @@ class AuthFormWidget extends StatelessWidget {
               obscureText: !isPasswordVisible,
               textInputAction: TextInputAction.done,
               enabled: !isLoading,
-              style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               decoration: InputDecoration(
                 labelText: 'Password',
                 hintText: 'Enter your password',
                 filled: true,
-                fillColor: AppTheme.lightTheme.colorScheme.surface,
+                fillColor: Theme.of(context).colorScheme.surface,
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(3.w),
                   child: CustomIconWidget(
                     iconName: 'lock',
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 20,
                   ),
                 ),
@@ -171,7 +171,7 @@ class AuthFormWidget extends StatelessWidget {
                     child: CustomIconWidget(
                       iconName:
                           isPasswordVisible ? 'visibility_off' : 'visibility',
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 20,
                     ),
                   ),
@@ -179,34 +179,34 @@ class AuthFormWidget extends StatelessWidget {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     width: 2,
                   ),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                     width: 2,
                   ),
                 ),
@@ -241,7 +241,7 @@ class AuthFormWidget extends StatelessWidget {
                       child: Checkbox(
                         value: rememberMe,
                         onChanged: isLoading ? null : onRememberMeChanged,
-                        activeColor: AppTheme.lightTheme.colorScheme.primary,
+                        activeColor: Theme.of(context).colorScheme.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -252,9 +252,9 @@ class AuthFormWidget extends StatelessWidget {
                       child: Text(
                         'Remember me',
                         style:
-                            AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -269,8 +269,8 @@ class AuthFormWidget extends StatelessWidget {
                 ),
                 child: Text(
                   'Forgot Password?',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -285,11 +285,11 @@ class AuthFormWidget extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.error
+                color: Theme.of(context).colorScheme.error
                     .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.lightTheme.colorScheme.error
+                  color: Theme.of(context).colorScheme.error
                       .withValues(alpha: 0.3),
                 ),
               ),
@@ -297,15 +297,15 @@ class AuthFormWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'error_outline',
-                    color: AppTheme.lightTheme.colorScheme.error,
+                    color: Theme.of(context).colorScheme.error,
                     size: 20,
                   ),
                   SizedBox(width: 2.w),
                   Expanded(
                     child: Text(
                       errorMessage!,
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.error,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
                       ),
                     ),
                   ),
@@ -329,20 +329,19 @@ class AuthFormWidget extends StatelessWidget {
                         ? LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              AppTheme.lightTheme.colorScheme.primary,
-                              AppTheme.lightTheme.colorScheme.secondary,
+                            colors: [Theme.of(context).colorScheme.primary,
+                              Color(0xFFD4A574),
                             ],
                           )
                         : null,
                     color: !isFormValid || isLoading
-                        ? AppTheme.lightTheme.colorScheme.onSurfaceVariant
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
                             .withValues(alpha: 0.3)
                         : null,
                     boxShadow: isFormValid && !isLoading
                         ? [
                             BoxShadow(
-                              color: AppTheme.lightTheme.colorScheme.primary
+                              color: Theme.of(context).colorScheme.primary
                                   .withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
@@ -355,7 +354,7 @@ class AuthFormWidget extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor:
-                          AppTheme.lightTheme.colorScheme.onPrimary,
+                          Theme.of(context).colorScheme.onPrimary,
                       elevation: 0,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
@@ -372,17 +371,17 @@ class AuthFormWidget extends StatelessWidget {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppTheme.lightTheme.colorScheme.onPrimary,
+                                    Theme.of(context).colorScheme.onPrimary,
                                   ),
                                 ),
                               ),
                               SizedBox(width: 3.w),
                               Text(
                                 'Signing In...',
-                                style: AppTheme.lightTheme.textTheme.titleMedium
+                                style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(
                                   color:
-                                      AppTheme.lightTheme.colorScheme.onPrimary,
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -390,9 +389,9 @@ class AuthFormWidget extends StatelessWidget {
                           )
                         : Text(
                             'Sign In',
-                            style: AppTheme.lightTheme.textTheme.titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.onPrimary,
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -409,7 +408,7 @@ class AuthFormWidget extends StatelessWidget {
             children: [
               Expanded(
                 child: Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                   thickness: 1,
                 ),
@@ -418,15 +417,15 @@ class AuthFormWidget extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 3.w),
                 child: Text(
                   'OR',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
               Expanded(
                 child: Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                   thickness: 1,
                 ),
@@ -443,22 +442,22 @@ class AuthFormWidget extends StatelessWidget {
               onPressed: isLoading ? null : onGoogleSignIn,
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.5),
                   width: 1.5,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+                backgroundColor: Theme.of(context).colorScheme.surface,
               ),
               icon: GoogleIconWidget(
                 size: 24,
               ),
               label: Text(
                 'Continue with Google',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w500,
                 ),
               ),

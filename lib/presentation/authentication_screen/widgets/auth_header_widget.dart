@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -27,11 +27,11 @@ class AuthHeaderWidget extends StatelessWidget {
               child: Container(
                 padding: EdgeInsets.all(2.w),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.lightTheme.shadowColor,
+                      color: Theme.of(context).shadowColor,
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -39,7 +39,7 @@ class AuthHeaderWidget extends StatelessWidget {
                 ),
                 child: CustomIconWidget(
                   iconName: 'arrow_back_ios',
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                  color: Theme.of(context).colorScheme.onSurface,
                   size: 20,
                 ),
               ),
@@ -58,14 +58,14 @@ class AuthHeaderWidget extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-                AppTheme.lightTheme.colorScheme.secondary
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.secondary
                     .withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppTheme.lightTheme.colorScheme.primary
+              color: Theme.of(context).colorScheme.primary
                   .withValues(alpha: 0.2),
               width: 1,
             ),
@@ -80,15 +80,14 @@ class AuthHeaderWidget extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.lightTheme.colorScheme.primary,
-                      AppTheme.lightTheme.colorScheme.secondary,
+                    colors: [Theme.of(context).colorScheme.primary,
+                      Color(0xFFD4A574),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.primary
+                      color: Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
@@ -107,9 +106,9 @@ class AuthHeaderWidget extends StatelessWidget {
               // Welcome message
               Text(
                 title ?? 'Welcome Back!',
-                style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
 
@@ -118,8 +117,8 @@ class AuthHeaderWidget extends StatelessWidget {
               // Tagline
               Text(
                 subtitle ?? 'Sign in to continue your wellness journey',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),

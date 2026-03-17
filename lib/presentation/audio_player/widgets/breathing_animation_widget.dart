@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -30,24 +30,24 @@ class BreathingAnimationWidget extends StatelessWidget {
               gradient: RadialGradient(
                 colors: sessionType == "meditation"
                     ? [
-                        AppTheme.darkTheme.colorScheme.primary
+                        Theme.of(context).colorScheme.primary
                             .withValues(alpha: 0.3),
-                        AppTheme.darkTheme.colorScheme.primary
+                        Theme.of(context).colorScheme.primary
                             .withValues(alpha: 0.1),
                         Colors.transparent,
                       ]
                     : [
-                        AppTheme.getAccentColor(false).withValues(alpha: 0.4),
-                        AppTheme.getAccentColor(false).withValues(alpha: 0.2),
+                        AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.4),
+                        AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.2),
                         Colors.transparent,
                       ],
                 stops: [0.0, 0.7, 1.0],
               ),
               border: Border.all(
                 color: sessionType == "meditation"
-                    ? AppTheme.darkTheme.colorScheme.primary
+                    ? Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.5)
-                    : AppTheme.getAccentColor(false).withValues(alpha: 0.6),
+                    : AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.6),
                 width: 2.0,
               ),
             ),
@@ -58,9 +58,9 @@ class BreathingAnimationWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: sessionType == "meditation"
-                      ? AppTheme.darkTheme.colorScheme.primary
+                      ? Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.2)
-                      : AppTheme.getAccentColor(false).withValues(alpha: 0.3),
+                      : AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light).withValues(alpha: 0.3),
                 ),
                 child: Center(
                   child: Column(
@@ -71,8 +71,8 @@ class BreathingAnimationWidget extends StatelessWidget {
                             ? 'self_improvement'
                             : 'air',
                         color: sessionType == "meditation"
-                            ? AppTheme.darkTheme.colorScheme.primary
-                            : AppTheme.getAccentColor(false),
+                            ? Color(0xFF8B4513)
+                            : AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light),
                         size: 32,
                       ),
                       SizedBox(height: 1.h),
@@ -83,10 +83,10 @@ class BreathingAnimationWidget extends StatelessWidget {
                                 : "Inhale")
                             : "Paused",
                         style:
-                            AppTheme.darkTheme.textTheme.labelMedium?.copyWith(
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
                           color: sessionType == "meditation"
-                              ? AppTheme.darkTheme.colorScheme.primary
-                              : AppTheme.getAccentColor(false),
+                              ? Color(0xFF8B4513)
+                              : AppTheme.getAccentColor(Theme.of(context).brightness == Brightness.light),
                           fontWeight: FontWeight.w500,
                         ),
                       ),

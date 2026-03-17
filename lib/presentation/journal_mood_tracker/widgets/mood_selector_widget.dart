@@ -109,7 +109,7 @@ class _MoodSelectorWidgetState extends State<MoodSelectorWidget>
 
   @override
   Widget build(BuildContext context) {
-    const warmBrown = Color(0xFF8B4513);
+    final warmBrown = Theme.of(context).colorScheme.primary;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.h),
@@ -143,7 +143,7 @@ class _MoodSelectorWidgetState extends State<MoodSelectorWidget>
               children: [
                 Text(
                   "How's your spirit?",
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: warmBrown,
                     letterSpacing: 0.3,
@@ -169,7 +169,7 @@ class _MoodSelectorWidgetState extends State<MoodSelectorWidget>
                   ),
                   child: Text(
                     _moodLabels[_selectedIndex],
-                    style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
@@ -190,7 +190,7 @@ class _MoodSelectorWidgetState extends State<MoodSelectorWidget>
                 child: Text(
                   _moodSubtitles[_selectedIndex],
                   key: ValueKey(_selectedIndex),
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: _moodColors[_selectedIndex].withOpacity(0.8),
                     fontStyle: FontStyle.italic,
                   ),
