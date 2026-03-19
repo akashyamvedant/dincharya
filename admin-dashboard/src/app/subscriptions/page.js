@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 
 export default function SubscriptionsPage() {
@@ -13,6 +13,9 @@ export default function SubscriptionsPage() {
     const [showPlanModal, setShowPlanModal] = useState(false);
     const [editingPlan, setEditingPlan] = useState(null);
     const [subDetail, setSubDetail] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [typeFilter, setTypeFilter] = useState('all');
     const [planForm, setPlanForm] = useState({
         name: '', display_name: '', description: '', price_monthly: 0, price_yearly: 0,
         features: '', razorpay_plan_id_monthly: '', razorpay_plan_id_yearly: '', is_active: true,
@@ -37,7 +40,6 @@ export default function SubscriptionsPage() {
             const allSubs = subsRes.data || [];
             const allAudit = auditRes.data || [];
 
-            // Enrich with user profiles (no FK exists, fetch separately)
             const allUserIds = [...new Set([
                 ...allSubs.map(s => s.user_id),
                 ...allAudit.map(a => a.user_id),
@@ -63,7 +65,111 @@ export default function SubscriptionsPage() {
         setLoading(false);
     };
 
-    // Plan CRUD
+    // ── Compute the REAL status of a subscription ──
+    const computeRealStatus = (sub) => {
+        const now = new Date();
+        if (sub.cancelled_at) return 'cancelled';
+        if (sub.expires_at && new Date(sub.expires_at) < now) return 'expired';
+        if (sub.expires_at) {
+            const daysLeft = Math.ceil((new Date(sub.expires_at) - now) / 86400000);
+            if (daysLeft <= 7 && daysLeft > 0) return 'expiring_soon';
+        }
+        if (sub.status === 'active') return 'active';
+        return sub.status || 'unknown';
+    };
+
+    const getDaysLeft = (sub) => {
+        if (!sub.expires_at) return null;
+        return Math.ceil((new Date(sub.expires_at) - new Date()) / 86400000);
+    };
+
+    // ── Enriched subs with computed status ──
+    const enrichedSubs = useMemo(() => {
+        return subs.map(s => ({
+            ...s,
+            _realStatus: computeRealStatus(s),
+            _daysLeft: getDaysLeft(s),
+            _type: s.is_trial ? 'trial' : (s.amount > 0 ? 'paid' : 'free'),
+        }));
+    }, [subs]);
+
+    // ── Filtered subscriptions ──
+    const filteredSubs = useMemo(() => {
+        let result = enrichedSubs;
+
+        // Status filter
+        if (statusFilter !== 'all') {
+            result = result.filter(s => s._realStatus === statusFilter);
+        }
+
+        // Type filter
+        if (typeFilter !== 'all') {
+            result = result.filter(s => s._type === typeFilter);
+        }
+
+        // Search
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(s =>
+                (s._profile?.full_name || '').toLowerCase().includes(q) ||
+                (s._profile?.email || '').toLowerCase().includes(q) ||
+                (s.plan_name || '').toLowerCase().includes(q)
+            );
+        }
+
+        return result;
+    }, [enrichedSubs, statusFilter, typeFilter, searchQuery]);
+
+    // ── Stats ──
+    const stats = useMemo(() => {
+        const now = new Date();
+        const active = enrichedSubs.filter(s => s._realStatus === 'active');
+        const expired = enrichedSubs.filter(s => s._realStatus === 'expired');
+        const expiringSoon = enrichedSubs.filter(s => s._realStatus === 'expiring_soon');
+        const trials = enrichedSubs.filter(s => s.is_trial);
+        const activeTrials = trials.filter(s => s._realStatus === 'active' || s._realStatus === 'expiring_soon');
+        const expiredTrials = trials.filter(s => s._realStatus === 'expired');
+        const paid = enrichedSubs.filter(s => s._type === 'paid');
+        const activePaid = paid.filter(s => s._realStatus === 'active' || s._realStatus === 'expiring_soon');
+        const totalRevenue = paid.reduce((sum, s) => sum + (s.amount || 0), 0);
+        const monthlyRevenue = activePaid.reduce((sum, s) => sum + (s.amount || 0), 0);
+        const churnRate = enrichedSubs.length > 0 ? ((expired.length / enrichedSubs.length) * 100).toFixed(1) : '0';
+        const trialConversion = trials.length > 0
+            ? ((trials.filter(t => paid.some(p => p.user_id === t.user_id)).length / trials.length) * 100).toFixed(0)
+            : '0';
+
+        return {
+            totalRevenue, monthlyRevenue,
+            totalSubs: enrichedSubs.length,
+            activeSubs: active.length + expiringSoon.length,
+            expiredSubs: expired.length,
+            expiringSoon: expiringSoon.length,
+            totalTrials: trials.length,
+            activeTrials: activeTrials.length,
+            expiredTrials: expiredTrials.length,
+            totalPaid: paid.length,
+            activePaid: activePaid.length,
+            churnRate, trialConversion,
+        };
+    }, [enrichedSubs]);
+
+    // ── Status filter counts ──
+    const filterCounts = useMemo(() => ({
+        all: enrichedSubs.length,
+        active: enrichedSubs.filter(s => s._realStatus === 'active').length,
+        expiring_soon: enrichedSubs.filter(s => s._realStatus === 'expiring_soon').length,
+        expired: enrichedSubs.filter(s => s._realStatus === 'expired').length,
+        cancelled: enrichedSubs.filter(s => s._realStatus === 'cancelled').length,
+    }), [enrichedSubs]);
+
+    const typeCounts = useMemo(() => ({
+        all: enrichedSubs.length,
+        paid: enrichedSubs.filter(s => s._type === 'paid').length,
+        trial: enrichedSubs.filter(s => s._type === 'trial').length,
+        free: enrichedSubs.filter(s => s._type === 'free').length,
+    }), [enrichedSubs]);
+
+    // ── Plan CRUD ──
     const openPlanCreate = () => {
         setEditingPlan(null);
         setPlanForm({
@@ -107,139 +213,321 @@ export default function SubscriptionsPage() {
         return `₹${(amount / 100).toLocaleString('en-IN')}`;
     };
 
-    const statusColor = (status) => {
-        const map = { active: 'badge-success', cancelled: 'badge-error', expired: 'badge-error', paused: 'badge-warning' };
-        return map[status] || '';
+    const statusConfig = {
+        active: { label: 'Active', color: '#22c55e', bg: 'rgba(34,197,94,0.12)', icon: '●' },
+        expiring_soon: { label: 'Expiring Soon', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: '◐' },
+        expired: { label: 'Expired', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: '○' },
+        cancelled: { label: 'Cancelled', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', icon: '✕' },
+        unknown: { label: 'Unknown', color: '#64748b', bg: 'rgba(100,116,139,0.12)', icon: '?' },
     };
 
-    const stats = {
-        totalRevenue: subs.reduce((s, sub) => s + (sub.amount || 0), 0),
-        activeSubs: subs.filter(s => s.status === 'active').length,
-        trials: subs.filter(s => s.is_trial).length,
-        expiringSoon: subs.filter(s => {
-            if (s.status !== 'active' || !s.expires_at) return false;
-            const days = Math.ceil((new Date(s.expires_at) - new Date()) / 86400000);
-            return days <= 7 && days > 0;
-        }).length,
+    const typeConfig = {
+        paid: { label: 'Paid', color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', icon: '💳' },
+        trial: { label: 'Trial', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', icon: '🧪' },
+        free: { label: 'Free', color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', icon: '🎁' },
     };
+
+    const StatusBadge = ({ status }) => {
+        const cfg = statusConfig[status] || statusConfig.unknown;
+        return (
+            <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.color}22`,
+                letterSpacing: '0.02em',
+            }}>
+                <span style={{ fontSize: 8 }}>{cfg.icon}</span> {cfg.label}
+            </span>
+        );
+    };
+
+    const TypeBadge = ({ type }) => {
+        const cfg = typeConfig[type] || typeConfig.free;
+        return (
+            <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                color: cfg.color, background: cfg.bg,
+            }}>
+                {cfg.icon} {cfg.label}
+            </span>
+        );
+    };
+
+    // ── Filter Chip ──
+    const FilterChip = ({ label, count, isActive, onClick, color }) => (
+        <button onClick={onClick} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+            border: isActive ? `2px solid ${color || 'var(--accent)'}` : '2px solid var(--border)',
+            background: isActive ? `${color || 'var(--accent)'}15` : 'transparent',
+            color: isActive ? (color || 'var(--accent)') : 'var(--text-muted)',
+            cursor: 'pointer', transition: 'all 0.2s ease',
+        }}>
+            {label}
+            {count > 0 && (
+                <span style={{
+                    background: isActive ? (color || 'var(--accent)') : 'var(--border)',
+                    color: isActive ? '#fff' : 'var(--text-muted)',
+                    padding: '1px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                    minWidth: 20, textAlign: 'center',
+                }}>{count}</span>
+            )}
+        </button>
+    );
+
+    // ── Stat Card ──
+    const StatCard = ({ icon, label, value, subtext, color, trend }) => (
+        <div style={{
+            background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16,
+            padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 4,
+            position: 'relative', overflow: 'hidden', minWidth: 0,
+        }}>
+            <div style={{
+                position: 'absolute', top: -20, right: -20, width: 80, height: 80,
+                borderRadius: '50%', background: `${color}08`,
+            }} />
+            <div style={{ fontSize: 22, lineHeight: 1 }}>{icon}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: color || 'var(--text)', letterSpacing: '-0.02em', marginTop: 4 }}>
+                {value}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</div>
+            {subtext && <div style={{ fontSize: 11, color: color || 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>{subtext}</div>}
+        </div>
+    );
 
     return (
         <div>
-            <div className="page-header">
+            {/* ── Header ── */}
+            <div className="page-header" style={{ marginBottom: 20 }}>
                 <div>
-                    <h1>Subscriptions & Revenue</h1>
-                    <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                        {subs.length} total subscriptions • {stats.activeSubs} active • {stats.trials} trials
+                    <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 28 }}>💎</span> Subscriptions & Revenue
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14 }}>
+                        {stats.totalSubs} total • {stats.activeSubs} active • {stats.expiredSubs} expired • {stats.totalTrials} trials
                     </p>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="stats-grid" style={{ marginBottom: 24 }}>
-                <div className="card" style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)' }}>{formatPrice(stats.totalRevenue)}</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Total Revenue</div>
-                </div>
-                <div className="card" style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: '#4ade80' }}>{stats.activeSubs}</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Active Subs</div>
-                </div>
-                <div className="card" style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa' }}>{stats.trials}</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Active Trials</div>
-                </div>
-                <div className="card" style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: stats.expiringSoon > 0 ? '#f97316' : 'var(--text-muted)' }}>{stats.expiringSoon}</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Expiring Soon</div>
-                </div>
+            {/* ── Top Stats Grid ── */}
+            <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+                gap: 14, marginBottom: 24,
+            }}>
+                <StatCard icon="💰" label="Total Revenue" value={formatPrice(stats.totalRevenue)} color="#22c55e"
+                    subtext={`${formatPrice(stats.monthlyRevenue)} active MRR`} />
+                <StatCard icon="🟢" label="Active Subs" value={stats.activeSubs} color="#22c55e"
+                    subtext={`${stats.activePaid} paid + ${stats.activeTrials} trial`} />
+                <StatCard icon="🔴" label="Expired" value={stats.expiredSubs} color="#ef4444"
+                    subtext={`${stats.churnRate}% churn rate`} />
+                <StatCard icon="⏳" label="Expiring Soon" value={stats.expiringSoon} color="#f59e0b"
+                    subtext={stats.expiringSoon > 0 ? 'Within next 7 days' : 'All clear!'} />
+                <StatCard icon="🧪" label="Trial Users" value={stats.totalTrials} color="#60a5fa"
+                    subtext={`${stats.trialConversion}% converted to paid`} />
+                <StatCard icon="💳" label="Paid Users" value={stats.totalPaid} color="#a78bfa"
+                    subtext={`${stats.activePaid} currently active`} />
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '1px solid var(--border)' }}>
+            {/* ── Tabs ── */}
+            <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid var(--border)' }}>
                 {[
-                    { key: 'subscriptions', label: `Subscriptions (${subs.length})` },
-                    { key: 'plans', label: `Plans (${plans.length})` },
-                    { key: 'audit', label: `Payment Audit (${auditLog.length})` },
+                    { key: 'subscriptions', label: `Subscriptions`, count: subs.length, icon: '📋' },
+                    { key: 'plans', label: `Plans`, count: plans.length, icon: '📦' },
+                    { key: 'audit', label: `Payment Audit`, count: auditLog.length, icon: '🔍' },
                 ].map(t => (
                     <button key={t.key} onClick={() => setTab(t.key)} style={{
-                        padding: '12px 24px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
-                        background: 'transparent', borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
+                        padding: '12px 20px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                        background: 'transparent',
+                        borderBottom: tab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
                         color: tab === t.key ? 'var(--accent)' : 'var(--text-muted)',
-                    }}>{t.label}</button>
+                        display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s',
+                    }}>
+                        <span style={{ fontSize: 15 }}>{t.icon}</span>
+                        {t.label}
+                        <span style={{
+                            background: tab === t.key ? 'var(--accent)' : 'var(--border)',
+                            color: tab === t.key ? '#fff' : 'var(--text-muted)',
+                            padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700,
+                        }}>{t.count}</span>
+                    </button>
                 ))}
             </div>
 
-            {loading ? <p style={{ color: 'var(--text-muted)' }}>Loading...</p> : (
+            {loading ? (
+                <div style={{ textAlign: 'center', padding: 60 }}>
+                    <div style={{ fontSize: 32, marginBottom: 12, animation: 'pulse 1.5s infinite' }}>⏳</div>
+                    <p style={{ color: 'var(--text-muted)' }}>Loading subscriptions...</p>
+                </div>
+            ) : (
                 <>
-                    {/* Subscriptions Tab */}
+                    {/* ════════════════════════════ Subscriptions Tab ════════════════════════════ */}
                     {tab === 'subscriptions' && (
-                        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                            <table className="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>User</th>
-                                        <th>Plan</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                        <th>Type</th>
-                                        <th>Started</th>
-                                        <th>Expires</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {subs.map(s => {
-                                        const daysLeft = s.expires_at ? Math.ceil((new Date(s.expires_at) - new Date()) / 86400000) : null;
-                                        return (
-                                            <tr key={s.id}>
+                        <div>
+                            {/* ── Search + Filters Bar ── */}
+                            <div style={{
+                                background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14,
+                                padding: '16px 20px', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 14,
+                            }}>
+                                {/* Search */}
+                                <div style={{ position: 'relative' }}>
+                                    <span style={{
+                                        position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                                        fontSize: 16, opacity: 0.5,
+                                    }}>🔍</span>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name, email, or plan..."
+                                        value={searchQuery}
+                                        onChange={e => setSearchQuery(e.target.value)}
+                                        style={{
+                                            width: '100%', padding: '10px 14px 10px 38px', borderRadius: 10,
+                                            border: '1px solid var(--border)', background: 'var(--bg)',
+                                            color: 'var(--text)', fontSize: 14, outline: 'none',
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Status Filters */}
+                                <div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        <FilterChip label="All" count={filterCounts.all} isActive={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
+                                        <FilterChip label="Active" count={filterCounts.active} isActive={statusFilter === 'active'} onClick={() => setStatusFilter('active')} color="#22c55e" />
+                                        <FilterChip label="Expiring Soon" count={filterCounts.expiring_soon} isActive={statusFilter === 'expiring_soon'} onClick={() => setStatusFilter('expiring_soon')} color="#f59e0b" />
+                                        <FilterChip label="Expired" count={filterCounts.expired} isActive={statusFilter === 'expired'} onClick={() => setStatusFilter('expired')} color="#ef4444" />
+                                        <FilterChip label="Cancelled" count={filterCounts.cancelled} isActive={statusFilter === 'cancelled'} onClick={() => setStatusFilter('cancelled')} color="#94a3b8" />
+                                    </div>
+                                </div>
+
+                                {/* Type Filters */}
+                                <div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</div>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                        <FilterChip label="All Types" count={typeCounts.all} isActive={typeFilter === 'all'} onClick={() => setTypeFilter('all')} />
+                                        <FilterChip label="💳 Paid" count={typeCounts.paid} isActive={typeFilter === 'paid'} onClick={() => setTypeFilter('paid')} color="#a78bfa" />
+                                        <FilterChip label="🧪 Trial" count={typeCounts.trial} isActive={typeFilter === 'trial'} onClick={() => setTypeFilter('trial')} color="#60a5fa" />
+                                        <FilterChip label="🎁 Free" count={typeCounts.free} isActive={typeFilter === 'free'} onClick={() => setTypeFilter('free')} color="#94a3b8" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── Results count ── */}
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 10, fontWeight: 500 }}>
+                                Showing {filteredSubs.length} of {enrichedSubs.length} subscriptions
+                            </div>
+
+                            {/* ── Subscriptions Table ── */}
+                            <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: 14 }}>
+                                <table className="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Plan</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Type</th>
+                                            <th>Started</th>
+                                            <th>Expires</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredSubs.map(s => (
+                                            <tr key={s.id} style={{
+                                                opacity: s._realStatus === 'expired' ? 0.65 : 1,
+                                                transition: 'opacity 0.2s',
+                                            }}>
                                                 <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                        {s._profile?.avatar_url && (
-                                                            <img src={s._profile.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                                                        )}
-                                                        <div>
-                                                            <div style={{ fontWeight: 600, fontSize: 13 }}>{s._profile?.full_name || 'Unknown'}</div>
-                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{s._profile?.email || ''}</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                        <div style={{
+                                                            width: 34, height: 34, borderRadius: '50%',
+                                                            background: s._profile?.avatar_url ? 'transparent'
+                                                                : `linear-gradient(135deg, ${s._type === 'paid' ? '#a78bfa' : '#60a5fa'}, ${s._type === 'paid' ? '#7c3aed' : '#3b82f6'})`,
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            color: '#fff', fontWeight: 700, fontSize: 14,
+                                                            overflow: 'hidden', flexShrink: 0,
+                                                        }}>
+                                                            {s._profile?.avatar_url ? (
+                                                                <img src={s._profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                            ) : (
+                                                                (s._profile?.full_name || 'U').charAt(0).toUpperCase()
+                                                            )}
+                                                        </div>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {s._profile?.full_name || 'Unknown User'}
+                                                            </div>
+                                                            <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                {s._profile?.email || '—'}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td style={{ fontWeight: 600 }}>{s.plan_name}</td>
-                                                <td style={{ fontFamily: 'monospace' }}>{formatPrice(s.amount)}</td>
-                                                <td><span className={`badge ${statusColor(s.status)}`}>{s.status}</span></td>
                                                 <td>
-                                                    {s.is_trial ? (
-                                                        <span className="badge" style={{ background: 'rgba(96,165,250,0.15)', color: '#60a5fa' }}>🧪 Trial</span>
-                                                    ) : (
-                                                        <span className="badge">Paid</span>
-                                                    )}
+                                                    <div style={{ fontWeight: 600, fontSize: 13 }}>{s.plan_name}</div>
                                                 </td>
-                                                <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.started_at ? new Date(s.started_at).toLocaleDateString('en-IN') : '—'}</td>
                                                 <td>
-                                                    <div style={{ fontSize: 12 }}>
-                                                        {s.expires_at ? new Date(s.expires_at).toLocaleDateString('en-IN') : '—'}
-                                                        {daysLeft !== null && daysLeft > 0 && (
-                                                            <div style={{ fontSize: 10, color: daysLeft <= 7 ? '#f97316' : 'var(--text-muted)' }}>
-                                                                {daysLeft}d left
+                                                    <span style={{
+                                                        fontFamily: 'monospace', fontWeight: 700,
+                                                        color: s.amount > 0 ? '#22c55e' : 'var(--text-muted)',
+                                                    }}>
+                                                        {formatPrice(s.amount)}
+                                                    </span>
+                                                </td>
+                                                <td><StatusBadge status={s._realStatus} /></td>
+                                                <td><TypeBadge type={s._type} /></td>
+                                                <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                                    {s.started_at ? new Date(s.started_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        <div style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                                                            {s.expires_at ? new Date(s.expires_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                                        </div>
+                                                        {s._daysLeft !== null && (
+                                                            <div style={{
+                                                                fontSize: 10, fontWeight: 700, marginTop: 2,
+                                                                color: s._daysLeft <= 0 ? '#ef4444'
+                                                                    : s._daysLeft <= 3 ? '#f97316'
+                                                                    : s._daysLeft <= 7 ? '#f59e0b'
+                                                                    : '#22c55e',
+                                                            }}>
+                                                                {s._daysLeft <= 0 ? `Expired ${Math.abs(s._daysLeft)}d ago` : `${s._daysLeft}d remaining`}
                                                             </div>
-                                                        )}
-                                                        {daysLeft !== null && daysLeft <= 0 && (
-                                                            <div style={{ fontSize: 10, color: '#ef4444' }}>Expired</div>
                                                         )}
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <button className="btn btn-sm" onClick={() => setSubDetail(s)}>View</button>
+                                                    <button className="btn btn-sm" onClick={() => setSubDetail(s)}
+                                                        style={{ fontWeight: 600, fontSize: 12 }}>
+                                                        View
+                                                    </button>
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                            {subs.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No subscriptions yet</p>}
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {filteredSubs.length === 0 && (
+                                    <div style={{ textAlign: 'center', padding: '50px 20px' }}>
+                                        <div style={{ fontSize: 40, marginBottom: 12 }}>🔎</div>
+                                        <p style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 500 }}>
+                                            No subscriptions match your filters
+                                        </p>
+                                        <button onClick={() => { setStatusFilter('all'); setTypeFilter('all'); setSearchQuery(''); }}
+                                            style={{
+                                                marginTop: 12, padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
+                                                background: 'transparent', color: 'var(--accent)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                                            }}>
+                                            Clear all filters
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    {/* Plans Tab */}
+                    {/* ════════════════════════════ Plans Tab ════════════════════════════ */}
                     {tab === 'plans' && (
                         <div>
                             <div style={{ marginBottom: 16, textAlign: 'right' }}>
@@ -247,7 +535,7 @@ export default function SubscriptionsPage() {
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                                 {plans.map(p => (
-                                    <div key={p.id} className="card" style={{ position: 'relative' }}>
+                                    <div key={p.id} className="card" style={{ position: 'relative', borderRadius: 16 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                                             <div>
                                                 <h3 style={{ fontSize: 18, fontWeight: 700 }}>{p.display_name}</h3>
@@ -290,9 +578,9 @@ export default function SubscriptionsPage() {
                         </div>
                     )}
 
-                    {/* Audit Tab */}
+                    {/* ════════════════════════════ Audit Tab ════════════════════════════ */}
                     {tab === 'audit' && (
-                        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                        <div className="card" style={{ padding: 0, overflow: 'hidden', borderRadius: 14 }}>
                             <table className="data-table">
                                 <thead>
                                     <tr>
@@ -330,49 +618,94 @@ export default function SubscriptionsPage() {
                 </>
             )}
 
-            {/* Subscription Detail Modal */}
+            {/* ════════════════════════════ Subscription Detail Modal ════════════════════════════ */}
             {subDetail && (
                 <div className="modal-overlay" onClick={() => setSubDetail(null)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <h2>Subscription Detail</h2>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>User</strong><br />{subDetail._profile?.full_name || 'Unknown'}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Email</strong><br />{subDetail._profile?.email || '—'}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Plan</strong><br />{subDetail.plan_name} ({subDetail.plan_id})</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Amount</strong><br />{formatPrice(subDetail.amount)} {subDetail.currency}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Status</strong><br /><span className={`badge ${statusColor(subDetail.status)}`}>{subDetail.status}</span></div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Type</strong><br />{subDetail.is_trial ? '🧪 Free Trial' : '💳 Paid'}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Started</strong><br />{subDetail.started_at ? new Date(subDetail.started_at).toLocaleString('en-IN') : '—'}</div>
-                            <div><strong style={{ color: 'var(--text-muted)' }}>Expires</strong><br />{subDetail.expires_at ? new Date(subDetail.expires_at).toLocaleString('en-IN') : '—'}</div>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600, borderRadius: 18 }}>
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h2 style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+                                <span style={{ fontSize: 24 }}>📄</span> Subscription Detail
+                            </h2>
+                            <button onClick={() => setSubDetail(null)} style={{
+                                background: 'var(--border)', border: 'none', borderRadius: 8,
+                                width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>✕</button>
+                        </div>
+
+                        {/* User Card */}
+                        <div style={{
+                            background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14,
+                            padding: 16, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14,
+                        }}>
+                            <div style={{
+                                width: 48, height: 48, borderRadius: '50%',
+                                background: subDetail._profile?.avatar_url ? 'transparent'
+                                    : 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#fff', fontWeight: 700, fontSize: 20,
+                                overflow: 'hidden', flexShrink: 0,
+                            }}>
+                                {subDetail._profile?.avatar_url ? (
+                                    <img src={subDetail._profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                    (subDetail._profile?.full_name || 'U').charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 700, fontSize: 16 }}>{subDetail._profile?.full_name || 'Unknown'}</div>
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{subDetail._profile?.email || '—'}</div>
+                            </div>
+                        </div>
+
+                        {/* Detail Grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                            <DetailItem label="Plan" value={subDetail.plan_name} />
+                            <DetailItem label="Amount" value={`${formatPrice(subDetail.amount)} ${subDetail.currency || ''}`} />
+                            <DetailItem label="Real Status">
+                                <StatusBadge status={computeRealStatus(subDetail)} />
+                            </DetailItem>
+                            <DetailItem label="Type">
+                                <TypeBadge type={subDetail.is_trial ? 'trial' : (subDetail.amount > 0 ? 'paid' : 'free')} />
+                            </DetailItem>
+                            <DetailItem label="Started" value={subDetail.started_at ? new Date(subDetail.started_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'} />
+                            <DetailItem label="Expires" value={subDetail.expires_at ? new Date(subDetail.expires_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'}
+                                subtext={(() => {
+                                    const d = getDaysLeft(subDetail);
+                                    if (d === null) return null;
+                                    return d <= 0 ? `Expired ${Math.abs(d)} days ago` : `${d} days remaining`;
+                                })()}
+                                subtextColor={(() => {
+                                    const d = getDaysLeft(subDetail);
+                                    return d <= 0 ? '#ef4444' : d <= 7 ? '#f59e0b' : '#22c55e';
+                                })()}
+                            />
                             {subDetail.is_trial && subDetail.trial_started_at && (
                                 <>
-                                    <div><strong style={{ color: 'var(--text-muted)' }}>Trial Started</strong><br />{new Date(subDetail.trial_started_at).toLocaleString('en-IN')}</div>
-                                    <div><strong style={{ color: 'var(--text-muted)' }}>Trial Expires</strong><br />{subDetail.trial_expires_at ? new Date(subDetail.trial_expires_at).toLocaleString('en-IN') : '—'}</div>
+                                    <DetailItem label="Trial Started" value={new Date(subDetail.trial_started_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} />
+                                    <DetailItem label="Trial Expires" value={subDetail.trial_expires_at ? new Date(subDetail.trial_expires_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—'} />
                                 </>
                             )}
                             {subDetail.razorpay_payment_id && (
                                 <div style={{ gridColumn: '1/-1' }}>
-                                    <strong style={{ color: 'var(--text-muted)' }}>Razorpay IDs</strong><br />
-                                    <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                                        Payment: {subDetail.razorpay_payment_id} | Order: {subDetail.razorpay_order_id || '—'}
-                                    </span>
+                                    <DetailItem label="Razorpay Payment ID" value={subDetail.razorpay_payment_id} mono />
+                                    {subDetail.razorpay_order_id && <DetailItem label="Razorpay Order ID" value={subDetail.razorpay_order_id} mono />}
                                 </div>
                             )}
                             {subDetail.cancelled_at && (
-                                <div><strong style={{ color: 'var(--text-muted)' }}>Cancelled At</strong><br />{new Date(subDetail.cancelled_at).toLocaleString('en-IN')}</div>
+                                <DetailItem label="Cancelled At" value={new Date(subDetail.cancelled_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} />
                             )}
-                        </div>
-                        <div style={{ marginTop: 20, textAlign: 'right' }}>
-                            <button className="btn" onClick={() => setSubDetail(null)}>Close</button>
+                            <DetailItem label="DB Status (raw)" value={subDetail.status} mono />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Plan Modal */}
+            {/* ════════════════════════════ Plan Modal ════════════════════════════ */}
             {showPlanModal && (
                 <div className="modal-overlay" onClick={() => setShowPlanModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ borderRadius: 18 }}>
                         <h2>{editingPlan ? 'Edit Plan' : 'Create Plan'}</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div className="form-group">
@@ -407,7 +740,7 @@ export default function SubscriptionsPage() {
                             </div>
                             <div className="form-group" style={{ gridColumn: '1/-1' }}>
                                 <label>Features (one per line)</label>
-                                <textarea className="form-input" rows={4} value={planForm.features} onChange={e => setPlanForm({ ...planForm, features: e.target.value })} placeholder="Ad-free experience\nUnlimited AI guide\nPremium sessions" />
+                                <textarea className="form-input" rows={4} value={planForm.features} onChange={e => setPlanForm({ ...planForm, features: e.target.value })} placeholder="Ad-free experience&#10;Unlimited AI guide&#10;Premium sessions" />
                             </div>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                                 <input type="checkbox" checked={planForm.is_active} onChange={e => setPlanForm({ ...planForm, is_active: e.target.checked })} />
@@ -421,6 +754,31 @@ export default function SubscriptionsPage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Helper Component ──
+function DetailItem({ label, value, children, mono, subtext, subtextColor }) {
+    return (
+        <div style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                {label}
+            </div>
+            {children || (
+                <div style={{
+                    fontSize: 14, fontWeight: 500,
+                    fontFamily: mono ? 'monospace' : 'inherit',
+                    wordBreak: 'break-all',
+                }}>
+                    {value}
+                </div>
+            )}
+            {subtext && (
+                <div style={{ fontSize: 11, color: subtextColor || 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>
+                    {subtext}
                 </div>
             )}
         </div>

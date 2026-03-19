@@ -105,7 +105,8 @@ class AdsService {
     
     // Load each ad type independently — don't let one failure block others
     try { await loadInterstitialAd(); } catch (e) { debugPrint('⚠️ Interstitial pre-load error: $e'); }
-    try { await loadRewardedAd(); } catch (e) { debugPrint('⚠️ Rewarded pre-load error: $e'); }
+    // NOTE: Rewarded ads are loaded on-demand per placement in guided_sessions_hub
+    // No need to pre-load legacy rewarded ad here
     try { await loadAppOpenAd(); } catch (e) { debugPrint('⚠️ App Open pre-load error: $e'); }
     
     debugPrint('✅ Full-screen ads pre-load initiated');
@@ -503,11 +504,17 @@ class AdsService {
     if (!_rewardedAds.containsKey(placement)) {
       debugPrint('⚠️ Rewarded [${placement.name}] not ready, loading...');
       await loadRewardedAdForPlacement(placement);
-      return false;
+      if (!_rewardedAds.containsKey(placement)) {
+        return false; // Still not loaded after retry
+      }
     }
 
     final ad = _rewardedAds[placement]!;
     bool rewarded = false;
+    
+    // Use Completer to await ad dismissal/failure before returning
+    // ad.show() returns immediately — we must wait for callbacks
+    final completer = Completer<bool>();
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -521,12 +528,14 @@ class AdsService {
         _rewardedAds.remove(placement);
         // Preload next ad for same placement
         loadRewardedAdForPlacement(placement);
+        if (!completer.isCompleted) completer.complete(rewarded);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('❌ Rewarded [${placement.name}] show failed: $error');
         ad.dispose();
         _rewardedAds.remove(placement);
         loadRewardedAdForPlacement(placement);
+        if (!completer.isCompleted) completer.complete(false);
       },
     );
 
@@ -538,7 +547,14 @@ class AdsService {
       },
     );
 
-    return rewarded;
+    // Wait for ad to be dismissed or fail (with safety timeout)
+    return await completer.future.timeout(
+      const Duration(minutes: 5),
+      onTimeout: () {
+        debugPrint('⏱️ Rewarded [${placement.name}]: Timed out waiting for ad dismissal');
+        return rewarded;
+      },
+    );
   }
   
   // Legacy methods for backward compatibility

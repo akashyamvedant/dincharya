@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -18,8 +19,8 @@ import '../core/security_config.dart';
 /// AI Guide Service — "Disha" (दिशा)
 /// World-class Ayurvedic wellness AI with full user context awareness.
 ///
-/// Connects to a4f.co (OpenAI-compatible API)
-/// Text: provider-5/gemini-3-pro | Images: provider-4/imagen-4
+/// Chat: Sarvam AI (sarvam-105b) — Free, unlimited
+/// Images: a4f.co (provider-4/imagen-4)
 class AiGuideService {
   // Singleton
   static final AiGuideService _instance = AiGuideService._internal();
@@ -35,19 +36,28 @@ class AiGuideService {
   final PaymentService _payment = PaymentService();
   final SubscriptionManager _subscriptionManager = SubscriptionManager();
 
-  // ── API Config ──
-  late final Dio _dio = Dio(BaseOptions(
-    baseUrl: 'https://api.a4f.co/v1',
+  // ── Chat API Config (Sarvam AI) ──
+  late final Dio _chatDio = Dio(BaseOptions(
+    baseUrl: 'https://api.sarvam.ai/v1',
     connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 90),
     headers: {'Content-Type': 'application/json'},
   ));
 
-  static const String _model = 'provider-5/gemini-3-pro';
-  static const String _fallbackModel = 'google/gemini-2.0-flash';
+  // ── Image API Config (a4f.co — Sarvam doesn't have image API) ──
+  late final Dio _imageDio = Dio(BaseOptions(
+    baseUrl: 'https://api.a4f.co/v1',
+    connectTimeout: const Duration(seconds: 30),
+    receiveTimeout: const Duration(seconds: 90),
+    headers: {'Content-Type': 'application/json'},
+  ));
+
+  static const String _model = 'sarvam-105b';
+  static const String _fallbackModel = 'sarvam-105b-32k';
   static const String _imageModel = 'provider-4/imagen-4';
 
-  String get _apiKey => dotenv.env['A4F_API_KEY'] ?? '';
+  String get _sarvamApiKey => dotenv.env['SARVAM_API_KEY'] ?? '';
+  String get _a4fApiKey => dotenv.env['A4F_API_KEY'] ?? '';
 
   // ── Chat History ──
   final List<Map<String, String>> _chatHistory = [];
@@ -67,17 +77,20 @@ class AiGuideService {
   /// Check if user message is requesting an image
   bool isImageRequest(String message) => _imageKeywords.hasMatch(message);
 
-  /// Generate an image using Imagen-4 via a4f.co
+  /// Generate an image using Imagen-4 via a4f.co (kept separate from Sarvam)
   Future<String?> generateImage(String prompt) async {
-    if (_apiKey.isEmpty) return null;
+    if (_a4fApiKey.isEmpty) {
+      debugPrint('⚠️ Image generation skipped: A4F API key not configured');
+      return null;
+    }
 
     try {
       debugPrint('🎨 Generating image with Imagen-4: $prompt');
 
-      final response = await _dio.post(
+      final response = await _imageDio.post(
         '/images/generations',
         options: Options(
-          headers: {'Authorization': 'Bearer $_apiKey'},
+          headers: {'Authorization': 'Bearer $_a4fApiKey'},
           receiveTimeout: const Duration(seconds: 90),
         ),
         data: {
@@ -127,9 +140,9 @@ Rules:
 - Max 80 words''';
 
     try {
-      final response = await _dio.post(
+      final response = await _chatDio.post(
         '/chat/completions',
-        options: Options(headers: {'Authorization': 'Bearer $_apiKey'}),
+        options: Options(headers: {'api-subscription-key': _sarvamApiKey}),
         data: {
           'model': _model,
           'messages': [
@@ -394,8 +407,8 @@ $userContext
 
   /// Send a message and get a streaming response
   Stream<String> sendMessage(String userMessage) async* {
-    if (_apiKey.isEmpty) {
-      yield 'AI Guide is not configured yet. Please add your A4F API key to the .env file.';
+    if (_sarvamApiKey.isEmpty) {
+      yield 'AI Guide is not configured yet. Please add your SARVAM_API_KEY to the .env file.';
       return;
     }
 
@@ -444,12 +457,12 @@ $userContext
     debugPrint('📤 AI Guide sending ${messages.length} messages (system prompt: ${systemPrompt.length} chars)');
 
     try {
-      // Use non-streaming API call (streaming returns empty from a4f.co)
-      final response = await _dio.post(
+      // Use Sarvam AI chat completions (non-streaming)
+      final response = await _chatDio.post(
         '/chat/completions',
         options: Options(
-          headers: {'Authorization': 'Bearer $_apiKey'},
-          receiveTimeout: const Duration(seconds: 60),
+          headers: {'api-subscription-key': _sarvamApiKey},
+          receiveTimeout: const Duration(seconds: 90),
         ),
         data: {
           'model': _model,
@@ -508,11 +521,11 @@ $userContext
             {'role': 'system', 'content': 'You are Disha, a friendly Ayurvedic wellness AI guide. Respond in the same language the user writes in.'},
             {'role': 'user', 'content': sanitizedMessage},
           ];
-          final retryResponse = await _dio.post(
+          final retryResponse = await _chatDio.post(
             '/chat/completions',
             options: Options(
-              headers: {'Authorization': 'Bearer $_apiKey'},
-              receiveTimeout: const Duration(seconds: 60),
+              headers: {'api-subscription-key': _sarvamApiKey},
+              receiveTimeout: const Duration(seconds: 90),
             ),
             data: {
               'model': _fallbackModel,
@@ -546,7 +559,7 @@ $userContext
           yield 'Server is currently busy. Please try again in a moment. 🙏';
         }
       } else if (e.response?.statusCode == 401) {
-        yield 'API key invalid. Please check your A4F API key in the .env file.';
+        yield 'API key invalid. Please check your SARVAM_API_KEY in the .env file.';
       } else if (e.response?.statusCode == 429) {
         yield 'Too many requests. Please wait a moment and try again. 🙏';
       } else {
@@ -560,7 +573,7 @@ $userContext
 
   /// Send a non-streaming message (for quick recommendations)
   Future<String> sendQuickMessage(String userMessage) async {
-    if (_apiKey.isEmpty) return 'AI Guide not configured.';
+    if (_sarvamApiKey.isEmpty) return 'AI Guide not configured.';
 
     final sanitizedMessage = SecurityConfig.sanitizeString(userMessage, maxLength: 1000);
     final systemPrompt = await _buildSystemPrompt();
@@ -570,9 +583,9 @@ $userContext
     ];
 
     try {
-      final response = await _dio.post(
+      final response = await _chatDio.post(
         '/chat/completions',
-        options: Options(headers: {'Authorization': 'Bearer $_apiKey'}),
+        options: Options(headers: {'api-subscription-key': _sarvamApiKey}),
         data: {
           'model': _model,
           'messages': messages,
@@ -709,6 +722,547 @@ $userContext
         '🧘 Bedtime meditation for peace',
         '🎨 Draw a peaceful moonlit scene',
       ];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SMART CARD DETECTION v2 — Professional multi-signal detection
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Keyword sets — extensive Hindi + English coverage for every feature
+  static const _kSession = [
+    // English
+    'session', 'yoga', 'meditation', 'pranayama', 'breathing exercise',
+    'practice', 'asana', 'kriya', 'nidra', 'mindfulness', 'relaxation',
+    'guided', 'begin', 'workout', 'stretch', 'warm up', 'cool down',
+    'beginner', 'intermediate', 'advanced', 'morning routine', 'evening routine',
+    'sleep', 'focus', 'calm', 'energy', 'stress relief', 'flexibility',
+    'strength', 'balance', 'surya namaskar', 'sun salutation', 'shavasana',
+    'kapalbhati', 'anulom vilom', 'bhastrika', 'ujjayi', 'nadi shodhana',
+    // Hindi
+    'karo', 'karna chahiye', 'shuru karo', 'abhyas', 'kaunsa session',
+    'konsa session', 'session suggest', 'session recommend', 'batao kya karu',
+    'subah ka', 'sham ka', 'raat ka', 'sone se pehle', 'uthne ke baad',
+    'dhyan', 'dhyana', 'saans', 'pranayam', 'yog', 'asan',
+    'thakan', 'aaram', 'neend', 'chain', 'shanti',
+    'kaun sa', 'best session', 'top session', 'popular session',
+    'try karo', 'karke dekho', 'dikhao', 'practice karo',
+    'seekho', 'sikhao', 'kaise kare', 'pose', 'mudra',
+  ];
+
+  static const _kTask = [
+    // English
+    'task', 'tasks', 'routine', 'schedule', 'to-do', 'todo', 'plan',
+    'checklist', 'pending', 'remaining', 'incomplete', 'complete',
+    'today', 'daily', 'morning', 'evening', 'night', 'what should i do',
+    'my day', 'agenda', 'calendar', 'reminder', 'alarm', 'next task',
+    'activity', 'activities', 'goal', 'goals', 'habit', 'habits',
+    // Hindi
+    'kya karna hai', 'karna hai', 'aaj ka plan', 'baki', 'bacha hua',
+    'aaj kya', 'kab karna', 'kitne task', 'subah kya', 'sham kya',
+    'raat ko kya', 'kya bacha', 'pending kya', 'list dikhao',
+    'dincharya', 'din bhar', 'pura din', 'routine dikhao',
+    'kaam', 'kaam kya hai', 'schedule dikhao', 'plan dikhao',
+  ];
+
+  static const _kProgress = [
+    // English
+    'progress', 'streak', 'stats', 'statistics', 'performance',
+    'report', 'weekly', 'monthly', 'score', 'discipline',
+    'achievement', 'how am i', 'how am i doing', 'improve',
+    'growth', 'journey', 'milestone', 'level', 'xp', 'points',
+    'track', 'tracking', 'consistency', 'days', 'minutes practiced',
+    'sessions completed', 'my data', 'analytics', 'overview',
+    // Hindi
+    'kaisa chal', 'kaise chal', 'kitna hua', 'kitna kiya',
+    'meri progress', 'mera score', 'streak kitna', 'kitne din',
+    'kya improve', 'mera data', 'record', 'hasil', 'safalta',
+    'kaise kar raha', 'performance kaisi', 'report dikhao',
+    'hafta', 'week', 'mahina', 'pichle din', 'aaj tak',
+  ];
+
+  static const _kProgram = [
+    // English
+    'program', 'course', 'challenge', 'plan', '21 day', '30 day',
+    '7 day', 'week plan', 'beginner program', 'weight loss', 'detox',
+    'transformation', 'journey', 'enrolled', 'enroll', 'join',
+    'curriculum', 'syllabus', 'learning path', 'structured',
+    // Hindi
+    'program dikhao', 'course karo', 'pura program', 'join karu',
+    'shuru karu program', 'kaunsa program', 'program suggest',
+    'challenge karo', 'naya program', 'program list',
+  ];
+
+  static const _kCommunity = [
+    // English
+    'community', 'chat', 'group', 'friends', 'people', 'social',
+    'share', 'discuss', 'connect', 'member', 'forum', 'post',
+    'message', 'conversation', 'talk to others', 'other users',
+    // Hindi
+    'community dikhao', 'logo se baat', 'group join', 'dost',
+    'sab log', 'community kholo', 'chat karo', 'baat karo',
+  ];
+
+  static const _kProfile = [
+    // English
+    'profile', 'dosha', 'prakriti', 'body type', 'vata', 'pitta',
+    'kapha', 'ayurveda', 'constitution', 'settings', 'account',
+    'my info', 'personal', 'edit profile', 'change name',
+    'notification', 'preferences', 'theme', 'dark mode', 'light mode',
+    // Hindi
+    'mera profile', 'profile dikhao', 'dosha kya hai', 'prakriti kya',
+    'settings kholo', 'profile edit', 'apna profile', 'account',
+    'naam badlo', 'photo badlo', 'setting change',
+  ];
+
+  static const _kJournal = [
+    // English
+    'journal', 'diary', 'write', 'note', 'mood', 'feeling',
+    'gratitude', 'reflect', 'thought', 'emotion', 'today i feel',
+    'log', 'entry', 'track mood', 'how i feel', 'express',
+    'grateful', 'thankful', 'happy', 'sad', 'anxious', 'stressed',
+    // Hindi
+    'journal likhna', 'diary likhna', 'likhna hai', 'mood track',
+    'mera mood', 'aaj kaisa lag raha', 'kya feel', 'likho',
+    'entry karo', 'journal kholo', 'diary kholo', 'likh ke rakho',
+    'bhavna', 'feeling', 'mann', 'dil', 'khush', 'udaas',
+  ];
+
+  static const _kHelp = [
+    // English  
+    'help', 'support', 'problem', 'issue', 'bug', 'error',
+    'not working', 'broken', 'fix', 'contact', 'ticket',
+    'complaint', 'feedback', 'report', 'assist', 'guide',
+    'how to use', 'tutorial', 'faq', 'question',
+    // Hindi
+    'madad', 'sahayta', 'dikkat', 'problem hai', 'kaam nahi',
+    'galat', 'thik karo', 'complaint', 'ticket raise', 'kaise use',
+    'samajh nahi', 'help chahiye', 'support chahiye',
+  ];
+
+  static const _kFavorites = [
+    // English
+    'favorite', 'favourites', 'saved', 'bookmarked', 'liked',
+    'my sessions', 'my list', 'saved sessions', 'watch later',
+    'go back to', 'repeat', 'do again', 'that session',
+    // Hindi
+    'pasandida', 'favorite dikhao', 'saved dikhao', 'meri list',
+    'jo save kiya', 'dubara karo', 'wahi session', 'fir se',
+    'pichla session', 'wapas karo',
+  ];
+
+  static const _kRoutineBuilder = [
+    // English
+    'routine', 'build routine', 'create routine', 'customize',
+    'my routine', 'change routine', 'edit routine', 'morning plan',
+    'evening plan', 'wake up', 'bedtime', 'schedule',
+    // Hindi
+    'routine banao', 'naya routine', 'routine badlo', 'routine set',
+    'apna routine', 'subah ka routine', 'sham ka routine',
+    'routine edit', 'kya karu subah', 'din kaise plan karu',
+  ];
+
+  /// ------- Main Detector -------
+  Future<List<Map<String, dynamic>>> detectAndFetchCards(String aiResponse, String userQuery) async {
+    final cards = <Map<String, dynamic>>[];
+    final queryLower = userQuery.toLowerCase();
+    final responseLower = aiResponse.toLowerCase();
+    final combined = '$queryLower $responseLower';
+
+    try {
+      // ── 1. Session Cards (highest priority for a wellness app) ──
+      if (_matchScore(combined, _kSession) >= 2) {
+        final sessions = await _fetchMatchingSessions(combined);
+        for (final s in sessions.take(3)) {
+          cards.add({'type': 'session', 'data': s});
+        }
+      }
+
+      // ── 2. Task Cards ──
+      if (_matchScore(combined, _kTask) >= 2) {
+        final tasks = await _fetchUserTasks();
+        if (tasks.isNotEmpty) {
+          cards.add({'type': 'task_list', 'data': tasks.take(6).toList()});
+        }
+      }
+
+      // ── 3. Progress Cards ──
+      if (_matchScore(combined, _kProgress) >= 2) {
+        final stats = await _fetchProgressStats();
+        if (stats != null) {
+          cards.add({'type': 'progress', 'data': stats});
+        }
+      }
+
+      // ── 4. Program Cards ──
+      if (_matchScore(combined, _kProgram) >= 2) {
+        final programs = await _fetchRecommendedPrograms();
+        for (final p in programs.take(2)) {
+          cards.add({'type': 'quick_action', 'label': '📚 ${p['title']}', 'route': '/program-detail', 'data': p});
+        }
+      }
+
+      // ── 5. Quick Actions — broad feature access ──
+      final quickActions = <Map<String, dynamic>>[];
+
+      // Journal / Diary / Mood
+      if (_matchScore(combined, _kJournal) >= 2) {
+        quickActions.add({'type': 'quick_action', 'label': '📔 Open Journal', 'route': '/enhanced-journal'});
+      }
+
+      // Community
+      if (_matchScore(combined, _kCommunity) >= 1) {
+        quickActions.add({'type': 'quick_action', 'label': '👥 Community Chat', 'route': '/community'});
+      }
+
+      // Profile / Dosha / Settings
+      if (_matchScore(combined, _kProfile) >= 2) {
+        quickActions.add({'type': 'quick_action', 'label': '👤 My Profile & Dosha', 'route': '/enhanced-profile'});
+      }
+
+      // Routine Builder
+      if (_matchScore(combined, _kRoutineBuilder) >= 2) {
+        quickActions.add({'type': 'quick_action', 'label': '🔧 Routine Builder', 'route': '/routine-builder'});
+      }
+
+      // Help / Support
+      if (_matchScore(combined, _kHelp) >= 2) {
+        quickActions.add({'type': 'quick_action', 'label': '🆘 Help Center', 'route': '/help-center'});
+      }
+
+      // Favorites / Saved
+      if (_matchScore(combined, _kFavorites) >= 1) {
+        quickActions.add({'type': 'quick_action', 'label': '❤️ My Favorites', 'route': '/guided-sessions-hub'});
+      }
+
+      // Meditation Timer (specific tool)
+      if (combined.contains('timer') || combined.contains('countdown') || combined.contains('ghanti') || combined.contains('alarm set')) {
+        quickActions.add({'type': 'quick_action', 'label': '⏱️ Meditation Timer', 'route': '/meditation-timer'});
+      }
+
+      // Breathing Exercise
+      if (combined.contains('breathing exercise') || combined.contains('saans ka abhyas') || combined.contains('breath work') || combined.contains('breathwork')) {
+        quickActions.add({'type': 'quick_action', 'label': '🌬️ Breathing Exercise', 'route': '/breathing-exercise'});
+      }
+
+      // Soundscape
+      if (combined.contains('soundscape') || combined.contains('nature sound') || combined.contains('ambient') || combined.contains('rain') || combined.contains('ocean') || combined.contains('music') || combined.contains('relax music') || combined.contains('aawaaz') || combined.contains('dhwani')) {
+        quickActions.add({'type': 'quick_action', 'label': '🎵 Soundscapes', 'route': '/soundscape'});
+      }
+
+      // Session History
+      if (combined.contains('history') || combined.contains('past session') || combined.contains('pichle session') || combined.contains('record') || combined.contains('pehle kya kiya')) {
+        quickActions.add({'type': 'quick_action', 'label': '📊 Session History', 'route': '/session-history'});
+      }
+
+      // Guided Sessions Hub / Browse all
+      if (combined.contains('browse') || combined.contains('explore') || combined.contains('all session') || combined.contains('sab session') || combined.contains('dekhna hai') || combined.contains('session hub')) {
+        quickActions.add({'type': 'quick_action', 'label': '🧭 Browse All Sessions', 'route': '/guided-sessions-hub'});
+      }
+
+      // Payment / Premium
+      if (combined.contains('premium') || combined.contains('subscribe') || combined.contains('plan') || combined.contains('payment') || combined.contains('upgrade') || combined.contains('pro') || combined.contains('paid') || combined.contains('price') || combined.contains('khareedna') || combined.contains('paisa')) {
+        quickActions.add({'type': 'quick_action', 'label': '💎 Premium Plans', 'route': '/payment-plans'});
+      }
+
+      // Add unique quick actions (max 4 to avoid clutter)
+      final seenRoutes = <String>{};
+      for (final qa in quickActions) {
+        final route = qa['route'] as String;
+        if (!seenRoutes.contains(route) && cards.length < 8) {
+          seenRoutes.add(route);
+          cards.add(qa);
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Card detection error: $e');
+    }
+
+    return cards;
+  }
+
+  /// Count how many keywords from a list match the text (weighted scoring)
+  int _matchScore(String text, List<String> keywords) {
+    int score = 0;
+    for (final k in keywords) {
+      if (text.contains(k)) {
+        // Multi-word keywords get higher weight (more specific = more signal)
+        score += k.contains(' ') ? 2 : 1;
+      }
+    }
+    return score;
+  }
+
+  // ─── Data Fetchers ───
+
+  /// Search sessions matching keywords from context
+  Future<List<Map<String, dynamic>>> _fetchMatchingSessions(String context) async {
+    try {
+      final client = await _supabase.client;
+      if (client == null) return [];
+
+      // Detect category from keywords
+      String? category;
+      if (context.contains('meditation') || context.contains('dhyan') || context.contains('dhyana') ||
+          context.contains('nidra') || context.contains('mindfulness') || context.contains('calm') ||
+          context.contains('relaxation') || context.contains('sleep') || context.contains('neend') ||
+          context.contains('shavasana') || context.contains('shanti')) {
+        category = 'meditation';
+      } else if (context.contains('pranayama') || context.contains('pranayam') || context.contains('breathing') ||
+          context.contains('saans') || context.contains('kapalbhati') || context.contains('anulom') ||
+          context.contains('bhastrika') || context.contains('ujjayi') || context.contains('nadi') ||
+          context.contains('breath')) {
+        category = 'pranayama';
+      } else if (context.contains('yoga') || context.contains('yog') || context.contains('asana') ||
+          context.contains('asan') || context.contains('stretch') || context.contains('surya namaskar') ||
+          context.contains('sun salutation') || context.contains('pose') || context.contains('flexibility') ||
+          context.contains('strength') || context.contains('balance') || context.contains('workout')) {
+        category = 'yoga';
+      }
+
+      // Detect difficulty preference
+      int? maxDifficulty;
+      if (context.contains('beginner') || context.contains('easy') || context.contains('simple') ||
+          context.contains('aasan') || context.contains('naya') || context.contains('start')) {
+        maxDifficulty = 2;
+      } else if (context.contains('advanced') || context.contains('hard') || context.contains('mushkil') ||
+          context.contains('expert') || context.contains('challenging')) {
+        maxDifficulty = null; // no limit, prefer hard
+      }
+
+      // Time-of-day fallback for category
+      if (category == null) {
+        final hour = DateTime.now().hour;
+        if (hour >= 4 && hour < 7) category = 'meditation';
+        else if (hour >= 7 && hour < 10) category = 'yoga';
+        else if (hour >= 10 && hour < 14) category = 'pranayama';
+        else if (hour >= 14 && hour < 17) category = 'yoga';
+        else if (hour >= 17 && hour < 20) category = 'pranayama';
+        else category = 'meditation'; // night = meditation
+      }
+
+      var query = client
+          .from('sessions')
+          .select()
+          .eq('category', category)
+          .eq('is_active', true);
+
+      if (maxDifficulty != null) {
+        query = query.lte('difficulty', maxDifficulty);
+      }
+
+      final sessions = await query
+          .order('view_count', ascending: false)
+          .limit(5);
+
+      return List<Map<String, dynamic>>.from(sessions);
+    } catch (e) {
+      debugPrint('⚠️ Session fetch error: $e');
+      return [];
+    }
+  }
+
+  /// Get user's current tasks (today only for relevance)
+  Future<List<Map<String, dynamic>>> _fetchUserTasks() async {
+    try {
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) return [];
+      final client = await _supabase.client;
+      if (client == null) return [];
+
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      final response = await client
+          .from('local_tasks')
+          .select()
+          .eq('user_id', userId)
+          .eq('date', todayStr)
+          .order('time');
+
+      // If no tasks for today, get all tasks (maybe no date filter)
+      if ((response as List).isEmpty) {
+        final fallback = await client
+            .from('local_tasks')
+            .select()
+            .eq('user_id', userId)
+            .order('time')
+            .limit(10);
+        return List<Map<String, dynamic>>.from(fallback);
+      }
+
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      debugPrint('⚠️ Task fetch error: $e');
+      return [];
+    }
+  }
+
+  /// Get user's weekly progress stats
+  Future<Map<String, dynamic>?> _fetchProgressStats() async {
+    try {
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) return null;
+      final client = await _supabase.client;
+      if (client == null) return null;
+
+      final profile = await client
+          .from('user_profiles')
+          .select('current_streak, xp_points, discipline_score')
+          .eq('id', userId)
+          .maybeSingle();
+
+      final now = DateTime.now();
+      final monday = now.subtract(Duration(days: now.weekday - 1));
+      final mondayStr = '${monday.year}-${monday.month.toString().padLeft(2, '0')}-${monday.day.toString().padLeft(2, '0')}';
+
+      final progress = await client
+          .from('user_progress')
+          .select('total_minutes')
+          .eq('user_id', userId)
+          .gte('date', mondayStr);
+
+      int weeklyMinutes = 0;
+      for (final p in progress) {
+        weeklyMinutes += (p['total_minutes'] as int?) ?? 0;
+      }
+
+      final sessionCount = await client
+          .from('practice_sessions')
+          .select('id')
+          .eq('user_id', userId)
+          .gte('completed_at', monday.toIso8601String());
+
+      return {
+        'streak': profile?['current_streak'] ?? 0,
+        'xp': profile?['xp_points'] ?? 0,
+        'discipline_score': profile?['discipline_score'] ?? 0,
+        'weekly_minutes': weeklyMinutes,
+        'weekly_sessions': sessionCount.length,
+      };
+    } catch (e) {
+      debugPrint('⚠️ Progress fetch error: $e');
+      return null;
+    }
+  }
+
+  /// Get recommended programs
+  Future<List<Map<String, dynamic>>> _fetchRecommendedPrograms() async {
+    try {
+      final client = await _supabase.client;
+      if (client == null) return [];
+
+      final programs = await client
+          .from('programs')
+          .select('id, title, description, duration_days, category, image_url')
+          .eq('is_active', true)
+          .order('created_at', ascending: false)
+          .limit(3);
+
+      return List<Map<String, dynamic>>.from(programs);
+    } catch (e) {
+      debugPrint('⚠️ Program fetch error: $e');
+      return [];
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // VOICE — Speech-to-Text (Sarvam AI STT)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Transcribe audio file to text using Sarvam AI STT API
+  Future<String?> transcribeAudio(String filePath) async {
+    if (_sarvamApiKey.isEmpty) {
+      debugPrint('⚠️ STT skipped: Sarvam API key not configured');
+      return null;
+    }
+
+    try {
+      debugPrint('🎤 Transcribing audio: $filePath');
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        debugPrint('⚠️ Audio file not found: $filePath');
+        return null;
+      }
+
+      final bytes = await file.readAsBytes();
+      final base64Audio = base64Encode(bytes);
+
+      final response = await _chatDio.post(
+        '/speech-to-text',
+        options: Options(
+          headers: {'api-subscription-key': _sarvamApiKey},
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+        data: {
+          'input': base64Audio,
+          'language_code': 'hi-IN',  // Hindi (auto-detects English too)
+          'model': 'saaras:v2',
+          'with_timestamps': false,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final transcript = response.data['transcript'] as String?;
+        debugPrint('✅ Transcription: $transcript');
+        return transcript;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ STT Error: $e');
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // VOICE — Text-to-Speech (Sarvam AI TTS)
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Convert text to speech using Sarvam AI TTS API (Bulbul)
+  /// Returns the path to the saved audio file, or null on failure
+  Future<String?> speakText(String text, {String targetLang = 'hi-IN'}) async {
+    if (_sarvamApiKey.isEmpty) {
+      debugPrint('⚠️ TTS skipped: Sarvam API key not configured');
+      return null;
+    }
+
+    try {
+      // Truncate to first 500 chars for TTS (avoid long API calls)
+      final truncated = text.length > 500 ? text.substring(0, 500) : text;
+
+      final response = await _chatDio.post(
+        '/text-to-speech',
+        options: Options(
+          headers: {'api-subscription-key': _sarvamApiKey},
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+        data: {
+          'inputs': [truncated],
+          'target_language_code': targetLang,
+          'speaker': 'meera',  // Natural Hindi female voice
+          'model': 'bulbul:v2',
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final audiosArr = response.data['audios'] as List?;
+        if (audiosArr != null && audiosArr.isNotEmpty) {
+          final base64Audio = audiosArr[0] as String;
+          final audioBytes = base64Decode(base64Audio);
+
+          // Save to temp file
+          final dir = await Directory.systemTemp.createTemp('disha_tts_');
+          final audioFile = File('${dir.path}/speech.wav');
+          await audioFile.writeAsBytes(audioBytes);
+
+          debugPrint('🔊 TTS audio saved: ${audioFile.path}');
+          return audioFile.path;
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ TTS Error: $e');
+      return null;
     }
   }
 }

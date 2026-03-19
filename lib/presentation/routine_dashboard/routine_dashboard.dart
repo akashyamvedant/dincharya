@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart'; // For generating unique IDs
 
@@ -13,6 +14,7 @@ import '../../services/task_lifecycle_service.dart';
 import '../../services/ads_service.dart';
 import '../../services/alarm_service.dart';
 import '../../services/notification_deep_link_service.dart';
+import '../../services/app_update_service.dart';
 import '../../services/app_tour_service.dart';
 import './widgets/add_task_bottom_sheet.dart';
 import './widgets/edit_task_bottom_sheet.dart';
@@ -80,6 +82,11 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   final GlobalKey _bottomNavKey = GlobalKey();
   final AppTourService _appTourService = AppTourService();
 
+  // In-App Update
+  final AppUpdateService _appUpdateService = AppUpdateService();
+  bool _updateAvailable = false;
+  bool _flexibleUpdateDownloaded = false;
+
   final List<String> _tabLabels = ['Routine', 'Guided', 'Journal', 'Me'];
 
 
@@ -90,6 +97,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     _initializeTracking();
     _initializeLifecycle();
     _initializeDeepLinkListener();
+    _checkForAppUpdate();
     
     // Layer 4: Listen for app-level day change notifications
     dayChangeNotifier.addListener(_onGlobalDayChange);
@@ -120,6 +128,37 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   /// Initialize listener for notification deep link highlighting
   void _initializeDeepLinkListener() {
     _deepLinkService.highlightedTaskId.addListener(_onHighlightedTaskChanged);
+  }
+
+  /// Check Play Store for app updates
+  Future<void> _checkForAppUpdate() async {
+    final info = await _appUpdateService.checkForUpdate();
+    if (info == null || !_appUpdateService.isUpdateAvailable) return;
+    if (!mounted) return;
+
+    // Critical update (stale > 3 days) → mandatory immediate update
+    if (_appUpdateService.isCriticalUpdate && _appUpdateService.canDoImmediateUpdate) {
+      await _appUpdateService.startImmediateUpdate();
+      return;
+    }
+
+    // Normal update → start flexible download in background
+    if (_appUpdateService.canDoFlexibleUpdate) {
+      final started = await _appUpdateService.startFlexibleUpdate();
+      if (started && mounted) {
+        setState(() {
+          _updateAvailable = true;
+          _flexibleUpdateDownloaded = true;
+        });
+      }
+    } else {
+      // Flexible not allowed, just show banner
+      if (mounted) {
+        setState(() {
+          _updateAvailable = true;
+        });
+      }
+    }
   }
 
   /// Called when highlighted task ID changes (from notification tap)
@@ -234,7 +273,44 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           final user = await _supabaseService.getAuthenticatedUser();
           final userId = user?.id;
           if (userId != null) {
-          final tasks = await _supabaseService.getLocalTasks(userId);
+          var tasks = await _supabaseService.getLocalTasks(userId);
+          
+          // FAILSAFE: Check if any tasks are still completed from a previous day
+          // This catches edge cases where the lifecycle service reset failed
+          final today = DateTime.now();
+          final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+          bool needsForceReset = false;
+          
+          for (final task in tasks) {
+            final isCompleted = task['is_completed'] == true || task['is_completed'] == 1;
+            final statusUpdatedAt = task['status_updated_at']?.toString() ?? '';
+            
+            if (isCompleted && statusUpdatedAt.isNotEmpty) {
+              // Extract just the date part from status_updated_at
+              final updateDate = statusUpdatedAt.length >= 10 ? statusUpdatedAt.substring(0, 10) : '';
+              if (updateDate.isNotEmpty && updateDate != todayStr && updateDate.compareTo(todayStr) < 0) {
+                debugPrint('⚠️ [FAILSAFE] Task "${task['title']}" still completed from $updateDate (today=$todayStr) — forcing reset!');
+                needsForceReset = true;
+              }
+            }
+          }
+          
+          if (needsForceReset) {
+            debugPrint('🔄 [FAILSAFE] Forcing task reset via lifecycle service...');
+            // Force-clear the last_active_date to trigger a fresh day change
+            final prefs = await SharedPreferences.getInstance();
+            final yesterday = DateTime.now().subtract(const Duration(days: 1));
+            final yesterdayStr = '${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}';
+            await prefs.setString('last_active_date', yesterdayStr);
+            
+            // Re-run day change processing
+            final resetDone = await _lifecycleService.checkAndProcessDayChange();
+            debugPrint('🔄 [FAILSAFE] Force reset result: $resetDone');
+            
+            // Reload tasks after force reset
+            tasks = await _supabaseService.getLocalTasks(userId);
+          }
+          
           // Sort tasks by time (AM to PM)
           tasks.sort((a, b) {
             final timeA = _parseTimeToMinutes(a['time'] ?? '12:00 AM');
@@ -588,6 +664,100 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     }
   }
 
+  /// Premium update banner shown at top of dashboard
+  Widget _buildUpdateBanner() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFDAA520), Color(0xFFB8860B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFDAA520).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.system_update_rounded, color: Colors.white, size: 24),
+          ),
+          SizedBox(width: 3.w),
+          // Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Update Available! 🎉',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _flexibleUpdateDownloaded
+                      ? 'Download complete — tap to install'
+                      : 'A newer version is ready for you',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 11.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Dismiss
+          GestureDetector(
+            onTap: () => setState(() => _updateAvailable = false),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close, color: Colors.white.withOpacity(0.6), size: 18),
+            ),
+          ),
+          SizedBox(width: 1.w),
+          // Action button
+          ElevatedButton(
+            onPressed: () async {
+              if (_flexibleUpdateDownloaded) {
+                await _appUpdateService.completeFlexibleUpdate();
+              } else if (_appUpdateService.canDoImmediateUpdate) {
+                await _appUpdateService.startImmediateUpdate();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFFB8860B),
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 0,
+            ),
+            child: Text(
+              _flexibleUpdateDownloaded ? 'Install' : 'Update',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -678,6 +848,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
                     : ListView(
                         padding: EdgeInsets.symmetric(vertical: 2.h),
                         children: [
+                          // ── Update Banner ──
+                          if (_updateAvailable) _buildUpdateBanner(),
+
                           // Daily Progress Summary
                           Container(
                             key: _progressSummaryKey,

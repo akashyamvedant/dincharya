@@ -272,6 +272,9 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     // AdMob Policy: Rewarded ads must be OPT-IN with clear choice
     // Show dialog to ALL non-premium users (not just when ad is ready)
     if (adsService.shouldShowAds) {
+      // Determine placement from session category + position
+      final placement = _getRewardedPlacement(session);
+      
       // Show opt-in dialog (AdMob policy requires clear user consent)
       final shouldWatch = await showDialog<bool>(
         context: context,
@@ -308,7 +311,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       
       if (shouldWatch == true) {
         // Show loading if ad not ready
-        if (!adsService.isRewardedAdReady) {
+        if (!adsService.isRewardedAdReadyFor(placement)) {
           // Show loading indicator
           showDialog(
             context: context,
@@ -332,8 +335,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
             ),
           );
           
-          // Load ad on demand
-          await adsService.loadRewardedAd();
+          // Load ad on demand using PLACEMENT (not legacy)
+          await adsService.loadRewardedAdForPlacement(placement);
           
           // Close loading dialog
           if (mounted) Navigator.pop(context);
@@ -342,25 +345,85 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           await Future.delayed(Duration(milliseconds: 500));
         }
         
-        // Now show the ad
-        final wasRewarded = await adsService.showRewardedAd(
-          onRewarded: () {
-            // Navigate after reward
-            if (mounted) {
-              _navigateAndCheckIn(session);
-            }
-          },
-        );
-        
-        // If ad failed to show, still allow access (good UX)
-        if (!wasRewarded && mounted) {
-          _navigateAndCheckIn(session);
+        // Check if ad actually loaded before showing
+        if (adsService.isRewardedAdReadyFor(placement)) {
+          final wasRewarded = await adsService.showRewardedAdForPlacement(
+            placement,
+            onRewarded: () {
+              // Navigate after reward
+              if (mounted) {
+                _navigateAndCheckIn(session);
+              }
+            },
+          );
+          
+          // Only grant access if ACTUALLY rewarded
+          // Don't auto-open on failure — that defeats the purpose
+          if (!wasRewarded && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Ad could not be shown. Please try again.'),
+                backgroundColor: Colors.orange[800],
+                action: SnackBarAction(
+                  label: 'Retry',
+                  textColor: Colors.white,
+                  onPressed: () => _onSessionTap(session),
+                ),
+              ),
+            );
+          }
+        } else {
+          // Ad failed to load — show error, don't auto-open
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Ad not available right now. Please try again later.'),
+                backgroundColor: Colors.orange[800],
+                action: SnackBarAction(
+                  label: 'Retry',
+                  textColor: Colors.white,
+                  onPressed: () => _onSessionTap(session),
+                ),
+              ),
+            );
+          }
         }
       }
       // If user clicked "Skip", do nothing (they stay on current screen)
     } else {
       // Premium user - direct access
       _navigateAndCheckIn(session);
+    }
+  }
+
+  /// Map session to the correct AdMob rewarded placement ID
+  /// Uses category + position in the list to pick one of 9 unique ad unit IDs
+  RewardedPlacement _getRewardedPlacement(Map<String, dynamic> session) {
+    final category = session['category']?.toString().toLowerCase() ?? '';
+    
+    // Find session's index within its category
+    List<Map<String, dynamic>> categoryList;
+    if (category == 'meditation') {
+      categoryList = _meditationSessions;
+    } else if (category == 'pranayama') {
+      categoryList = _pranayamaSessions;
+    } else {
+      categoryList = _yogaSessions;
+    }
+    
+    final sessionId = session['id']?.toString() ?? '';
+    int index = categoryList.indexWhere((s) => s['id']?.toString() == sessionId);
+    if (index < 0) index = 0;
+    
+    // Cycle through 3 placements per category (mod 3)
+    final slot = index % 3;
+    
+    if (category == 'meditation') {
+      return [RewardedPlacement.meditationSession1, RewardedPlacement.meditationSession2, RewardedPlacement.meditationSession3][slot];
+    } else if (category == 'pranayama') {
+      return [RewardedPlacement.breatheSession1, RewardedPlacement.breatheSession2, RewardedPlacement.breatheSession3][slot];
+    } else {
+      return [RewardedPlacement.yogaSession1, RewardedPlacement.yogaSession2, RewardedPlacement.yogaSession3][slot];
     }
   }
 

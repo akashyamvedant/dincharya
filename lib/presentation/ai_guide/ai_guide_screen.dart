@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../services/ai_guide_service.dart';
 
@@ -32,6 +37,11 @@ class _AiGuideScreenState extends State<AiGuideScreen>
   bool _isGeneratingImage = false;
   bool _showSuggestions = true;
   StreamSubscription<String>? _streamSub;
+
+  // ── Voice Recording ──
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecording = false;
+  String? _lastUserMessage; // For regenerate
 
   // ── Premium Color Palette ──
   static const Color _saffronGold = Color(0xFFDAA520);
@@ -108,6 +118,33 @@ class _AiGuideScreenState extends State<AiGuideScreen>
 
         });
         _scrollToBottom();
+
+        // Re-detect cards for the last AI message (so cards appear on reload)
+        if (_messages.length >= 2) {
+          // Find last AI message and its preceding user message
+          String lastUserQuery = '';
+          int lastAiIndex = -1;
+          for (int i = _messages.length - 1; i >= 0; i--) {
+            if (!_messages[i].isUser && _messages[i].text.isNotEmpty && lastAiIndex == -1) {
+              lastAiIndex = i;
+            }
+            if (_messages[i].isUser && lastAiIndex != -1) {
+              lastUserQuery = _messages[i].text;
+              break;
+            }
+          }
+          if (lastAiIndex != -1) {
+            final cards = await _ai.detectAndFetchCards(
+              _messages[lastAiIndex].text,
+              lastUserQuery,
+            );
+            if (cards.isNotEmpty && mounted) {
+              setState(() {
+                _messages[lastAiIndex].attachedCards = cards;
+              });
+            }
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -134,7 +171,202 @@ class _AiGuideScreenState extends State<AiGuideScreen>
     _dotAnimController.dispose();
     _glowAnimController.dispose();
     _bgAnimController.dispose();
+    _audioRecorder.dispose();
     super.dispose();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MESSAGE ACTIONS
+  // ═══════════════════════════════════════════════════════════════
+
+  void _copyMessage(String text) {
+    Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.lightImpact();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Message copied! 📋'),
+          backgroundColor: const Color(0xFF4A7C59),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  void _shareMessage(String text) {
+    HapticFeedback.lightImpact();
+    SharePlus.instance.share(ShareParams(text: '🪷 Disha AI says:\n\n$text\n\n— from Dincharya App'));
+  }
+
+  void _regenerateLastMessage() {
+    if (_isTyping || _lastUserMessage == null) return;
+    // Remove last AI message
+    if (_messages.isNotEmpty && !_messages.last.isUser) {
+      setState(() => _messages.removeLast());
+    }
+    _sendMessage(_lastUserMessage!);
+  }
+
+  void _sendFeedback(String messageText, bool isPositive) {
+    HapticFeedback.lightImpact();
+    // Save feedback to Supabase (fire-and-forget)
+    _ai.saveMessage(
+      role: 'feedback',
+      content: '${isPositive ? "👍" : "👎"} | $messageText',
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isPositive ? 'Thanks for the feedback! 🙏' : 'We\'ll improve! 🙏'),
+          backgroundColor: isPositive ? const Color(0xFF4A7C59) : const Color(0xFF8B4513),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CARD NAVIGATION
+  // ═══════════════════════════════════════════════════════════════
+
+  void _navigateFromCard(Map<String, dynamic> card) {
+    HapticFeedback.mediumImpact();
+    final type = card['type'] as String? ?? '';
+
+    switch (type) {
+      case 'session':
+        final sessionData = card['data'] as Map<String, dynamic>?;
+        if (sessionData != null) {
+          Navigator.pushNamed(
+            context,
+            '/media-player',
+            arguments: sessionData,
+          );
+        }
+        break;
+      case 'task_list':
+        Navigator.pushNamed(context, '/local-tasks');
+        break;
+      case 'progress':
+        Navigator.pushNamed(context, '/session-history');
+        break;
+      case 'quick_action':
+        final route = card['route'] as String? ?? '';
+        if (route.isNotEmpty) {
+          Navigator.pushNamed(context, route);
+        }
+        break;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // VOICE RECORDING
+  // ═══════════════════════════════════════════════════════════════
+
+  Future<void> _toggleVoiceRecording() async {
+    if (_isRecording) {
+      await _stopAndSendVoice();
+    } else {
+      await _startRecording();
+    }
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      // Check permission
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Microphone permission required for voice input 🎤'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+        return;
+      }
+
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/disha_voice_${DateTime.now().millisecondsSinceEpoch}.wav';
+
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+
+      HapticFeedback.mediumImpact();
+      if (mounted) setState(() => _isRecording = true);
+    } catch (e) {
+      debugPrint('❌ Recording error: $e');
+    }
+  }
+
+  Future<void> _stopAndSendVoice() async {
+    try {
+      final path = await _audioRecorder.stop();
+      HapticFeedback.mediumImpact();
+      if (mounted) setState(() => _isRecording = false);
+
+      if (path == null) return;
+
+      // Show transcribing indicator
+      if (mounted) {
+        setState(() {
+          _isTyping = true;
+          _messages.add(_ChatMessage(
+            text: '🎤 Transcribing your voice...',
+            isUser: true,
+            timestamp: DateTime.now(),
+          ));
+        });
+        _scrollToBottom();
+      }
+
+      // Send to Sarvam STT API
+      final transcription = await _ai.transcribeAudio(path);
+
+      if (transcription != null && transcription.isNotEmpty && mounted) {
+        // Replace the transcribing message with actual text
+        setState(() {
+          _messages.removeLast();
+          _isTyping = false;
+        });
+        // Clean up the temp file
+        try { File(path).deleteSync(); } catch (_) {}
+        // Send as a normal message
+        _sendMessage(transcription);
+      } else {
+        if (mounted) {
+          setState(() {
+            _messages.removeLast();
+            _isTyping = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Could not transcribe audio. Please try again 🎤'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+        try { File(path).deleteSync(); } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('❌ Voice send error: $e');
+      if (mounted) setState(() { _isRecording = false; _isTyping = false; });
+    }
   }
 
   void _scrollToBottom() {
@@ -153,6 +385,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
     if (text.trim().isEmpty || _isTyping) return;
 
     final userMsg = text.trim();
+    _lastUserMessage = userMsg; // For regenerate
     _textController.clear();
     HapticFeedback.lightImpact();
 
@@ -225,6 +458,15 @@ class _AiGuideScreenState extends State<AiGuideScreen>
           // Save AI text-only response to Supabase
           if (aiText.isNotEmpty) {
             _ai.saveMessage(role: 'assistant', content: aiText);
+          }
+        }
+        // ── Smart Card Injection ──
+        if (aiText.isNotEmpty && mounted) {
+          final cards = await _ai.detectAndFetchCards(aiText, userMsg);
+          if (cards.isNotEmpty && mounted) {
+            setState(() {
+              _messages[aiIndex].attachedCards = cards;
+            });
           }
         }
         _scrollToBottom();
@@ -514,6 +756,11 @@ class _AiGuideScreenState extends State<AiGuideScreen>
           isLast: index == _messages.length - 1,
           isGeneratingImage: _isGeneratingImage,
           onImageTap: _showFullScreenImage,
+          onCopy: _copyMessage,
+          onShare: _shareMessage,
+          onRegenerate: (!msg.isUser && index == _messages.length - 1 && !_isTyping) ? _regenerateLastMessage : null,
+          onFeedback: !msg.isUser ? _sendFeedback : null,
+          onCardTap: _navigateFromCard,
         );
       },
     );
@@ -685,7 +932,7 @@ class _AiGuideScreenState extends State<AiGuideScreen>
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // PREMIUM INPUT BAR — Frosted Glass
+  // PREMIUM INPUT BAR — Frosted Glass + Voice
   // ═══════════════════════════════════════════════════════════════
 
   Widget _buildPremiumInputBar() {
@@ -768,7 +1015,31 @@ class _AiGuideScreenState extends State<AiGuideScreen>
                   ),
                 ),
               ),
-              SizedBox(width: 2.5.w),
+              SizedBox(width: 1.5.w),
+              // Mic button (voice input)
+              GestureDetector(
+                onTap: _toggleVoiceRecording,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _isRecording
+                        ? Colors.red.withOpacity(0.15)
+                        : Theme.of(context).colorScheme.onSurface.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(21),
+                    border: _isRecording
+                        ? Border.all(color: Colors.red.withOpacity(0.4), width: 1.5)
+                        : null,
+                  ),
+                  child: Icon(
+                    _isRecording ? Icons.stop_rounded : Icons.mic_rounded,
+                    size: 20,
+                    color: _isRecording ? Colors.red : _saffronGold.withOpacity(0.6),
+                  ),
+                ),
+              ),
+              SizedBox(width: 1.5.w),
               // Golden send button
               GestureDetector(
                 onTap: () {
@@ -890,12 +1161,22 @@ class _PremiumMessageBubble extends StatelessWidget {
   final bool isLast;
   final bool isGeneratingImage;
   final void Function(String) onImageTap;
+  final void Function(String) onCopy;
+  final void Function(String) onShare;
+  final VoidCallback? onRegenerate;
+  final void Function(String, bool)? onFeedback;
+  final void Function(Map<String, dynamic> card)? onCardTap;
 
   const _PremiumMessageBubble({
     required this.message,
     required this.isLast,
     required this.isGeneratingImage,
     required this.onImageTap,
+    required this.onCopy,
+    required this.onShare,
+    this.onRegenerate,
+    this.onFeedback,
+    this.onCardTap,
   });
 
   // Colors (must match parent)
@@ -943,6 +1224,12 @@ class _PremiumMessageBubble extends StatelessWidget {
               ),
             // Message bubble
             message.isUser ? _buildUserBubble() : _buildAiBubble(context),
+            // Message actions (only for AI messages with content)
+            if (!message.isUser && message.text.isNotEmpty)
+              _buildMessageActions(context),
+            // Attached cards (session, task, progress, quick_action)
+            if (!message.isUser && message.attachedCards.isNotEmpty)
+              _buildAttachedCards(context),
             // Timestamp
             Padding(
               padding: EdgeInsets.only(top: 0.3.h, left: 1.5.w, right: 1.5.w),
@@ -1183,11 +1470,345 @@ class _PremiumMessageBubble extends StatelessWidget {
     );
   }
 
+  // ── Message Actions Row ──
+  Widget _buildMessageActions(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: 0.4.h, left: 1.w),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Copy
+          _actionButton(
+            context,
+            icon: Icons.copy_rounded,
+            tooltip: 'Copy',
+            onTap: () => onCopy(message.text),
+          ),
+          SizedBox(width: 1.w),
+          // Share
+          _actionButton(
+            context,
+            icon: Icons.share_rounded,
+            tooltip: 'Share',
+            onTap: () => onShare(message.text),
+          ),
+          // Regenerate (only for last AI message)
+          if (isLast && onRegenerate != null) ...[
+            SizedBox(width: 1.w),
+            _actionButton(
+              context,
+              icon: Icons.refresh_rounded,
+              tooltip: 'Regenerate',
+              onTap: onRegenerate!,
+            ),
+          ],
+          SizedBox(width: 2.w),
+          // Feedback
+          if (onFeedback != null) ...[
+            _actionButton(
+              context,
+              icon: Icons.thumb_up_outlined,
+              tooltip: 'Helpful',
+              onTap: () => onFeedback!(message.text, true),
+            ),
+            SizedBox(width: 0.5.w),
+            _actionButton(
+              context,
+              icon: Icons.thumb_down_outlined,
+              tooltip: 'Not helpful',
+              onTap: () => onFeedback!(message.text, false),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton(BuildContext context, {
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.04),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 15,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.35),
+          ),
+        ),
+      ),
+    );
+  }
+
   static String _formatTimeStatic(DateTime time) {
     final h = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
     final m = time.minute.toString().padLeft(2, '0');
     final ampm = time.hour >= 12 ? 'PM' : 'AM';
     return '$h:$m $ampm';
+  }
+
+  // ── Attached Cards Renderer ──
+  Widget _buildAttachedCards(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: 0.8.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: message.attachedCards.map((card) {
+          final type = card['type'] as String? ?? '';
+          switch (type) {
+            case 'session':
+              return _buildSessionCard(context, card['data'] as Map<String, dynamic>);
+            case 'task_list':
+              return _buildTaskListCard(context, card['data'] as List);
+            case 'progress':
+              return _buildProgressCard(context, card['data'] as Map<String, dynamic>);
+            case 'quick_action':
+              return _buildQuickActionCard(context, card);
+            default:
+              return const SizedBox.shrink();
+          }
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSessionCard(BuildContext context, Map<String, dynamic> session) {
+    final title = session['title'] as String? ?? 'Session';
+    final category = session['category'] as String? ?? '';
+    final duration = session['duration_minutes'] as int? ?? 0;
+    final difficulty = session['difficulty'] as int? ?? 1;
+    final imageUrl = session['image_url'] as String?;
+
+    String categoryIcon = '🧘';
+    if (category == 'pranayama') categoryIcon = '🌬️';
+    if (category == 'meditation') categoryIcon = '🧘‍♀️';
+    if (category == 'yoga') categoryIcon = '💪';
+
+    return GestureDetector(
+      onTap: () => onCardTap?.call({'type': 'session', 'data': session}),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 0.8.h),
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              _saffronGold.withOpacity(0.08),
+              _deepGold.withOpacity(0.04),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _saffronGold.withOpacity(0.2), width: 0.8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: _saffronGold.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                image: imageUrl != null
+                    ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: imageUrl == null
+                  ? Center(child: Text(categoryIcon, style: const TextStyle(fontSize: 22)))
+                  : null,
+            ),
+            SizedBox(width: 3.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 0.3.h),
+                  Row(
+                    children: [
+                      Text(
+                        '${category.isNotEmpty ? category[0].toUpperCase() + category.substring(1) : ''} • ${duration}min',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                      ),
+                      SizedBox(width: 2.w),
+                      ...List.generate(5, (i) => Container(
+                        width: 5, height: 5,
+                        margin: const EdgeInsets.only(right: 2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i < difficulty ? _saffronGold : _saffronGold.withOpacity(0.15),
+                        ),
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFDAA520), Color(0xFFB8860B)]),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 20),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskListCard(BuildContext context, List tasks) {
+    return GestureDetector(
+      onTap: () => onCardTap?.call({'type': 'task_list'}),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 0.8.h),
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _saffronGold.withOpacity(0.15), width: 0.8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('📋', style: TextStyle(fontSize: 16)),
+                SizedBox(width: 2.w),
+                Text('Today\'s Tasks', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _saffronGold)),
+                const Spacer(),
+                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: _saffronGold.withOpacity(0.5)),
+              ],
+            ),
+            SizedBox(height: 0.5.h),
+            ...tasks.take(4).map((task) {
+              final t = task as Map<String, dynamic>;
+              final isDone = t['is_completed'] == true;
+              return Padding(
+                padding: EdgeInsets.only(bottom: 0.3.h),
+                child: Row(
+                  children: [
+                    Icon(
+                      isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      size: 16,
+                      color: isDone ? const Color(0xFF4A7C59) : _saffronGold.withOpacity(0.4),
+                    ),
+                    SizedBox(width: 2.w),
+                    Expanded(
+                      child: Text(
+                        t['title']?.toString() ?? '',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(isDone ? 0.4 : 0.7),
+                          decoration: isDone ? TextDecoration.lineThrough : null,
+                        ),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (t['time'] != null)
+                      Text(t['time'].toString(), style: TextStyle(fontSize: 10, color: _saffronGold.withOpacity(0.5))),
+                  ],
+                ),
+              );
+            }),
+            if (tasks.length > 4)
+              Text('+${tasks.length - 4} more...', style: TextStyle(fontSize: 10, color: _saffronGold.withOpacity(0.5))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressCard(BuildContext context, Map<String, dynamic> stats) {
+    return GestureDetector(
+      onTap: () => onCardTap?.call({'type': 'progress'}),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 0.8.h),
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [const Color(0xFF4A7C59).withOpacity(0.1), _saffronGold.withOpacity(0.05)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF4A7C59).withOpacity(0.2), width: 0.8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('📊 Your Progress This Week', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF4A7C59))),
+            SizedBox(height: 0.8.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _statBadge('🔥', '${stats['streak'] ?? 0}', 'Streak'),
+                _statBadge('⏱️', '${stats['weekly_minutes'] ?? 0}', 'Minutes'),
+                _statBadge('🧘', '${stats['weekly_sessions'] ?? 0}', 'Sessions'),
+                _statBadge('⭐', '${stats['xp'] ?? 0}', 'XP'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statBadge(String emoji, String value, String label) {
+    return Column(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 18)),
+        SizedBox(height: 0.2.h),
+        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _saffronGold)),
+        Text(label, style: TextStyle(fontSize: 9, color: _darkBrown.withOpacity(0.45))),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionCard(BuildContext context, Map<String, dynamic> action) {
+    return GestureDetector(
+      onTap: () => onCardTap?.call(action),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 0.6.h),
+        padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.2.h),
+        decoration: BoxDecoration(
+          color: _saffronGold.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _saffronGold.withOpacity(0.18), width: 0.8),
+        ),
+        child: Row(
+          children: [
+            Text(action['label']?.toString() ?? '', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
+            const Spacer(),
+            Icon(Icons.arrow_forward_ios_rounded, size: 12, color: _saffronGold.withOpacity(0.5)),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1246,7 +1867,7 @@ class _MandalaPatternPainter extends CustomPainter {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MARKDOWN LITE — Rich Text Renderer
+// RICH MARKDOWN RENDERER — Full Block-Level Support
 // ═══════════════════════════════════════════════════════════════
 
 class _MarkdownLite extends StatelessWidget {
@@ -1254,12 +1875,198 @@ class _MarkdownLite extends StatelessWidget {
   final Color baseColor;
   const _MarkdownLite({required this.text, required this.baseColor});
 
+  static const Color _saffronGold = Color(0xFFDAA520);
+  static const Color _accentGreen = Color(0xFF4A7C59);
+
   @override
   Widget build(BuildContext context) {
     if (text.isEmpty) return const SizedBox.shrink();
 
+    final lines = text.split('\n');
+    final widgets = <Widget>[];
+    int i = 0;
+
+    while (i < lines.length) {
+      final line = lines[i];
+      final trimmed = line.trim();
+
+      // Empty line → spacing
+      if (trimmed.isEmpty) {
+        widgets.add(SizedBox(height: 0.6.h));
+        i++;
+        continue;
+      }
+
+      // Horizontal rule
+      if (RegExp(r'^-{3,}$|^\*{3,}$|^_{3,}$').hasMatch(trimmed)) {
+        widgets.add(Padding(
+          padding: EdgeInsets.symmetric(vertical: 0.8.h),
+          child: Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_saffronGold.withOpacity(0.0), _saffronGold.withOpacity(0.3), _saffronGold.withOpacity(0.0)],
+              ),
+            ),
+          ),
+        ));
+        i++;
+        continue;
+      }
+
+      // Headings
+      if (trimmed.startsWith('### ')) {
+        widgets.add(_buildHeading(context, trimmed.substring(4), 3));
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith('## ')) {
+        widgets.add(_buildHeading(context, trimmed.substring(3), 2));
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith('# ')) {
+        widgets.add(_buildHeading(context, trimmed.substring(2), 1));
+        i++;
+        continue;
+      }
+
+      // Bullet list — collect consecutive bullet lines
+      if (RegExp(r'^[-*•]\s').hasMatch(trimmed)) {
+        final items = <String>[];
+        while (i < lines.length && RegExp(r'^\s*[-*•]\s').hasMatch(lines[i].trim())) {
+          items.add(lines[i].trim().replaceFirst(RegExp(r'^[-*•]\s+'), ''));
+          i++;
+        }
+        widgets.add(_buildBulletList(context, items));
+        continue;
+      }
+
+      // Numbered list — collect consecutive numbered lines
+      if (RegExp(r'^\d+[.)]\s').hasMatch(trimmed)) {
+        final items = <String>[];
+        while (i < lines.length && RegExp(r'^\s*\d+[.)]\s').hasMatch(lines[i].trim())) {
+          items.add(lines[i].trim().replaceFirst(RegExp(r'^\d+[.)]\s+'), ''));
+          i++;
+        }
+        widgets.add(_buildNumberedList(context, items));
+        continue;
+      }
+
+      // Regular paragraph
+      widgets.add(Padding(
+        padding: EdgeInsets.only(bottom: 0.3.h),
+        child: _buildInlineRichText(context, trimmed),
+      ));
+      i++;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: widgets,
+    );
+  }
+
+  Widget _buildHeading(BuildContext context, String text, int level) {
+    final double fontSize = level == 1 ? 17.0 : (level == 2 ? 15.5 : 14.5);
+    final FontWeight weight = level == 1 ? FontWeight.w800 : FontWeight.w700;
+
+    return Padding(
+      padding: EdgeInsets.only(top: 0.8.h, bottom: 0.4.h),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Gold accent bar for headings
+          Container(
+            width: 3,
+            height: fontSize + 4,
+            margin: const EdgeInsets.only(right: 8, top: 2),
+            decoration: BoxDecoration(
+              color: _saffronGold,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Expanded(
+            child: _buildInlineRichText(
+              context, text,
+              overrideSize: fontSize,
+              overrideWeight: weight,
+              overrideColor: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBulletList(BuildContext context, List<String> items) {
+    return Padding(
+      padding: EdgeInsets.only(left: 2.w, top: 0.3.h, bottom: 0.3.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: items.map((item) => Padding(
+          padding: EdgeInsets.only(bottom: 0.4.h),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.only(top: 7, right: 10),
+                decoration: BoxDecoration(
+                  color: _saffronGold.withOpacity(0.7),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Expanded(child: _buildInlineRichText(context, item)),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildNumberedList(BuildContext context, List<String> items) {
+    return Padding(
+      padding: EdgeInsets.only(left: 2.w, top: 0.3.h, bottom: 0.3.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: items.asMap().entries.map((entry) => Padding(
+          padding: EdgeInsets.only(bottom: 0.4.h),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 22,
+                child: Text(
+                  '${entry.key + 1}.',
+                  style: TextStyle(
+                    color: _saffronGold,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(child: _buildInlineRichText(context, entry.value)),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+
+  /// Parse inline formatting: **bold**, *italic*, `code`, emoji-safe
+  RichText _buildInlineRichText(BuildContext context, String text, {
+    double? overrideSize,
+    FontWeight? overrideWeight,
+    Color? overrideColor,
+  }) {
     final spans = <TextSpan>[];
-    final regex = RegExp(r'\*\*(.+?)\*\*|`(.+?)`');
+    // Match **bold**, *italic*, `code`
+    final regex = RegExp(r'\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`');
     int lastEnd = 0;
 
     for (final match in regex.allMatches(text)) {
@@ -1276,14 +2083,23 @@ class _MarkdownLite extends StatelessWidget {
           ),
         ));
       } else if (match.group(2) != null) {
-        // Code
+        // Italic
         spans.add(TextSpan(
           text: match.group(2),
+          style: TextStyle(
+            fontStyle: FontStyle.italic,
+            color: baseColor.withOpacity(0.85),
+          ),
+        ));
+      } else if (match.group(3) != null) {
+        // Code
+        spans.add(TextSpan(
+          text: ' ${match.group(3)} ',
           style: TextStyle(
             fontFamily: 'monospace',
             backgroundColor: baseColor.withOpacity(0.06),
             fontSize: 13,
-            color: const Color(0xFF4A7C59),
+            color: _accentGreen,
           ),
         ));
       }
@@ -1296,7 +2112,12 @@ class _MarkdownLite extends StatelessWidget {
 
     return RichText(
       text: TextSpan(
-        style: TextStyle(color: baseColor, fontSize: 14.5, height: 1.55),
+        style: TextStyle(
+          color: overrideColor ?? baseColor,
+          fontSize: overrideSize ?? 14.5,
+          fontWeight: overrideWeight ?? FontWeight.w400,
+          height: 1.55,
+        ),
         children: spans.isEmpty ? [TextSpan(text: text)] : spans,
       ),
     );
@@ -1312,11 +2133,13 @@ class _ChatMessage {
   final bool isUser;
   final DateTime timestamp;
   final String? imageUrl;
+  List<Map<String, dynamic>> attachedCards; // Rich cards (session, task, progress, quick_action)
 
   _ChatMessage({
     required this.text,
     required this.isUser,
     required this.timestamp,
     this.imageUrl,
-  });
+    List<Map<String, dynamic>>? attachedCards,
+  }) : attachedCards = attachedCards ?? [];
 }
