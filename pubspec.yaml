@@ -1,6 +1,6 @@
 name: dincharya
 description: A new Flutter project.
-version: 1.0.0+12
+version: 1.0.0+13
 environment: 
   sdk: ^3.6.0
 dependencies: 
@@ -23,6 +23,7 @@ dependencies:
   
   # Google Services
   google_mobile_ads: ^7.0.0
+  gma_mediation_meta: ^1.5.1   # Meta (Facebook) Audience Network mediation adapter
   google_sign_in: ^6.2.2  # 7.x has breaking API changes
   
   # File & Media

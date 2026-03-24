@@ -20,7 +20,7 @@ import '../core/security_config.dart';
 /// World-class Ayurvedic wellness AI with full user context awareness.
 ///
 /// Chat: Sarvam AI (sarvam-105b) — Free, unlimited
-/// Images: a4f.co (provider-4/imagen-4)
+/// Images: OpenRouter (black-forest-labs/flux.2-flex)
 class AiGuideService {
   // Singleton
   static final AiGuideService _instance = AiGuideService._internal();
@@ -44,20 +44,20 @@ class AiGuideService {
     headers: {'Content-Type': 'application/json'},
   ));
 
-  // ── Image API Config (a4f.co — Sarvam doesn't have image API) ──
+  // ── Image API Config (OpenRouter — black-forest-labs/flux.2-flex) ──
   late final Dio _imageDio = Dio(BaseOptions(
-    baseUrl: 'https://api.a4f.co/v1',
+    baseUrl: 'https://openrouter.ai/api/v1',
     connectTimeout: const Duration(seconds: 30),
-    receiveTimeout: const Duration(seconds: 90),
+    receiveTimeout: const Duration(seconds: 120),
     headers: {'Content-Type': 'application/json'},
   ));
 
   static const String _model = 'sarvam-105b';
   static const String _fallbackModel = 'sarvam-105b-32k';
-  static const String _imageModel = 'provider-4/imagen-4';
+  static const String _imageModel = 'black-forest-labs/flux.2-flex';
 
   String get _sarvamApiKey => dotenv.env['SARVAM_API_KEY'] ?? '';
-  String get _a4fApiKey => dotenv.env['A4F_API_KEY'] ?? '';
+  String get _openRouterApiKey => dotenv.env['OPENROUTER_API_KEY'] ?? '';
 
   // ── Chat History ──
   final List<Map<String, String>> _chatHistory = [];
@@ -77,40 +77,168 @@ class AiGuideService {
   /// Check if user message is requesting an image
   bool isImageRequest(String message) => _imageKeywords.hasMatch(message);
 
-  /// Generate an image using Imagen-4 via a4f.co (kept separate from Sarvam)
+  /// Generate an image using flux.2-flex via OpenRouter
   Future<String?> generateImage(String prompt) async {
-    if (_a4fApiKey.isEmpty) {
-      debugPrint('⚠️ Image generation skipped: A4F API key not configured');
+    if (_openRouterApiKey.isEmpty) {
+      debugPrint('⚠️ Image generation skipped: OPENROUTER_API_KEY not configured');
       return null;
     }
 
     try {
-      debugPrint('🎨 Generating image with Imagen-4: $prompt');
+      debugPrint('🎨 Generating image with flux.2-flex: $prompt');
 
+      // OpenRouter uses chat/completions endpoint for image generation
+      // FLUX.2 Flex REQUIRES modalities: ['image'] to return images
       final response = await _imageDio.post(
-        '/images/generations',
+        '/chat/completions',
         options: Options(
-          headers: {'Authorization': 'Bearer $_a4fApiKey'},
-          receiveTimeout: const Duration(seconds: 90),
+          headers: {
+            'Authorization': 'Bearer $_openRouterApiKey',
+            'HTTP-Referer': 'https://dincharya.app',
+            'X-Title': 'Dincharya - Disha AI',
+          },
+          receiveTimeout: const Duration(seconds: 120),
         ),
         data: {
           'model': _imageModel,
-          'prompt': prompt,
-          'n': 1,
-          'size': '1024x1024',
+          'modalities': ['image'],
+          'messages': [
+            {
+              'role': 'user',
+              'content': prompt,
+            }
+          ],
         },
       );
 
       final json = response.data as Map<String, dynamic>;
+      
+      // DEBUG: Log full response structure to find where image URL is
+      debugPrint('🔍 Full OpenRouter response keys: ${json.keys.toList()}');
+      debugPrint('🔍 Full OpenRouter response: ${jsonEncode(json).substring(0, (jsonEncode(json).length > 500 ? 500 : jsonEncode(json).length))}');
+      
+      // ── Method 1: Check top-level "data" array (OpenAI images format) ──
       final dataList = json['data'] as List?;
       if (dataList != null && dataList.isNotEmpty) {
-        final imageUrl = dataList[0]['url'] as String?;
-        debugPrint('✅ Image generated successfully');
-        return imageUrl;
+        for (final item in dataList) {
+          if (item is Map<String, dynamic>) {
+            // Check for url field
+            final url = item['url'] as String?;
+            if (url != null && url.isNotEmpty) {
+              debugPrint('✅ Image generated successfully (data[].url)');
+              return url;
+            }
+            // Check for b64_json field
+            final b64 = item['b64_json'] as String?;
+            if (b64 != null && b64.isNotEmpty) {
+              debugPrint('✅ Image generated successfully (data[].b64_json)');
+              return 'data:image/png;base64,$b64';
+            }
+          }
+        }
       }
+      
+      // ── Method 2: Check choices[].message ──
+      final choices = json['choices'] as List?;
+      if (choices != null && choices.isNotEmpty) {
+        final message = choices[0]['message'] as Map<String, dynamic>?;
+        if (message != null) {
+          debugPrint('🔍 Message keys: ${message.keys.toList()}');
+          
+          // ── FLUX.2 Flex specific: images are in message.images[] ──
+          final images = message['images'] as List?;
+          if (images != null && images.isNotEmpty) {
+            for (final img in images) {
+              if (img is Map<String, dynamic>) {
+                // Format: {"image_url": {"url": "data:image/png;base64,..."}}
+                final imageUrl = img['image_url']?['url'] as String?;
+                if (imageUrl != null && imageUrl.isNotEmpty) {
+                  debugPrint('✅ Image generated successfully (message.images[].image_url.url)');
+                  return imageUrl;
+                }
+                // Also check direct url field
+                final directUrl = img['url'] as String?;
+                if (directUrl != null && directUrl.isNotEmpty) {
+                  debugPrint('✅ Image generated successfully (message.images[].url)');
+                  return directUrl;
+                }
+              }
+              // Simple string URL
+              if (img is String && img.isNotEmpty) {
+                debugPrint('✅ Image generated successfully (message.images[] string)');
+                return img;
+              }
+            }
+          }
+        }
+        final content = message?['content'];
+        
+        // String content (URL or markdown)
+        if (content is String && content.isNotEmpty) {
+          // Direct URL
+          if (content.startsWith('http')) {
+            debugPrint('✅ Image generated successfully (direct URL)');
+            return content.trim();
+          }
+          // Extract URL from any text/markdown
+          final urlMatch = RegExp(r'https?://[^\s\)\"\>]+').firstMatch(content);
+          if (urlMatch != null) {
+            debugPrint('✅ Image generated successfully (extracted URL)');
+            return urlMatch.group(0);
+          }
+          // Base64 data URI
+          if (content.contains('data:image')) {
+            final dataMatch = RegExp(r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+').firstMatch(content);
+            if (dataMatch != null) {
+              debugPrint('✅ Image generated successfully (base64 in content)');
+              return dataMatch.group(0);
+            }
+          }
+        }
+        
+        // List content (multimodal parts)
+        if (content is List) {
+          for (final part in content) {
+            if (part is Map<String, dynamic>) {
+              // image_url type
+              if (part['type'] == 'image_url') {
+                final imageUrl = part['image_url']?['url'] as String?;
+                if (imageUrl != null) {
+                  debugPrint('✅ Image generated successfully (multimodal image_url)');
+                  return imageUrl;
+                }
+              }
+              // text type with URL
+              if (part['type'] == 'text') {
+                final text = part['text'] as String? ?? '';
+                final urlMatch = RegExp(r'https?://[^\s\)\"\>]+').firstMatch(text);
+                if (urlMatch != null) {
+                  debugPrint('✅ Image generated successfully (text in multimodal)');
+                  return urlMatch.group(0);
+                }
+              }
+            }
+          }
+        }
+        
+        debugPrint('⚠️ Image response: content=$content');
+      }
+      
+      // ── Method 3: Check any URL-like value in the entire response ──
+      final jsonStr = jsonEncode(json);
+      final anyUrlMatch = RegExp(r'https?://[^\s\)\"\>\\]+\.(png|jpg|jpeg|webp|gif)[^\s\)\"\>\\]*').firstMatch(jsonStr);
+      if (anyUrlMatch != null) {
+        debugPrint('✅ Image generated successfully (found URL anywhere in response)');
+        return anyUrlMatch.group(0);
+      }
+      
+      debugPrint('⚠️ No image URL found in entire response');
       return null;
     } on DioException catch (e) {
       debugPrint('❌ Image generation error: ${e.message}');
+      if (e.response?.data != null) {
+        debugPrint('❌ Image API error body: ${e.response?.data}');
+      }
       return null;
     } catch (e) {
       debugPrint('❌ Image generation error: $e');

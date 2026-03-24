@@ -59,10 +59,17 @@ class AdsService {
         return;
       }
 
-      // FIRST: Initialize AdMob SDK
+      // FIRST: Initialize AdMob SDK + mediation adapters
       debugPrint('📢 Initializing AdMob SDK...');
-      await _initializeAdMob();
+      final initStatus = await _initializeAdMob();
       debugPrint('✅ AdMob SDK ready');
+      
+      // Log mediation adapter initialization statuses
+      if (initStatus != null) {
+        initStatus.adapterStatuses.forEach((adapter, status) {
+          debugPrint('📡 Adapter [$adapter]: ${status.state.name} — ${status.description}');
+        });
+      }
       
       // SECOND: Request UMP consent (GDPR/privacy compliance)
       debugPrint('📢 Checking UMP consent status...');
@@ -184,10 +191,10 @@ class AdsService {
     }
   }
 
-  // Initialize Google AdMob
-  Future<void> _initializeAdMob() async {
+  // Initialize Google AdMob + mediation adapters
+  Future<InitializationStatus?> _initializeAdMob() async {
     try {
-      await MobileAds.instance.initialize();
+      final initStatus = await MobileAds.instance.initialize();
       
       // Configure for 16+ audience (non-child-directed app)
       await MobileAds.instance.updateRequestConfiguration(
@@ -210,8 +217,10 @@ class AdsService {
       );
       
       debugPrint('✅ AdMob SDK initialized with 16+ config');
+      return initStatus;
     } catch (e) {
       debugPrint('❌ Failed to initialize AdMob: $e');
+      return null;
     }
   }
   
@@ -719,22 +728,32 @@ class AdsService {
     debugPrint('⚠️ App Open: All $_maxLoadRetries attempts failed');
   }
 
-  Future<void> showAppOpenAd() async {
+  Future<bool> showAppOpenAd() async {
     // SAFETY GUARD: Never show to premium users
     if (!shouldShowAds) {
       debugPrint('👑 App Open ad blocked — premium user or not initialized');
-      return;
+      return false;
     }
     
-    // Check for valid (non-expired) ad
+    // If ad is null or expired, try to load first
     if (_appOpenAd == null || !_isAppOpenAdValid()) {
-      debugPrint('⚠️ App Open ad not ready or expired');
-      await loadAppOpenAd();  // Reload if expired
-      return;
+      debugPrint('⚠️ App Open ad not ready or expired — loading now...');
+      await loadAppOpenAd();
+      
+      // After loading, check again — if still no ad, give up
+      if (_appOpenAd == null || !_isAppOpenAdValid()) {
+        debugPrint('❌ App Open ad could not be loaded');
+        return false;
+      }
     }
+
+    // Use Completer to wait for ad dismissal (same pattern as rewarded ads)
+    final completer = Completer<bool>();
+    bool shown = false;
 
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
+        shown = true;
         debugPrint('📺 App Open: Full screen content shown');
       },
       onAdImpression: (ad) {
@@ -744,19 +763,29 @@ class AdsService {
         ad.dispose();
         _appOpenAd = null;
         _appOpenAdLoadTime = null;
-        loadAppOpenAd();
+        loadAppOpenAd(); // Pre-load for next time
+        if (!completer.isCompleted) completer.complete(shown);
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         debugPrint('❌ App Open show failed: $error');
         ad.dispose();
         _appOpenAd = null;
         _appOpenAdLoadTime = null;
-        loadAppOpenAd();
+        loadAppOpenAd(); // Pre-load for next time
+        if (!completer.isCompleted) completer.complete(false);
       },
     );
 
     await _appOpenAd!.show();
-    debugPrint('📺 App Open ad shown');
+    debugPrint('📺 App Open ad show() called, waiting for dismissal...');
+    
+    // Wait for ad lifecycle to complete (with 5 min safety timeout)
+    final result = await completer.future.timeout(
+      const Duration(minutes: 5),
+      onTimeout: () => shown,
+    );
+    
+    return result;
   }
 
   // ==================== CLEANUP ====================

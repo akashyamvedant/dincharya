@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Network Security Config for Meta Audience Network (Facebook) Mediation
+     Meta SDK requires cleartext traffic for media caching on Android 9+ (API 28+)
+     See: https://developers.facebook.com/docs/audience-network/android-network-security-config/ -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

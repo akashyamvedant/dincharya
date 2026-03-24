@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'dart:io';
@@ -1087,6 +1089,45 @@ class _AiGuideScreenState extends State<AiGuideScreen>
   // FULL SCREEN IMAGE VIEWER
   // ═══════════════════════════════════════════════════════════════
 
+  /// Decode base64 data URI to bytes
+  Uint8List? _decodeBase64Image(String dataUri) {
+    try {
+      final base64Str = dataUri.split(',').last;
+      return base64Decode(base64Str);
+    } catch (e) {
+      debugPrint('❌ Base64 decode error: $e');
+      return null;
+    }
+  }
+
+  /// Build image widget that handles both network URLs and base64 data URIs
+  Widget _buildSmartImage(String imageUrl, {BoxFit fit = BoxFit.cover}) {
+    if (imageUrl.startsWith('data:image')) {
+      final bytes = _decodeBase64Image(imageUrl);
+      if (bytes != null) {
+        return Image.memory(bytes, fit: fit);
+      }
+      return const Icon(Icons.broken_image, size: 40);
+    }
+    return Image.network(
+      imageUrl,
+      fit: fit,
+      loadingBuilder: (_, child, progress) {
+        if (progress == null) return child;
+        return SizedBox(
+          width: 200,
+          height: 200,
+          child: Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(_saffronGold),
+              strokeWidth: 2,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showFullScreenImage(String imageUrl) {
     HapticFeedback.lightImpact();
     showDialog(
@@ -1099,26 +1140,10 @@ class _AiGuideScreenState extends State<AiGuideScreen>
           children: [
             Center(
               child: Hero(
-                tag: 'img_$imageUrl',
+                tag: 'img_${imageUrl.hashCode}',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    loadingBuilder: (_, child, progress) {
-                      if (progress == null) return child;
-                      return SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(_saffronGold),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                  child: _buildSmartImage(imageUrl, fit: BoxFit.contain),
                 ),
               ),
             ),
@@ -1344,11 +1369,21 @@ class _PremiumMessageBubble extends StatelessWidget {
     );
   }
 
+  /// Build image widget — supports both network URLs and base64 data URIs
   Widget _buildImageWidget(String imageUrl) {
+    final isBase64 = imageUrl.startsWith('data:image');
+    Uint8List? imageBytes;
+    if (isBase64) {
+      try {
+        final base64Str = imageUrl.split(',').last;
+        imageBytes = base64Decode(base64Str);
+      } catch (_) {}
+    }
+
     return GestureDetector(
       onTap: () => onImageTap(imageUrl),
       child: Hero(
-        tag: 'img_$imageUrl',
+        tag: 'img_${imageUrl.hashCode}',
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: Container(
@@ -1365,53 +1400,47 @@ class _PremiumMessageBubble extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (_, child, progress) {
-                    if (progress == null) return child;
-                    return Container(
-                      width: 68.w,
-                      height: 50.w,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            _mutedGold.withOpacity(0.15),
-                            _mutedGold.withOpacity(0.25),
-                            _mutedGold.withOpacity(0.15),
-                          ],
+                // Use Image.memory for base64, Image.network for URLs
+                if (isBase64 && imageBytes != null)
+                  Image.memory(
+                    imageBytes,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _buildImageErrorPlaceholder(),
+                  )
+                else if (!isBase64)
+                  Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        width: 68.w,
+                        height: 50.w,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _mutedGold.withOpacity(0.15),
+                              _mutedGold.withOpacity(0.25),
+                              _mutedGold.withOpacity(0.15),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                              : null,
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(_saffronGold),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                : null,
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(_saffronGold),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (_, __, ___) => Container(
-                    width: 60.w,
-                    height: 40.w,
-                    decoration: BoxDecoration(
-                      color: _mutedGold.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: _mutedGold.withOpacity(0.25)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.image_not_supported_outlined, color: _richBrown.withOpacity(0.4), size: 28),
-                        SizedBox(height: 0.5.h),
-                        Text('Image unavailable', style: TextStyle(color: _darkBrown.withOpacity(0.4), fontSize: 11)),
-                      ],
-                    ),
-                  ),
-                ),
+                      );
+                    },
+                    errorBuilder: (_, __, ___) => _buildImageErrorPlaceholder(),
+                  )
+                else
+                  _buildImageErrorPlaceholder(),
                 // Expand button
                 Positioned(
                   bottom: 8,
@@ -1430,6 +1459,26 @@ class _PremiumMessageBubble extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildImageErrorPlaceholder() {
+    return Container(
+      width: 60.w,
+      height: 40.w,
+      decoration: BoxDecoration(
+        color: _mutedGold.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _mutedGold.withOpacity(0.25)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported_outlined, color: _richBrown.withOpacity(0.4), size: 28),
+          SizedBox(height: 0.5.h),
+          Text('Image unavailable', style: TextStyle(color: _darkBrown.withOpacity(0.4), fontSize: 11)),
+        ],
       ),
     );
   }

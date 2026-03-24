@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:timezone/timezone.dart' as tz;
 import '../main.dart' show navigatorKey;
 import '../routes/app_routes.dart';
+import 'notification_deep_link_service.dart';
 
 /// Top-level background handler for notifications received when app is killed.
 /// MUST be a top-level function (not a method) and annotated with @pragma.
@@ -80,9 +81,9 @@ class NotificationService {
     }
   }
 
-  /// Check if the app was launched by tapping an alarm notification.
+  /// Check if the app was launched by tapping a notification.
   /// Call this AFTER initialize() and AFTER the navigator is ready.
-  /// Returns true if an alarm payload was found and should be navigated to.
+  /// Returns true if a payload was found and should be navigated to.
   Future<bool> checkForAlarmLaunch() async {
     try {
       final launchDetails = await _flutterLocalNotificationsPlugin
@@ -98,6 +99,7 @@ class NotificationService {
       final payload = response.payload!;
       debugPrint('🚀 App launched from notification: $payload');
 
+      // Check for alarm payload
       try {
         final data = jsonDecode(payload) as Map<String, dynamic>;
         if (data['type'] == 'wakeup_alarm') {
@@ -105,8 +107,17 @@ class NotificationService {
           _pendingAlarmPayload = payload;
           return true;
         }
-      } catch (e) {
-        debugPrint('Error parsing launch notification payload: $e');
+      } catch (_) {
+        // Not JSON — check for task_id format
+      }
+      
+      // Check for task notification payload (task_id:UUID)
+      final deepLinkService = NotificationDeepLinkService();
+      final taskId = deepLinkService.parseTaskIdFromPayload(payload);
+      if (taskId != null) {
+        debugPrint('📋 Cold-start task notification — setting pending highlight: $taskId');
+        deepLinkService.setHighlightedTask(taskId);
+        return false; // Don't treat as alarm — dashboard will handle the highlight
       }
     } catch (e) {
       debugPrint('Error checking launch notification: $e');
@@ -145,12 +156,14 @@ class NotificationService {
     }
   }
 
-  // Handle notification tap — navigates to AlarmRingScreen for alarm notifications
+  /// UNIFIED notification tap handler — routes to correct handler based on payload.
+  /// Handles BOTH alarm notifications AND task reminder notifications.
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+    debugPrint('🔔 Notification tapped: ${response.payload}');
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
 
+    // Check for alarm (JSON format with type: "wakeup_alarm")
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
       if (data['type'] == 'wakeup_alarm') {
@@ -159,10 +172,22 @@ class NotificationService {
           AppRoutes.alarmRing,
           arguments: payload,
         );
+        return;
       }
-    } catch (e) {
-      debugPrint('Error handling notification tap: $e');
+    } catch (_) {
+      // Not JSON — check for task payload below
     }
+
+    // Check for task (format: "task_id:UUID")
+    final deepLinkService = NotificationDeepLinkService();
+    final taskId = deepLinkService.parseTaskIdFromPayload(payload);
+    if (taskId != null) {
+      debugPrint('📋 Task notification tapped — highlighting + navigating to task: $taskId');
+      deepLinkService.setHighlightedTask(taskId);
+      return;
+    }
+    
+    debugPrint('⚠️ Unknown notification payload: $payload');
   }
 
   // Show instant notification

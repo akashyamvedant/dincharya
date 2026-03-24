@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
 import AppPreview from '@/components/AppPreview';
+import AiContentGenerator from '@/components/AiContentGenerator';
 import MediaUploader from '@/components/MediaUploader';
 
 export default function YogaPosesPage() {
@@ -17,6 +18,8 @@ export default function YogaPosesPage() {
   const [search, setSearch] = useState('');
   const [previewPose, setPreviewPose] = useState(null);
   const [previewSteps, setPreviewSteps] = useState([]);
+  const [aiPose, setAiPose] = useState(null);
+  const [aiSteps, setAiSteps] = useState([]);
 
   const defaultForm = {
     name: '', name_hindi: '', name_sanskrit: '', category: 'yoga',
@@ -145,6 +148,12 @@ export default function YogaPosesPage() {
     setPreviewPose(pose);
   };
 
+  const openAiPanel = async (pose) => {
+    const { data } = await supabase.from('pose_steps').select('*').eq('pose_id', pose.id).order('step_number', { ascending: true });
+    setAiSteps(data || []);
+    setAiPose(pose);
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -250,6 +259,7 @@ export default function YogaPosesPage() {
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="btn btn-sm" onClick={() => openEdit(pose)}>Edit</button>
+                      <button className="btn btn-sm" onClick={() => openAiPanel(pose)} style={{ background: '#a855f7', color: '#fff' }}>🤖 AI</button>
                       <button className="btn btn-sm" onClick={() => openPreview(pose)} style={{ background: '#7c3aed', color: '#fff' }}>📱 Preview</button>
                       <Link href={`/sessions/yoga-poses/${pose.id}/steps`}>
                         <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }}>Steps</button>
@@ -432,6 +442,17 @@ export default function YogaPosesPage() {
           steps={previewSteps}
           linkedSession={previewPose.sessions}
           onClose={() => { setPreviewPose(null); setPreviewSteps([]); }}
+        />
+      )}
+
+      {/* AI Content Generator */}
+      {aiPose && (
+        <AiContentGenerator
+          pose={aiPose}
+          steps={aiSteps}
+          supabase={supabase}
+          onClose={() => { setAiPose(null); setAiSteps([]); }}
+          onSaved={() => { setAiPose(null); setAiSteps([]); fetchPoses(); }}
         />
       )}
     </div>

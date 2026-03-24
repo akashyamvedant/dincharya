@@ -679,6 +679,21 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           ],
         ),
       ),
+      // Disha AI Floating Action Button
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pushNamed(context, '/ai-guide'),
+        backgroundColor: const Color(0xFFDAA520),
+        foregroundColor: Colors.white,
+        elevation: 6.0,
+        child: const Text(
+          'दि',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentBottomIndex,
         type: BottomNavigationBarType.fixed,

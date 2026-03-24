@@ -302,9 +302,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     debugPrint('🎬 Showing App Open Ad...');
     
     try {
-      await adsService.showAppOpenAd();
-      _hasShownAdThisSession = true; // Mark as shown for this session
-      debugPrint('✅ App Open Ad shown - will not show again this session');
+      final wasShown = await adsService.showAppOpenAd();
+      if (wasShown) {
+        _hasShownAdThisSession = true; // Only mark if ad was ACTUALLY shown
+        debugPrint('✅ App Open Ad shown - will not show again this session');
+      } else {
+        debugPrint('⚠️ App Open Ad not shown — will retry on next resume');
+      }
     } catch (e) {
       debugPrint('❌ App Open Ad error: $e');
     } finally {

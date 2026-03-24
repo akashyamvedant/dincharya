@@ -101,6 +101,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     
     // Layer 4: Listen for app-level day change notifications
     dayChangeNotifier.addListener(_onGlobalDayChange);
+    
+    // Listen for tab navigation requests from notification taps
+    _deepLinkService.navigateToRoutineTab.addListener(_onNavigateToRoutineTab);
   }
 
   /// Initialize lifecycle service and check for day change
@@ -161,6 +164,16 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     }
   }
 
+  /// Called when notification requests navigation to Routine tab
+  void _onNavigateToRoutineTab() {
+    if (_deepLinkService.navigateToRoutineTab.value && _currentTabIndex != 0) {
+      debugPrint('📋 Switching to Routine tab (notification deep link)');
+      setState(() {
+        _currentTabIndex = 0;
+      });
+    }
+  }
+
   /// Called when highlighted task ID changes (from notification tap)
   void _onHighlightedTaskChanged() {
     final newHighlightedId = _deepLinkService.highlightedTaskId.value;
@@ -169,20 +182,21 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       _highlightedTaskId = newHighlightedId;
     });
     
-    // Log for debugging
     if (_highlightedTaskId != null) {
       debugPrint('🔦 Dashboard: Highlighting task $_highlightedTaskId');
-      
-      // Scroll to the highlighted task after a short delay to allow UI to rebuild
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _scrollToHighlightedTask();
-      });
+      // Try to scroll — with retry for when tasks haven't loaded yet
+      _scrollToHighlightedTaskWithRetry();
     }
   }
   
-  /// Scroll to the highlighted task
-  void _scrollToHighlightedTask() {
-    if (_highlightedTaskId == null) return;
+  /// Scroll to the highlighted task with retry logic.
+  /// Tasks load from Supabase asynchronously — GlobalKeys may not exist yet.
+  /// Retries up to 10 times (every 500ms = 5 seconds total).
+  void _scrollToHighlightedTaskWithRetry({int attempt = 0}) {
+    if (_highlightedTaskId == null || attempt >= 10) {
+      if (attempt >= 10) debugPrint('⚠️ Gave up scrolling to task after 10 attempts');
+      return;
+    }
     
     final key = _taskKeys[_highlightedTaskId];
     if (key?.currentContext != null) {
@@ -192,9 +206,14 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         curve: Curves.easeInOut,
         alignment: 0.3, // Position task 30% from top
       );
-      debugPrint('🔦 Scrolled to task $_highlightedTaskId');
+      debugPrint('🔦 Scrolled to task $_highlightedTaskId (attempt ${attempt + 1})');
+      _deepLinkService.consumePendingTask();
     } else {
-      debugPrint('⚠️ Task key not found for $_highlightedTaskId');
+      // Tasks not rendered yet — retry after delay
+      debugPrint('⏳ Task key not ready for $_highlightedTaskId — retrying (attempt ${attempt + 1}/10)...');
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _scrollToHighlightedTaskWithRetry(attempt: attempt + 1);
+      });
     }
   }
 
@@ -202,6 +221,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _deepLinkService.highlightedTaskId.removeListener(_onHighlightedTaskChanged);
+    _deepLinkService.navigateToRoutineTab.removeListener(_onNavigateToRoutineTab);
     dayChangeNotifier.removeListener(_onGlobalDayChange);
     _scrollController.dispose();
     super.dispose();
@@ -348,6 +368,20 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       setState(() {
         _isLoading = false;
       });
+      
+      // After tasks load, check if there's a pending deep link task to scroll to
+      final pendingId = _deepLinkService.pendingTaskId;
+      if (pendingId != null) {
+        debugPrint('📋 Tasks loaded — processing pending deep link task: $pendingId');
+        // Ensure highlight is set
+        if (_highlightedTaskId == null) {
+          setState(() { _highlightedTaskId = pendingId; });
+        }
+        // Give widgets time to render, then scroll
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToHighlightedTaskWithRetry();
+        });
+      }
 
       // Schedule notifications for today's tasks (only once per session)
       await _scheduleTaskNotifications();

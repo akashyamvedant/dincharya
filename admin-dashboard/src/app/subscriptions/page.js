@@ -21,6 +21,20 @@ export default function SubscriptionsPage() {
         features: '', razorpay_plan_id_monthly: '', razorpay_plan_id_yearly: '', is_active: true,
     });
 
+    // ── Grant Subscription Modal State ──
+    const [showGrantModal, setShowGrantModal] = useState(false);
+    const [grantUserSearch, setGrantUserSearch] = useState('');
+    const [grantSearchResults, setGrantSearchResults] = useState([]);
+    const [grantSearching, setGrantSearching] = useState(false);
+    const [grantSelectedUser, setGrantSelectedUser] = useState(null);
+    const [grantPlanId, setGrantPlanId] = useState('');
+    const [grantDuration, setGrantDuration] = useState('12'); // months or 'lifetime'
+    const [grantNote, setGrantNote] = useState('');
+    const [granting, setGranting] = useState(false);
+    const [grantMsg, setGrantMsg] = useState('');
+    const [cancelling, setCancelling] = useState(false);
+    const [cancelConfirmId, setCancelConfirmId] = useState(null);
+
     useEffect(() => {
         fetchAll();
     }, []);
@@ -173,8 +187,8 @@ export default function SubscriptionsPage() {
     const openPlanCreate = () => {
         setEditingPlan(null);
         setPlanForm({
-            name: '', display_name: '', description: '', price_monthly: 0, price_yearly: 0,
-            features: '', razorpay_plan_id_monthly: '', razorpay_plan_id_yearly: '', is_active: true,
+            name: '', display_name: '', description: '', price_monthly: 0, price_yearly: 0, price_lifetime: 0,
+            features: '', google_play_product_id_monthly: '', google_play_product_id_yearly: '', google_play_product_id_lifetime: '', is_active: true,
         });
         setShowPlanModal(true);
     };
@@ -183,10 +197,11 @@ export default function SubscriptionsPage() {
         setEditingPlan(p);
         setPlanForm({
             name: p.name || '', display_name: p.display_name || '', description: p.description || '',
-            price_monthly: p.price_monthly || 0, price_yearly: p.price_yearly || 0,
+            price_monthly: p.price_monthly || 0, price_yearly: p.price_yearly || 0, price_lifetime: p.price_lifetime || 0,
             features: Array.isArray(p.features) ? p.features.join('\n') : '',
-            razorpay_plan_id_monthly: p.razorpay_plan_id_monthly || '',
-            razorpay_plan_id_yearly: p.razorpay_plan_id_yearly || '',
+            google_play_product_id_monthly: p.google_play_product_id_monthly || p.razorpay_plan_id_monthly || '',
+            google_play_product_id_yearly: p.google_play_product_id_yearly || p.razorpay_plan_id_yearly || '',
+            google_play_product_id_lifetime: p.google_play_product_id_lifetime || '',
             is_active: p.is_active !== false,
         });
         setShowPlanModal(true);
@@ -197,6 +212,7 @@ export default function SubscriptionsPage() {
             ...planForm,
             price_monthly: parseInt(planForm.price_monthly) || 0,
             price_yearly: parseInt(planForm.price_yearly) || 0,
+            price_lifetime: parseInt(planForm.price_lifetime) || 0,
             features: planForm.features ? planForm.features.split('\n').map(f => f.trim()).filter(Boolean) : [],
         };
         if (editingPlan) {
@@ -211,6 +227,165 @@ export default function SubscriptionsPage() {
     const formatPrice = (amount) => {
         if (!amount) return '₹0';
         return `₹${(amount / 100).toLocaleString('en-IN')}`;
+    };
+
+    // ── Grant Subscription Functions ──
+    const searchUsersForGrant = async (query) => {
+        if (!query || query.trim().length < 2) {
+            setGrantSearchResults([]);
+            return;
+        }
+        setGrantSearching(true);
+        try {
+            const q = query.trim().toLowerCase();
+            const { data, error } = await supabase.from('user_profiles')
+                .select('id, full_name, email, avatar_url')
+                .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
+                .limit(10);
+            if (!error) setGrantSearchResults(data || []);
+        } catch (err) {
+            console.error('User search error:', err);
+        }
+        setGrantSearching(false);
+    };
+
+    // Debounced search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (grantUserSearch.trim().length >= 2) {
+                searchUsersForGrant(grantUserSearch);
+            } else {
+                setGrantSearchResults([]);
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [grantUserSearch]);
+
+    const openGrantModal = () => {
+        setShowGrantModal(true);
+        setGrantUserSearch('');
+        setGrantSearchResults([]);
+        setGrantSelectedUser(null);
+        setGrantPlanId(plans.length > 0 ? plans[0].id : '');
+        setGrantDuration('12');
+        setGrantNote('');
+        setGrantMsg('');
+    };
+
+    const handleGrantSubscription = async () => {
+        if (!grantSelectedUser) return setGrantMsg('❌ Please select a user');
+        if (!grantPlanId) return setGrantMsg('❌ Please select a plan');
+
+        setGranting(true);
+        setGrantMsg('');
+
+        try {
+            const selectedPlan = plans.find(p => p.id === grantPlanId);
+            if (!selectedPlan) throw new Error('Plan not found');
+
+            const now = new Date();
+            let expiresAt;
+
+            if (grantDuration === 'lifetime') {
+                // 100 years = effectively lifetime
+                expiresAt = new Date(now.getFullYear() + 100, now.getMonth(), now.getDate());
+            } else {
+                const months = parseInt(grantDuration);
+                expiresAt = new Date(now);
+                expiresAt.setMonth(expiresAt.getMonth() + months);
+            }
+
+            // Check if user already has an active subscription
+            const { data: existingSubs } = await supabase.from('subscriptions')
+                .select('id, status, expires_at, plan_name')
+                .eq('user_id', grantSelectedUser.id)
+                .eq('status', 'active')
+                .gt('expires_at', now.toISOString())
+                .limit(1);
+
+            // If active sub exists, cancel it first
+            if (existingSubs && existingSubs.length > 0) {
+                await supabase.from('subscriptions')
+                    .update({ status: 'replaced', cancelled_at: now.toISOString() })
+                    .eq('id', existingSubs[0].id);
+            }
+
+            // Create new subscription
+            const subPayload = {
+                user_id: grantSelectedUser.id,
+                plan_id: selectedPlan.name || selectedPlan.id,
+                plan_name: selectedPlan.display_name || selectedPlan.name,
+                status: 'active',
+                amount: 0, // Manual grant = free
+                currency: 'INR',
+                started_at: now.toISOString(),
+                expires_at: expiresAt.toISOString(),
+                is_trial: false,
+            };
+
+            const { error: subError } = await supabase.from('subscriptions').insert(subPayload);
+            if (subError) throw subError;
+
+            // Log to audit
+            await supabase.from('payment_audit_log').insert({
+                user_id: grantSelectedUser.id,
+                event_type: 'admin_grant',
+                status: 'success',
+                amount: 0,
+                metadata: {
+                    plan: selectedPlan.display_name,
+                    duration: grantDuration === 'lifetime' ? 'Lifetime' : `${grantDuration} months`,
+                    granted_by: 'admin',
+                    note: grantNote || null,
+                    replaced_existing: existingSubs?.length > 0 ? existingSubs[0].plan_name : null,
+                },
+            });
+
+            setGrantMsg(`✅ Subscription granted to ${grantSelectedUser.full_name || grantSelectedUser.email}!`);
+
+            // Refresh data after short delay
+            setTimeout(() => {
+                fetchAll();
+                setShowGrantModal(false);
+            }, 1500);
+        } catch (err) {
+            console.error('Grant error:', err);
+            setGrantMsg(`❌ Error: ${err.message}`);
+        }
+        setGranting(false);
+    };
+
+    // ── Cancel Subscription ──
+    const handleCancelSubscription = async (sub) => {
+        setCancelling(true);
+        try {
+            const now = new Date();
+            const { error } = await supabase.from('subscriptions')
+                .update({ status: 'cancelled', cancelled_at: now.toISOString() })
+                .eq('id', sub.id);
+            if (error) throw error;
+
+            // Audit log
+            await supabase.from('payment_audit_log').insert({
+                user_id: sub.user_id,
+                event_type: 'admin_cancel',
+                status: 'success',
+                amount: 0,
+                metadata: {
+                    plan: sub.plan_name,
+                    cancelled_by: 'admin',
+                    original_expires_at: sub.expires_at,
+                },
+            });
+
+            setCancelConfirmId(null);
+            setSubDetail(null);
+            fetchAll();
+        } catch (err) {
+            console.error('Cancel error:', err);
+            alert(`Cancel failed: ${err.message}`);
+        }
+        setCancelling(false);
     };
 
     const statusConfig = {
@@ -299,7 +474,7 @@ export default function SubscriptionsPage() {
     return (
         <div>
             {/* ── Header ── */}
-            <div className="page-header" style={{ marginBottom: 20 }}>
+            <div className="page-header" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ fontSize: 28 }}>💎</span> Subscriptions & Revenue
@@ -308,6 +483,15 @@ export default function SubscriptionsPage() {
                         {stats.totalSubs} total • {stats.activeSubs} active • {stats.expiredSubs} expired • {stats.totalTrials} trials
                     </p>
                 </div>
+                <button className="btn btn-primary" onClick={openGrantModal} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+                    fontSize: 14, fontWeight: 700, borderRadius: 12,
+                    background: 'linear-gradient(135deg, #7c3aed, #a855f7)',
+                    border: 'none', color: '#fff', cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(124,58,237,0.3)',
+                }}>
+                    🎁 Grant Subscription
+                </button>
             </div>
 
             {/* ── Top Stats Grid ── */}
@@ -698,6 +882,53 @@ export default function SubscriptionsPage() {
                             )}
                             <DetailItem label="DB Status (raw)" value={subDetail.status} mono />
                         </div>
+
+                        {/* Cancel Button — only for active subscriptions */}
+                        {(computeRealStatus(subDetail) === 'active' || computeRealStatus(subDetail) === 'expiring_soon') && (
+                            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                                {cancelConfirmId === subDetail.id ? (
+                                    <div style={{
+                                        background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+                                        borderRadius: 12, padding: 16,
+                                    }}>
+                                        <div style={{ fontSize: 14, fontWeight: 700, color: '#ef4444', marginBottom: 8 }}>
+                                            ⚠️ Are you sure?
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+                                            This will immediately cancel <b>{subDetail._profile?.full_name || 'this user'}</b>'s <b>{subDetail.plan_name}</b> subscription and revoke premium access.
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                            <button onClick={() => setCancelConfirmId(null)} style={{
+                                                padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)',
+                                                background: 'transparent', color: 'var(--text)', cursor: 'pointer',
+                                                fontSize: 13, fontWeight: 600,
+                                            }}>No, Keep</button>
+                                            <button onClick={() => handleCancelSubscription(subDetail)} disabled={cancelling}
+                                                style={{
+                                                    padding: '8px 16px', borderRadius: 8, border: 'none',
+                                                    background: '#ef4444', color: '#fff', cursor: 'pointer',
+                                                    fontSize: 13, fontWeight: 700, opacity: cancelling ? 0.5 : 1,
+                                                }}>
+                                                {cancelling ? '⏳ Cancelling...' : '✅ Yes, Cancel It'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button onClick={() => setCancelConfirmId(subDetail.id)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', gap: 8,
+                                                padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                                                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                                                color: '#ef4444', fontSize: 13, fontWeight: 700,
+                                                transition: 'all 0.2s',
+                                            }}>
+                                            🚫 Cancel Subscription
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -731,12 +962,21 @@ export default function SubscriptionsPage() {
                                 <small style={{ color: 'var(--text-muted)' }}>{formatPrice(planForm.price_yearly)}</small>
                             </div>
                             <div className="form-group">
-                                <label>Razorpay Monthly Plan ID</label>
-                                <input className="form-input" value={planForm.razorpay_plan_id_monthly} onChange={e => setPlanForm({ ...planForm, razorpay_plan_id_monthly: e.target.value })} />
+                                <label>Lifetime Price (paise)</label>
+                                <input className="form-input" type="number" value={planForm.price_lifetime} onChange={e => setPlanForm({ ...planForm, price_lifetime: e.target.value })} />
+                                <small style={{ color: 'var(--text-muted)' }}>{formatPrice(planForm.price_lifetime)}</small>
                             </div>
                             <div className="form-group">
-                                <label>Razorpay Yearly Plan ID</label>
-                                <input className="form-input" value={planForm.razorpay_plan_id_yearly} onChange={e => setPlanForm({ ...planForm, razorpay_plan_id_yearly: e.target.value })} />
+                                <label>Google Play Monthly ID</label>
+                                <input className="form-input" value={planForm.google_play_product_id_monthly} onChange={e => setPlanForm({ ...planForm, google_play_product_id_monthly: e.target.value })} placeholder="e.g. monthly_premium" />
+                            </div>
+                            <div className="form-group">
+                                <label>Google Play Yearly ID</label>
+                                <input className="form-input" value={planForm.google_play_product_id_yearly} onChange={e => setPlanForm({ ...planForm, google_play_product_id_yearly: e.target.value })} placeholder="e.g. yearly_premium" />
+                            </div>
+                            <div className="form-group">
+                                <label>Google Play Lifetime ID</label>
+                                <input className="form-input" value={planForm.google_play_product_id_lifetime} onChange={e => setPlanForm({ ...planForm, google_play_product_id_lifetime: e.target.value })} placeholder="e.g. lifetime_premium" />
                             </div>
                             <div className="form-group" style={{ gridColumn: '1/-1' }}>
                                 <label>Features (one per line)</label>
@@ -751,6 +991,230 @@ export default function SubscriptionsPage() {
                             <button className="btn" onClick={() => setShowPlanModal(false)}>Cancel</button>
                             <button className="btn btn-primary" onClick={handlePlanSave}>
                                 {editingPlan ? 'Save Changes' : 'Create Plan'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ════════════════════════════ Grant Subscription Modal ════════════════════════════ */}
+            {showGrantModal && (
+                <div className="modal-overlay" onClick={() => setShowGrantModal(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 580, borderRadius: 18 }}>
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h2 style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+                                <span style={{ fontSize: 24 }}>🎁</span> Grant Subscription
+                            </h2>
+                            <button onClick={() => setShowGrantModal(false)} style={{
+                                background: 'var(--border)', border: 'none', borderRadius: 8,
+                                width: 32, height: 32, cursor: 'pointer', fontSize: 16, color: 'var(--text-muted)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>✕</button>
+                        </div>
+
+                        {/* Step 1: Search User */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
+                                1. Select User
+                            </label>
+
+                            {grantSelectedUser ? (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
+                                    borderRadius: 12, padding: '12px 16px',
+                                }}>
+                                    <div style={{
+                                        width: 40, height: 40, borderRadius: '50%',
+                                        background: grantSelectedUser.avatar_url ? 'transparent' : 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: '#fff', fontWeight: 700, fontSize: 16, overflow: 'hidden', flexShrink: 0,
+                                    }}>
+                                        {grantSelectedUser.avatar_url ? (
+                                            <img src={grantSelectedUser.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            (grantSelectedUser.full_name || 'U').charAt(0).toUpperCase()
+                                        )}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 700 }}>{grantSelectedUser.full_name || 'No Name'}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{grantSelectedUser.email || grantSelectedUser.id}</div>
+                                    </div>
+                                    <button onClick={() => { setGrantSelectedUser(null); setGrantUserSearch(''); }} style={{
+                                        background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: 8,
+                                        padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#ef4444',
+                                    }}>Change</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{ position: 'relative' }}>
+                                        <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14, opacity: 0.5 }}>🔍</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Search by name or email..."
+                                            value={grantUserSearch}
+                                            onChange={e => setGrantUserSearch(e.target.value)}
+                                            autoFocus
+                                            style={{
+                                                width: '100%', padding: '10px 14px 10px 36px', borderRadius: 10,
+                                                border: '1px solid var(--border)', background: 'var(--bg)',
+                                                color: 'var(--text)', fontSize: 14, outline: 'none',
+                                            }}
+                                        />
+                                        {grantSearching && <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 14 }}>⏳</span>}
+                                    </div>
+
+                                    {grantSearchResults.length > 0 && (
+                                        <div style={{
+                                            marginTop: 8, border: '1px solid var(--border)', borderRadius: 12,
+                                            maxHeight: 200, overflow: 'auto', background: 'var(--bg)',
+                                        }}>
+                                            {grantSearchResults.map(u => (
+                                                <div key={u.id} onClick={() => { setGrantSelectedUser(u); setGrantSearchResults([]); }}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                                                        cursor: 'pointer', borderBottom: '1px solid var(--border)',
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'var(--card)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <div style={{
+                                                        width: 32, height: 32, borderRadius: '50%',
+                                                        background: u.avatar_url ? 'transparent' : 'linear-gradient(135deg, #60a5fa, #3b82f6)',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        color: '#fff', fontWeight: 700, fontSize: 13, overflow: 'hidden', flexShrink: 0,
+                                                    }}>
+                                                        {u.avatar_url ? (
+                                                            <img src={u.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                        ) : (
+                                                            (u.full_name || 'U').charAt(0).toUpperCase()
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 600, fontSize: 13 }}>{u.full_name || 'No Name'}</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email || u.id}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {grantUserSearch.trim().length >= 2 && !grantSearching && grantSearchResults.length === 0 && (
+                                        <div style={{ marginTop: 8, padding: 12, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                                            No users found for "{grantUserSearch}"
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+
+                        {/* Step 2: Select Plan */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
+                                2. Select Plan
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                                {plans.filter(p => p.is_active).map(p => (
+                                    <button key={p.id} onClick={() => setGrantPlanId(p.id)} style={{
+                                        padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                                        border: grantPlanId === p.id ? '2px solid #a855f7' : '2px solid var(--border)',
+                                        background: grantPlanId === p.id ? 'rgba(168,85,247,0.1)' : 'var(--bg)',
+                                        color: grantPlanId === p.id ? '#a855f7' : 'var(--text)',
+                                        textAlign: 'left', transition: 'all 0.2s',
+                                    }}>
+                                        <div style={{ fontWeight: 700, fontSize: 14 }}>{p.display_name}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                            {formatPrice(p.price_monthly)}/mo
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Step 3: Duration */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
+                                3. Duration
+                            </label>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                {[
+                                    { value: '1', label: '1 Month' },
+                                    { value: '3', label: '3 Months' },
+                                    { value: '6', label: '6 Months' },
+                                    { value: '12', label: '1 Year' },
+                                    { value: 'lifetime', label: '♾️ Lifetime' },
+                                ].map(d => (
+                                    <button key={d.value} onClick={() => setGrantDuration(d.value)} style={{
+                                        padding: '8px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                                        border: grantDuration === d.value ? '2px solid #22c55e' : '2px solid var(--border)',
+                                        background: grantDuration === d.value ? 'rgba(34,197,94,0.1)' : 'transparent',
+                                        color: grantDuration === d.value ? '#22c55e' : 'var(--text-muted)',
+                                        transition: 'all 0.2s',
+                                    }}>
+                                        {d.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Step 4: Note (optional) */}
+                        <div style={{ marginBottom: 20 }}>
+                            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 8 }}>
+                                4. Note (optional)
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="e.g. Beta tester, Team member, Promo..."
+                                value={grantNote}
+                                onChange={e => setGrantNote(e.target.value)}
+                                style={{
+                                    width: '100%', padding: '10px 14px', borderRadius: 10,
+                                    border: '1px solid var(--border)', background: 'var(--bg)',
+                                    color: 'var(--text)', fontSize: 14, outline: 'none',
+                                }}
+                            />
+                        </div>
+
+                        {/* Summary */}
+                        {grantSelectedUser && grantPlanId && (
+                            <div style={{
+                                background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)',
+                                borderRadius: 12, padding: 16, marginBottom: 20,
+                            }}>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: '#a855f7', marginBottom: 8, textTransform: 'uppercase' }}>Grant Summary</div>
+                                <div style={{ fontSize: 14, lineHeight: 1.8 }}>
+                                    Granting <b style={{ color: '#a855f7' }}>{plans.find(p => p.id === grantPlanId)?.display_name}</b> to{' '}
+                                    <b>{grantSelectedUser.full_name || grantSelectedUser.email}</b> for{' '}
+                                    <b style={{ color: '#22c55e' }}>{grantDuration === 'lifetime' ? 'Lifetime' : `${grantDuration} month(s)`}</b>
+                                    {grantNote && <span style={{ color: 'var(--text-muted)' }}> — {grantNote}</span>}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Message */}
+                        {grantMsg && (
+                            <div style={{
+                                padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 600,
+                                background: grantMsg.startsWith('✅') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                                color: grantMsg.startsWith('✅') ? '#22c55e' : '#ef4444',
+                                border: `1px solid ${grantMsg.startsWith('✅') ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                            }}>
+                                {grantMsg}
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                            <button className="btn" onClick={() => setShowGrantModal(false)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={handleGrantSubscription} disabled={granting || !grantSelectedUser || !grantPlanId}
+                                style={{
+                                    background: 'linear-gradient(135deg, #7c3aed, #a855f7)', border: 'none',
+                                    opacity: (!grantSelectedUser || !grantPlanId || granting) ? 0.5 : 1,
+                                    padding: '10px 24px', borderRadius: 10,
+                                }}>
+                                {granting ? '⏳ Granting...' : '🎁 Grant Subscription'}
                             </button>
                         </div>
                     </div>

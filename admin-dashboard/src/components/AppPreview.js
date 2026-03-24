@@ -7,7 +7,7 @@ import { useState } from 'react';
  * Based on real app screenshots showing Theory/Practical tabs with
  * warm brown/cream theme, Hindi+English bilingual, pose grid, breathing badges, etc.
  */
-export default function AppPreview({ pose, steps = [], linkedSession = null, onClose }) {
+export default function AppPreview({ pose, steps = [], linkedSession = null, onClose, inline = false }) {
   const [activeTab, setActiveTab] = useState('practical');
   const [currentStep, setCurrentStep] = useState(0);
   const [practicalView, setPracticalView] = useState('overview'); // 'overview' or 'active'
@@ -60,6 +60,124 @@ export default function AppPreview({ pose, steps = [], linkedSession = null, onC
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   };
 
+  // Parse literature text: {{IMG_LEFT:url}}, {{IMG:url}}, ## heading, **bold**, *italic*
+  function parseLiterature(text) {
+    if (!text) return null;
+    const normalized = text.replace(/\\n/g, '\n');
+    const lines = normalized.split('\n');
+    const elements = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (trimmed.startsWith('{{IMG_LEFT:') && trimmed.endsWith('}}')) {
+        const url = trimmed.substring(11, trimmed.length - 2);
+        const textLines = [];
+        i++;
+        while (i < lines.length) {
+          const next = lines[i].trim();
+          if (next === '' || next.startsWith('{{')) break;
+          textLines.push(lines[i]);
+          i++;
+        }
+        elements.push(
+          <div key={`img_left_${i}`} style={{ display: 'flex', gap: 10, margin: '8px 0', alignItems: 'flex-start' }}>
+            <img src={url} alt="" style={{ width: '38%', borderRadius: 8, border: '1px solid #d4c0a0', boxShadow: '2px 2px 6px rgba(139,75,20,0.12)', objectFit: 'contain', flexShrink: 0 }}
+              onError={e => { e.target.style.display = 'none'; }} />
+            <div style={{ flex: 1, fontSize: 12, lineHeight: 1.6 }}>
+              {textLines.map((tl, ti) => <div key={ti}>{parseInlineMarkdown(tl)}</div>)}
+            </div>
+          </div>
+        );
+        continue;
+      } else if (trimmed.startsWith('{{IMG:') && trimmed.endsWith('}}')) {
+        const url = trimmed.substring(6, trimmed.length - 2);
+        elements.push(
+          <div key={`img_${i}`} style={{ textAlign: 'center', margin: '10px 0' }}>
+            <img src={url} alt="" style={{ maxWidth: '70%', borderRadius: 10, border: '1px solid #d4c0a0', boxShadow: '2px 3px 8px rgba(139,75,20,0.15)' }}
+              onError={e => { e.target.style.display = 'none'; }} />
+          </div>
+        );
+      } else if (trimmed === '') {
+        elements.push(<div key={`br_${i}`} style={{ height: 6 }} />);
+      } else if (line.startsWith('## ')) {
+        elements.push(
+          <div key={`h_${i}`} style={{ fontSize: 15, fontWeight: 800, color: '#3E2723', margin: '10px 0 4px', letterSpacing: 0.5 }}>
+            {line.substring(3)}
+            <div style={{ width: 36, height: 2, background: 'rgba(139,105,20,0.5)', borderRadius: 1, marginTop: 3 }} />
+          </div>
+        );
+      } else if (line.startsWith('- ')) {
+        elements.push(
+          <div key={`li_${i}`} style={{ display: 'flex', gap: 6, padding: '2px 0 2px 8px', fontSize: 12, lineHeight: 1.6 }}>
+            <span style={{ color: 'rgba(139,105,20,0.7)', marginTop: 2 }}>●</span>
+            <span>{parseInlineMarkdown(line.substring(2))}</span>
+          </div>
+        );
+      } else {
+        elements.push(
+          <div key={`p_${i}`} style={{ fontSize: 12, lineHeight: 1.7, margin: '2px 0' }}>
+            {parseInlineMarkdown(line)}
+          </div>
+        );
+      }
+      i++;
+    }
+    return elements;
+  }
+
+  // Parse **bold** and *italic*
+  function parseInlineMarkdown(text) {
+    const parts = [];
+    const regex = /\*\*(.+?)\*\*|\*(.+?)\*/g;
+    let lastEnd = 0;
+    let match;
+    let key = 0;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastEnd) parts.push(<span key={key++}>{text.substring(lastEnd, match.index)}</span>);
+      if (match[1]) parts.push(<strong key={key++} style={{ fontWeight: 700, color: '#5D4037' }}>{match[1]}</strong>);
+      else if (match[2]) parts.push(<em key={key++}>{match[2]}</em>);
+      lastEnd = match.index + match[0].length;
+    }
+    if (lastEnd < text.length) parts.push(<span key={key++}>{text.substring(lastEnd)}</span>);
+    return parts.length > 0 ? parts : text;
+  }
+
+  // ── Inline mode: render without overlay ──
+  if (inline) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, height: '100%', justifyContent: 'center' }}>
+        {/* Compact Controls */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={() => setLang('hi')} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: lang === 'hi' ? brown : '#27272a', color: lang === 'hi' ? '#fff' : '#a1a1aa', fontSize: 11, fontWeight: 600 }}>हिंदी</button>
+          <button onClick={() => setLang('en')} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', background: lang === 'en' ? brown : '#27272a', color: lang === 'en' ? '#fff' : '#a1a1aa', fontSize: 11, fontWeight: 600 }}>EN</button>
+          <span style={{ width: 1, height: 16, background: '#333' }} />
+          {activeTab === 'practical' && (<>
+            <button onClick={() => setPracticalView('overview')} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 10, background: practicalView === 'overview' ? brown : '#27272a', color: practicalView === 'overview' ? '#fff' : '#a1a1aa', fontWeight: 600 }}>Grid</button>
+            <button onClick={() => setPracticalView('active')} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 10, background: practicalView === 'active' ? brown : '#27272a', color: practicalView === 'active' ? '#fff' : '#a1a1aa', fontWeight: 600 }}>Step</button>
+          </>)}
+          <span style={{ fontSize: 10, color: '#636370' }}>{steps.length} steps • {formatDuration(totalDuration)}</span>
+        </div>
+        {/* Scaled Phone Frame */}
+        <div style={{ transform: 'scale(0.82)', transformOrigin: 'top center', flexShrink: 0 }}>
+        <div style={{
+          width: 380, height: 780, borderRadius: 44,
+          background: '#1a1a1a', padding: 10,
+          boxShadow: '0 25px 80px rgba(0,0,0,0.5), inset 0 0 0 2px #333',
+          position: 'relative',
+        }}>
+          <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 130, height: 30, background: '#1a1a1a', borderRadius: '0 0 18px 18px', zIndex: 10 }}>
+            <div style={{ width: 60, height: 5, background: '#333', borderRadius: 3, margin: '16px auto 0' }} />
+          </div>
+          {renderScreen()}
+        </div>
+        </div>
+        <div style={{ fontSize: 9, color: '#636370', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>📱 Live Preview</div>
+      </div>
+    );
+  }
+
+  // ── Fullscreen overlay mode (default) ──
   return (
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -143,7 +261,15 @@ export default function AppPreview({ pose, steps = [], linkedSession = null, onC
             <div style={{ width: 60, height: 5, background: '#333', borderRadius: 3, margin: '16px auto 0' }} />
           </div>
 
-          {/* Screen */}
+          {renderScreen()}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Shared screen content ──
+  function renderScreen() {
+    return (
           <div style={{
             width: '100%', height: '100%', borderRadius: 34,
             background: cream, overflow: 'hidden',
@@ -251,9 +377,8 @@ export default function AppPreview({ pose, steps = [], linkedSession = null, onC
                         <div style={{ padding: '14px', minHeight: 100 }}>
                           <div style={{
                             fontSize: 13, color: textBrown, lineHeight: 1.8,
-                            whiteSpace: 'pre-wrap',
                           }}>
-                            {lang === 'hi' ? (pagesHindi[currentPage] || pages[currentPage] || '') : (pages[currentPage] || '')}
+                            {parseLiterature(lang === 'hi' ? (pagesHindi[currentPage] || pages[currentPage] || '') : (pages[currentPage] || ''))}
                           </div>
                         </div>
                         {/* Page dots */}
@@ -677,8 +802,6 @@ export default function AppPreview({ pose, steps = [], linkedSession = null, onC
               <div style={{ width: 120, height: 4, background: '#d4c5b3', borderRadius: 2 }} />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
+    );
+  }
 }

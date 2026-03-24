@@ -30,60 +30,35 @@ class RoutineTrackingService {
       tz.setLocalLocation(tz.getLocation('Asia/Kolkata')); // India timezone
       debugPrint('✅ Timezone set to Asia/Kolkata');
       
-      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
-      const initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
-
-      final result = await _notifications.initialize(
-        initSettings, 
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-      );
+      // DO NOT re-initialize FlutterLocalNotificationsPlugin here!
+      // NotificationService already initialized it with a unified tap handler
+      // that routes both alarm and task notifications correctly.
+      // We only use _notifications for SCHEDULING, not for tap handling.
       
       // Request Android notification permission (Android 13+)
       final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
-        // Request POST_NOTIFICATIONS permission for Android 13+
         final notificationPermission = await androidPlugin.requestNotificationsPermission();
         debugPrint('🔔 Notification permission granted: $notificationPermission');
         
-        // Request exact alarm permission for Android 12+ (required for scheduled notifications)
         final exactAlarmPermission = await androidPlugin.requestExactAlarmsPermission();
         debugPrint('⏰ Exact alarm permission granted: $exactAlarmPermission');
       }
       
       _isInitialized = true;
-      debugPrint('✅ RoutineTrackingService notifications initialized: $result');
+      debugPrint('✅ RoutineTrackingService initialized (scheduling only — tap handling via NotificationService)');
       
-      // Check if app was launched from notification (cold start)
-      final launchDetails = await _notifications.getNotificationAppLaunchDetails();
-      if (launchDetails?.didNotificationLaunchApp == true) {
-        debugPrint('🚀 App launched from notification!');
-        final payload = launchDetails!.notificationResponse?.payload;
-        if (payload != null) {
-          debugPrint('🚀 Launch notification payload: $payload');
-          _onNotificationTapped(launchDetails.notificationResponse!);
-        }
-      }
+      // NOTE: Cold-start notification handling is done by NotificationService.checkForAlarmLaunch()
+      // in main.dart — it handles BOTH alarm AND task payloads.
     } catch (e) {
       debugPrint('❌ Failed to initialize RoutineTrackingService: $e');
     }
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    debugPrint('🔔 Notification tapped: ${response.payload}');
-    
-    // Parse task ID from payload and trigger highlight
-    final deepLinkService = NotificationDeepLinkService();
-    final taskId = deepLinkService.parseTaskIdFromPayload(response.payload);
-    
-    if (taskId != null) {
-      debugPrint('🔦 Setting highlighted task from notification: $taskId');
-      deepLinkService.setHighlightedTask(taskId);
-    }
+    // This handler is kept as a no-op in case any old code references it.
+    // All notification tap handling is now centralized in NotificationService.
+    debugPrint('🔔 RoutineTrackingService._onNotificationTapped called (delegated to NotificationService)');
   }
   
   /// Send immediate test notification to verify system works
