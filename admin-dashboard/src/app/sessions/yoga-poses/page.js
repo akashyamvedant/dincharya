@@ -116,9 +116,14 @@ export default function YogaPosesPage() {
 
   const handleDelete = async (id, name) => {
     if (!confirm(`Delete "${name}"?\n\nThis will also delete ALL pose steps linked to this pose. This cannot be undone.`)) return;
-    // Delete steps first (cascade)
-    await supabase.from('pose_steps').delete().eq('pose_id', id);
-    await supabase.from('yoga_poses').delete().eq('id', id);
+    // Delete steps first (cascade handles it but be explicit)
+    const { error: stepsError } = await supabase.from('pose_steps').delete().eq('pose_id', id);
+    if (stepsError) console.warn('Steps delete warning:', stepsError.message);
+    const { error } = await supabase.from('yoga_poses').delete().eq('id', id);
+    if (error) {
+      alert(`❌ Failed to delete: ${error.message}`);
+      return;
+    }
     fetchPoses();
   };
 

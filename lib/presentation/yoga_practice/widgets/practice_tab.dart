@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../services/yoga_tts_service.dart';
+import '../../../services/tts_audio_service.dart';
+import './cached_pose_image.dart';
 
 /// ═══════════════════════════════════════════════════════════════
 /// PRACTICE TAB — Rich interactive step-by-step yoga practice guide
@@ -39,6 +41,7 @@ class _PracticeTabState extends State<PracticeTab>
 
   // ── TTS ──
   final YogaTtsService _tts = YogaTtsService();
+  final TtsAudioService _ttsAudio = TtsAudioService(); // Sarvam AI natural voice
 
   // ── Breathing ──
   late AnimationController _breathController;
@@ -54,6 +57,15 @@ class _PracticeTabState extends State<PracticeTab>
   bool _isCameraOpen = false;
   Offset _cameraPosition = Offset(0, 0); // Draggable position
   bool _cameraInitialized = false;
+  
+  // Camera PIP size (expandable/resizable)
+  double _cameraWidth = 120;
+  double _cameraHeight = 160;
+  static const double _cameraMinW = 80;
+  static const double _cameraMinH = 107;
+  static const double _cameraMaxW = 280;
+  static const double _cameraMaxH = 373;
+  int _cameraSizePreset = 0; // 0=small, 1=medium, 2=large
 
   @override
   void initState() {
@@ -71,7 +83,7 @@ class _PracticeTabState extends State<PracticeTab>
       if (mounted) {
         setState(() {
           _cameraPosition = Offset(
-            MediaQuery.of(context).size.width - 140,
+            MediaQuery.of(context).size.width - _cameraWidth - 16,
             MediaQuery.of(context).size.height * 0.3,
           );
         });
@@ -91,6 +103,7 @@ class _PracticeTabState extends State<PracticeTab>
   void dispose() {
     _stepTimer?.cancel();
     _tts.stop();
+    _ttsAudio.stop();
     _breathController.dispose();
     _cameraController?.dispose();
     _pageController.dispose();
@@ -105,6 +118,10 @@ class _PracticeTabState extends State<PracticeTab>
         _isCameraOpen = false;
         _cameraInitialized = false;
         _cameraController = null;
+        // Reset size to default on close
+        _cameraSizePreset = 0;
+        _cameraWidth = 120;
+        _cameraHeight = 160;
       });
     } else {
       try {
@@ -133,13 +150,43 @@ class _PracticeTabState extends State<PracticeTab>
     }
   }
 
+  /// Cycle camera PIP through 3 size presets: Small → Medium → Large → Small
+  void _cycleCameraSize() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _cameraSizePreset = (_cameraSizePreset + 1) % 3;
+      switch (_cameraSizePreset) {
+        case 0: // Small
+          _cameraWidth = 120;
+          _cameraHeight = 160;
+          break;
+        case 1: // Medium
+          _cameraWidth = 180;
+          _cameraHeight = 240;
+          break;
+        case 2: // Large
+          _cameraWidth = 260;
+          _cameraHeight = 347;
+          break;
+      }
+      // Clamp position so camera doesn't go off screen after resize
+      final maxX = MediaQuery.of(context).size.width - _cameraWidth - 8;
+      final maxY = MediaQuery.of(context).size.height * 0.7;
+      _cameraPosition = Offset(
+        _cameraPosition.dx.clamp(0.0, maxX),
+        _cameraPosition.dy.clamp(0.0, maxY),
+      );
+    });
+  }
+
   // ─── TTS speak ─────────────
   Future<void> _speak(String text) async {
     if (!_voiceEnabled || text.isEmpty) return;
     await _tts.speak(text);
   }
 
-  /// Speak full pose guidance: name, instruction, breathing, mantra
+  /// Speak full pose guidance using Sarvam AI natural voice
+  /// Falls back to device TTS if Sarvam is unavailable
   Future<void> _speakStepGuidance(Map<String, dynamic> step) async {
     if (!_voiceEnabled) return;
     final poseName = _useHindi
@@ -150,7 +197,32 @@ class _PracticeTabState extends State<PracticeTab>
         : (step['instruction'] ?? '');
     final breathing = step['breathing'] ?? '';
     final mantra = step['mantra'] ?? '';
+    final poseId = widget.pose['id']?.toString() ?? '';
+    final stepNumber = step['step_number'] as int? ?? (_currentStep + 1);
+    final language = _useHindi ? 'hi' : 'en';
 
+    // Build full guidance text for Sarvam AI
+    final breathLabel = _useHindi
+        ? _getBreathingLabel(breathing.toString())
+        : _getBreathingLabelEn(breathing.toString());
+    final parts = <String>[poseName.toString()];
+    if (instruction.toString().isNotEmpty) parts.add(instruction.toString());
+    if (breathLabel.isNotEmpty) parts.add(breathLabel);
+    final guidanceText = parts.join('। ... ');
+
+    // Try Sarvam AI natural voice first
+    if (poseId.isNotEmpty && guidanceText.isNotEmpty) {
+      final success = await _ttsAudio.speakStepGuidance(
+        poseId: poseId,
+        stepNumber: stepNumber,
+        language: language,
+        guidanceText: guidanceText,
+      );
+      if (success) return; // Sarvam AI worked! ✅
+    }
+
+    // Fallback: device TTS (robotic but works offline without cache)
+    debugPrint('🔊 Falling back to device TTS...');
     await _tts.speakPoseGuidance(
       poseName: poseName.toString(),
       instruction: instruction.toString(),
@@ -159,12 +231,38 @@ class _PracticeTabState extends State<PracticeTab>
     );
   }
 
-  // ─── Step timer ─────────────
+  String _getBreathingLabel(String breathing) {
+    switch (breathing) {
+      case 'inhale': return 'श्वास लें';
+      case 'exhale': return 'श्वास छोड़ें';
+      case 'hold': return 'श्वास रोकें';
+      default: return '';
+    }
+  }
+
+  String _getBreathingLabelEn(String breathing) {
+    switch (breathing) {
+      case 'inhale': return 'Inhale slowly';
+      case 'exhale': return 'Exhale slowly';
+      case 'hold': return 'Hold your breath';
+      default: return '';
+    }
+  }
+
+  // ─── Step timer (Voice-First Pattern) ─────────────
+  // Phase 1: Voice speaks guidance → await completion
+  // Phase 2: Hold timer counts down → auto-advance
+  bool _isSpeechPhase = false;
+  int _speechCancelToken = 0; // Incremented on cancel to abort speech-phase
+
   void _startStepTimer(int seconds) {
     _stepTimer?.cancel();
+    _speechCancelToken++; // Cancel any previous speech-phase
+
     setState(() {
       _remainingSeconds = seconds;
       _isPlaying = true;
+      _isSpeechPhase = true;
     });
 
     // Start breathing animation if this is a breathing step
@@ -176,8 +274,24 @@ class _PracticeTabState extends State<PracticeTab>
       _stopBreathing();
     }
 
-    // Speak full guidance (pose name + instruction + breathing + mantra)
-    _speakStepGuidance(step);
+    // Voice-first: speak guidance, THEN start hold timer
+    _runVoiceThenHold(step, seconds);
+  }
+
+  /// Speaks guidance first, waits for completion, then starts hold countdown
+  Future<void> _runVoiceThenHold(Map<String, dynamic> step, int holdSeconds) async {
+    final token = _speechCancelToken;
+
+    // Phase 1: Speak guidance (awaits TTS completion)
+    if (_voiceEnabled) {
+      await _speakStepGuidance(step);
+    }
+
+    // Check if cancelled while speaking (user skipped/paused/stopped)
+    if (token != _speechCancelToken || !mounted) return;
+
+    // Phase 2: Start hold timer
+    setState(() => _isSpeechPhase = false);
 
     _stepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) { timer.cancel(); return; }
@@ -191,8 +305,13 @@ class _PracticeTabState extends State<PracticeTab>
 
   void _pauseTimer() {
     _stepTimer?.cancel();
+    _speechCancelToken++; // Cancel any speech-phase Future
     _tts.stop();
-    setState(() => _isPlaying = false);
+    _ttsAudio.stop();
+    setState(() {
+      _isPlaying = false;
+      _isSpeechPhase = false;
+    });
     _stopBreathing();
   }
 
@@ -226,11 +345,14 @@ class _PracticeTabState extends State<PracticeTab>
 
   void _stopPractice() {
     _stepTimer?.cancel();
+    _speechCancelToken++; // Cancel any speech-phase Future
     _tts.stop();
+    _ttsAudio.stop();
     _stopBreathing();
     setState(() {
       _isPlaying = false;
       _isPracticing = false;
+      _isSpeechPhase = false;
       _currentStep = 0;
     });
   }
@@ -437,22 +559,10 @@ class _PracticeTabState extends State<PracticeTab>
                       child: Column(
                         children: [
                           Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: primary.withOpacity(0.2),
-                                ),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: img != null && img.isNotEmpty
-                                  ? Image.network(
-                                      img,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) =>
-                                          _stepPlaceholder(i),
-                                    )
-                                  : _stepPlaceholder(i),
+                            child: CachedPoseThumbnail(
+                              imageUrl: img,
+                              index: i,
+                              borderColor: primary.withValues(alpha: 0.2),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -641,20 +751,31 @@ class _PracticeTabState extends State<PracticeTab>
                     ),
                   ),
                   SizedBox(width: 3.w),
-                  // Timer badge
+                  // Timer badge (shows speech/hold phase)
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
                     decoration: BoxDecoration(
-                      color: Colors.orange,
+                      color: _isSpeechPhase 
+                          ? Colors.green.shade600 
+                          : Colors.orange,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text(
-                      '${_remainingSeconds}s',
-                      style: TextStyle(
-                        fontSize: 13.sp,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isSpeechPhase) ...[
+                          const Icon(Icons.mic, color: Colors.white, size: 14),
+                          SizedBox(width: 1.w),
+                        ],
+                        Text(
+                          _isSpeechPhase ? 'सुनें' : '${_remainingSeconds}s',
+                          style: TextStyle(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -774,34 +895,39 @@ class _PracticeTabState extends State<PracticeTab>
           ],
         ),
 
-        // ── Draggable Camera PIP ──
+        // ── Draggable & Resizable Camera PIP ──
         if (_isCameraOpen && _cameraInitialized && _cameraController != null)
           Positioned(
             left: _cameraPosition.dx,
             top: _cameraPosition.dy,
             child: GestureDetector(
+              // Drag to move
               onPanUpdate: (details) {
                 setState(() {
                   _cameraPosition += details.delta;
-                  // Keep within bounds
-                  final maxX = MediaQuery.of(context).size.width - 130;
-                  final maxY = MediaQuery.of(context).size.height * 0.6;
+                  // Keep within screen bounds
+                  final maxX = MediaQuery.of(context).size.width - _cameraWidth - 8;
+                  final maxY = MediaQuery.of(context).size.height * 0.7;
                   _cameraPosition = Offset(
                     _cameraPosition.dx.clamp(0.0, maxX),
                     _cameraPosition.dy.clamp(0.0, maxY),
                   );
                 });
               },
-              child: Container(
-                width: 120,
-                height: 160,
+              // Double-tap to cycle size presets
+              onDoubleTap: _cycleCameraSize,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                width: _cameraWidth,
+                height: _cameraHeight,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: primary, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 10,
+                      color: Colors.black.withOpacity(0.35),
+                      blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
                   ],
@@ -809,27 +935,97 @@ class _PracticeTabState extends State<PracticeTab>
                 clipBehavior: Clip.antiAlias,
                 child: Stack(
                   children: [
-                    CameraPreview(_cameraController!),
-                    // Close button
+                    // Camera feed
+                    Positioned.fill(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: _cameraController!.value.previewSize?.height ?? 480,
+                          height: _cameraController!.value.previewSize?.width ?? 640,
+                          child: CameraPreview(_cameraController!),
+                        ),
+                      ),
+                    ),
+                    
+                    // Top bar: expand + close buttons
                     Positioned(
                       top: 4,
                       right: 4,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Expand/shrink toggle
+                          GestureDetector(
+                            onTap: _cycleCameraSize,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                _cameraSizePreset == 2
+                                    ? Icons.close_fullscreen_rounded
+                                    : Icons.open_in_full_rounded,
+                                color: Colors.white,
+                                size: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          // Close button
+                          GestureDetector(
+                            onTap: _toggleCamera,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Bottom-right resize handle (drag to resize freely)
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
                       child: GestureDetector(
-                        onTap: _toggleCamera,
+                        onPanUpdate: (details) {
+                          setState(() {
+                            _cameraWidth = (_cameraWidth + details.delta.dx)
+                                .clamp(_cameraMinW, _cameraMaxW);
+                            _cameraHeight = (_cameraHeight + details.delta.dy)
+                                .clamp(_cameraMinH, _cameraMaxH);
+                          });
+                        },
                         child: Container(
-                          padding: const EdgeInsets.all(4),
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
-                            shape: BoxShape.circle,
+                            color: primary.withOpacity(0.7),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                              bottomRight: Radius.circular(14),
+                            ),
                           ),
                           child: const Icon(
-                            Icons.close,
+                            Icons.drag_handle_rounded,
                             color: Colors.white,
                             size: 14,
                           ),
                         ),
                       ),
                     ),
+                    
+                    // Size label (shows briefly on size change via preset)
                   ],
                 ),
               ),
@@ -881,26 +1077,17 @@ class _PracticeTabState extends State<PracticeTab>
                 if (stepImage != null && stepImage.isNotEmpty)
                   Stack(
                     children: [
-                      ClipRRect(
+                      CachedPoseImage(
+                        imageUrl: stepImage,
+                        width: double.infinity,
+                        height: 22.h,
+                        fit: BoxFit.contain,
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(20),
                         ),
-                        child: Image.network(
-                          stepImage,
-                          width: double.infinity,
-                          height: 22.h,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: double.infinity,
-                            height: 22.h,
-                            color: primary.withOpacity(0.08),
-                            child: Icon(
-                              Icons.self_improvement,
-                              size: 64,
-                              color: primary.withOpacity(0.3),
-                            ),
-                          ),
-                        ),
+                        animate: true,
+                        breathe: _isPlaying && _currentStep == index,
+                        placeholderColor: primary.withValues(alpha: 0.08),
                       ),
                       // Breathing indicator badge on image
                       if (_showBreathIndicator)

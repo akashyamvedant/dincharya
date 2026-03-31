@@ -4,10 +4,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../services/ads_service.dart';
+import '../../widgets/ads/native_ad_widget.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 import '../../services/guided_session_service.dart';
 import '../../services/yoga_pose_service.dart';
 import '../yoga_practice/widgets/practice_tab.dart';
@@ -259,6 +262,9 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                 ),
               ),
               SizedBox(height: 4.h),
+              // Adaptive Banner at bottom of fallback layout
+              const AdaptiveBannerAdWidget(placement: BannerPlacement.sessionDetail),
+              SizedBox(height: 2.h),
             ],
           ),
         ),
@@ -345,6 +351,9 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                         // Literature (book-style)
                         _buildLiteratureSection(),
                         SizedBox(height: 2.h),
+                        // Native Ad between content sections
+                        const NativeAdWidget(placement: NativePlacement.sessionTheory),
+                        SizedBox(height: 2.h),
                         // Benefits from DB
                         _buildPoseBenefitsCard(),
                         SizedBox(height: 2.h),
@@ -356,6 +365,8 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                           _buildStepsOverviewCard(),
                           SizedBox(height: 2.h),
                         ],
+                        // Adaptive Banner at bottom of Theory tab
+                        const AdaptiveBannerAdWidget(placement: BannerPlacement.sessionDetail),
                         SizedBox(height: 4.h),
                       ],
                     ),
@@ -895,25 +906,19 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    url,
+                  child: CachedNetworkImage(
+                    imageUrl: url,
                     fit: BoxFit.contain,
-                    loadingBuilder: (ctx, child, progress) {
-                      if (progress == null) return child;
-                      return SizedBox(
-                        height: 15.h,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: const Color(0xFF8B6914),
-                            value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                              : null,
-                          ),
+                    placeholder: (ctx, url) => SizedBox(
+                      height: 15.h,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: const Color(0xFF8B6914),
                         ),
-                      );
-                    },
-                    errorBuilder: (ctx, err, stack) => SizedBox(
+                      ),
+                    ),
+                    errorWidget: (ctx, url, err) => SizedBox(
                       height: 12.h,
                       child: Center(child: Icon(Icons.image_not_supported, color: Theme.of(context).colorScheme.secondary, size: 30)),
                     ),
@@ -973,25 +978,19 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  url,
+                child: CachedNetworkImage(
+                  imageUrl: url,
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return SizedBox(
-                      height: 20.h,
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: const Color(0xFF8B6914),
-                          value: progress.expectedTotalBytes != null
-                            ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                            : null,
-                        ),
+                  placeholder: (ctx, url) => SizedBox(
+                    height: 20.h,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: const Color(0xFF8B6914),
                       ),
-                    );
-                  },
-                  errorBuilder: (ctx, err, stack) => SizedBox(
+                    ),
+                  ),
+                  errorWidget: (ctx, url, err) => SizedBox(
                     height: 15.h,
                     child: Center(child: Icon(Icons.image_not_supported, color: Theme.of(context).colorScheme.secondary, size: 40)),
                   ),

@@ -1,6 +1,6 @@
 name: dincharya
 description: A new Flutter project.
-version: 1.0.0+13
+version: 1.0.0+14
 environment: 
   sdk: ^3.6.0
 dependencies: 

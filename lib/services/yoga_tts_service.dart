@@ -23,9 +23,13 @@ class YogaTtsService {
     if (_isInitialized) return;
     try {
       await _tts.setLanguage(_language);
-      await _tts.setSpeechRate(0.45); // Slightly slow for clarity
+      await _tts.setSpeechRate(0.38); // Slow, calm yoga teacher pace
       await _tts.setVolume(1.0);
-      await _tts.setPitch(1.0);
+      await _tts.setPitch(0.95); // Slightly warm, deeper tone
+      
+      // CRITICAL: Makes speak() return a Future that completes
+      // only when speech finishes — enables voice-first timer pattern
+      await _tts.awaitSpeakCompletion(true);
       
       _tts.setStartHandler(() => _isSpeaking = true);
       _tts.setCompletionHandler(() => _isSpeaking = false);
@@ -36,7 +40,7 @@ class YogaTtsService {
       });
       
       _isInitialized = true;
-      debugPrint('🔊 TTS initialized with language: $_language');
+      debugPrint('🔊 TTS initialized with language: $_language, awaitCompletion=true');
     } catch (e) {
       debugPrint('🔊 TTS init error: $e');
     }
@@ -62,13 +66,15 @@ class YogaTtsService {
     await _tts.speak(text);
   }
 
-  /// Speak multiple lines sequentially with a pause between
+  /// Speak multiple lines sequentially with natural pauses between
   Future<void> speakSequence(List<String> lines) async {
     if (!_isEnabled || lines.isEmpty) return;
     await init();
     if (_isSpeaking) await _tts.stop();
     
-    final combined = lines.where((l) => l.isNotEmpty).join('। ');
+    // Join with pause-inducing punctuation for natural rhythm
+    // Using "। ... " creates a longer, natural pause between parts
+    final combined = lines.where((l) => l.isNotEmpty).join('। ... ');
     await _tts.speak(combined);
   }
 

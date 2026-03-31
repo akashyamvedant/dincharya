@@ -430,19 +430,32 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
                 ),
               ),
             SizedBox(width: 2.w),
-            // Leading icon
+            // Thumbnail or leading icon
             Container(
-              width: 45,
+              width: 55,
               height: 45,
               decoration: BoxDecoration(
                 color: _getCategoryColor(category).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                _getMediaIcon(mediaType),
-                color: _getCategoryColor(category),
-                size: 22,
-              ),
+              clipBehavior: Clip.antiAlias,
+              child: (session['thumbnail_url'] != null && (session['thumbnail_url'] as String).isNotEmpty)
+                  ? Image.network(
+                      session['thumbnail_url'] as String,
+                      fit: BoxFit.cover,
+                      width: 55,
+                      height: 45,
+                      errorBuilder: (_, __, ___) => Icon(
+                        _getMediaIcon(mediaType),
+                        color: _getCategoryColor(category),
+                        size: 22,
+                      ),
+                    )
+                  : Icon(
+                      _getMediaIcon(mediaType),
+                      color: _getCategoryColor(category),
+                      size: 22,
+                    ),
             ),
             SizedBox(width: 3.w),
             // Content
@@ -645,6 +658,11 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
   bool _isSaving = false;
   bool _isUploading = false;
   
+  // Thumbnail
+  String _thumbnailUrl = '';
+  String? _selectedThumbnailFileName;
+  Uint8List? _selectedThumbnailFileBytes;
+  
   // File upload for video
   String? _selectedVideoFileName;
   Uint8List? _selectedVideoFileBytes;
@@ -680,6 +698,7 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
     _difficulty = s?['difficulty'] ?? 3;
     _isPremium = s?['is_premium'] ?? false;
     _isActive = s?['is_active'] ?? true;
+    _thumbnailUrl = s?['thumbnail_url'] ?? '';
   }
 
   @override
@@ -692,6 +711,53 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
     _audioUrlController.dispose();
     _durationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickThumbnailFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        withData: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        setState(() {
+          _selectedThumbnailFileName = file.name;
+          _selectedThumbnailFileBytes = file.bytes;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Thumbnail selected: ${file.name}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
+  Future<void> _deleteThumbnail() async {
+    if (_thumbnailUrl.isEmpty) return;
+    try {
+      final client = await _supabaseService.client;
+      if (client != null && _thumbnailUrl.contains('sessions-media')) {
+        final uri = Uri.parse(_thumbnailUrl);
+        final pathParts = uri.path.split('/storage/v1/object/public/sessions-media/');
+        if (pathParts.length > 1) {
+          await client.storage.from('sessions-media').remove([pathParts[1]]);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting thumbnail from storage: $e');
+    }
+    setState(() {
+      _thumbnailUrl = '';
+      _selectedThumbnailFileName = null;
+      _selectedThumbnailFileBytes = null;
+    });
   }
 
   Future<void> _pickVideoFile() async {
@@ -834,6 +900,16 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
       String videoUrl = _videoUrlController.text.trim();
       String audioUrl = _audioUrlController.text.trim();
 
+      // Upload thumbnail if selected
+      if (_selectedThumbnailFileBytes != null && _selectedThumbnailFileName != null) {
+        final uploadedUrl = await _uploadFile('thumbnail', _selectedThumbnailFileBytes!, _selectedThumbnailFileName!);
+        if (uploadedUrl != null) {
+          _thumbnailUrl = uploadedUrl;
+        } else {
+          throw Exception('Thumbnail upload failed');
+        }
+      }
+
       // Upload video file if selected
       if (_selectedVideoFileBytes != null && _selectedVideoFileName != null) {
         final uploadedUrl = await _uploadFile('video', _selectedVideoFileBytes!, _selectedVideoFileName!);
@@ -875,6 +951,7 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
         'youtube_url': youtubeUrl.isNotEmpty ? youtubeUrl : null,
         'video_url': videoUrl.isNotEmpty ? videoUrl : null,
         'audio_url': audioUrl.isNotEmpty ? audioUrl : null,
+        'thumbnail_url': _thumbnailUrl.isNotEmpty ? _thumbnailUrl : null,
         'duration': int.tryParse(_durationController.text) ?? 600,
         'difficulty': _difficulty,
         'is_premium': _isPremium,
@@ -1002,6 +1079,121 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
                         validator: (v) => v?.isEmpty == true ? 'Required' : null,
                       ),
                       SizedBox(height: 2.h),
+
+                      // ── THUMBNAIL SECTION ──
+                      Text('🖼️ Session Thumbnail', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp)),
+                      SizedBox(height: 1.h),
+                      Container(
+                        padding: EdgeInsets.all(3.w),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _thumbnailUrl.isNotEmpty || _selectedThumbnailFileName != null
+                                ? const Color(0xFF8B4513).withOpacity(0.5)
+                                : Colors.grey.shade300,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: _thumbnailUrl.isNotEmpty
+                              ? const Color(0xFF8B4513).withOpacity(0.03)
+                              : Colors.transparent,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Preview existing thumbnail
+                            if (_thumbnailUrl.isNotEmpty)
+                              Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      _thumbnailUrl,
+                                      width: double.infinity,
+                                      height: 18.h,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(
+                                        height: 12.h,
+                                        color: Colors.grey.shade200,
+                                        child: Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                      ),
+                                    ),
+                                  ),
+                                  // Delete overlay button
+                                  Positioned(
+                                    top: 6,
+                                    right: 6,
+                                    child: GestureDetector(
+                                      onTap: _deleteThumbnail,
+                                      child: Container(
+                                        padding: EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.85),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(Icons.delete, color: Colors.white, size: 18),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            // Show selected file name
+                            if (_selectedThumbnailFileName != null) ...[
+                              SizedBox(height: 1.h),
+                              Container(
+                                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.image, color: Colors.green, size: 16),
+                                    SizedBox(width: 1.w),
+                                    Expanded(
+                                      child: Text(
+                                        'New: $_selectedThumbnailFileName',
+                                        style: TextStyle(color: Colors.green, fontSize: 11.sp),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            SizedBox(height: 1.h),
+                            // Upload button
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isUploading ? null : _pickThumbnailFile,
+                                    icon: Icon(Icons.upload, size: 18),
+                                    label: Text(
+                                      _thumbnailUrl.isNotEmpty ? 'Change Thumbnail' : 'Upload Thumbnail',
+                                      style: TextStyle(fontSize: 12.sp),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF8B4513),
+                                      foregroundColor: Colors.white,
+                                      padding: EdgeInsets.symmetric(vertical: 1.2.h),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                                ),
+                                if (_thumbnailUrl.isNotEmpty) ...[
+                                  SizedBox(width: 2.w),
+                                  IconButton(
+                                    onPressed: _deleteThumbnail,
+                                    icon: Icon(Icons.delete_outline, color: Colors.red),
+                                    tooltip: 'Remove thumbnail',
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text('PNG, JPG, WEBP', style: TextStyle(fontSize: 9.sp, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 2.5.h),
 
                       // Category
                       Text('Category *', style: TextStyle(fontWeight: FontWeight.w500)),

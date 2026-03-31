@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import './supabase_service.dart';
 import './subscription_manager.dart';
@@ -29,9 +30,14 @@ class AdsService {
   /// Await this to ensure AdsService is ready before checking shouldShowAds
   Future<void> get waitForInitialization => _initCompleter.future;
   
-  // Frequency capping for interstitial
+  // Frequency capping for interstitial (persisted via SharedPreferences)
   int _interstitialActionCount = 0;
   DateTime? _lastInterstitialTime;
+  
+  // SharedPreferences keys for persistence
+  static const String _prefKeyInterstitialCount = 'ads_interstitial_action_count';
+  static const String _prefKeyLastInterstitialTime = 'ads_last_interstitial_time';
+  static const String _prefKeyLastAppOpenTime = 'ads_last_app_open_time';
   
   // App Open ad expiry tracking (4 hours max)
   DateTime? _appOpenAdLoadTime;
@@ -79,7 +85,10 @@ class AdsService {
       // Mark as initialized FIRST so shouldShowAds returns true
       _isInitialized = true;
       
-      // THIRD: Sync premium status from SubscriptionManager
+      // THIRD: Load persisted frequency capping data
+      await _loadPersistedFrequencyCaps();
+      
+      // FOURTH: Sync premium status from SubscriptionManager
       await _syncPremiumStatus();
       
       debugPrint('✅ AdsService fully initialized');
@@ -371,11 +380,12 @@ class AdsService {
     debugPrint('⚠️ Interstitial: All $_maxLoadRetries attempts failed for ${placement?.name ?? "default"}');
   }
 
-  // Show interstitial with frequency capping
+  // Show interstitial with frequency capping (persisted)
   Future<bool> showInterstitialAdWithCapping([InterstitialPlacement? placement]) async {
     if (!shouldShowAds) return false;
     
     _interstitialActionCount++;
+    await _persistInterstitialCount();
     
     // Check frequency cap
     if (_interstitialActionCount < AdConstants.interstitialFrequency) {
@@ -397,6 +407,8 @@ class AdsService {
     if (shown) {
       _interstitialActionCount = 0;
       _lastInterstitialTime = DateTime.now();
+      await _persistInterstitialCount();
+      await _persistLastInterstitialTime();
       debugPrint('📺 Interstitial shown for placement: ${placement?.name ?? "default"}');
       // Preload next ad with same placement
       loadInterstitialAd(placement);
@@ -786,6 +798,71 @@ class AdsService {
     );
     
     return result;
+  }
+
+  // ==================== PERSISTENCE HELPERS ====================
+  
+  /// Load persisted frequency capping data from SharedPreferences
+  Future<void> _loadPersistedFrequencyCaps() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _interstitialActionCount = prefs.getInt(_prefKeyInterstitialCount) ?? 0;
+      
+      final lastTimeMs = prefs.getInt(_prefKeyLastInterstitialTime);
+      if (lastTimeMs != null) {
+        _lastInterstitialTime = DateTime.fromMillisecondsSinceEpoch(lastTimeMs);
+      }
+      
+      debugPrint('📊 Loaded persisted caps: actions=$_interstitialActionCount, lastTime=$_lastInterstitialTime');
+    } catch (e) {
+      debugPrint('⚠️ Failed to load persisted caps: $e');
+    }
+  }
+  
+  /// Persist interstitial action count
+  Future<void> _persistInterstitialCount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefKeyInterstitialCount, _interstitialActionCount);
+    } catch (e) {
+      debugPrint('⚠️ Failed to persist interstitial count: $e');
+    }
+  }
+  
+  /// Persist last interstitial show time
+  Future<void> _persistLastInterstitialTime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_lastInterstitialTime != null) {
+        await prefs.setInt(_prefKeyLastInterstitialTime, _lastInterstitialTime!.millisecondsSinceEpoch);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to persist interstitial time: $e');
+    }
+  }
+  
+  /// Persist last app open ad show time
+  Future<void> persistLastAppOpenTime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_prefKeyLastAppOpenTime, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('⚠️ Failed to persist app open time: $e');
+    }
+  }
+  
+  /// Get last app open ad show time from persistence
+  Future<DateTime?> getLastAppOpenTime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastTimeMs = prefs.getInt(_prefKeyLastAppOpenTime);
+      if (lastTimeMs != null) {
+        return DateTime.fromMillisecondsSinceEpoch(lastTimeMs);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to get app open time: $e');
+    }
+    return null;
   }
 
   // ==================== CLEANUP ====================

@@ -26,6 +26,7 @@ import './widgets/activity_tracking_dialog.dart';
 import './widgets/celebration_overlay.dart';
 import './widgets/quick_tasks_section.dart';
 import '../../widgets/ads/native_ad_widget.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 
 
 class RoutineDashboard extends StatefulWidget {
@@ -956,8 +957,13 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         ),
       ),
 
-      // Bottom Navigation
-      bottomNavigationBar: BottomNavigationBar(
+      // Bottom Navigation + Anchored Adaptive Banner
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Anchored Adaptive Banner — always visible on highest-traffic screen
+          const AdaptiveBannerAdWidget(placement: BannerPlacement.routineDashboard),
+          BottomNavigationBar(
         key: _bottomNavKey,
         currentIndex: _currentTabIndex,
         onTap: _onTabChanged,
@@ -1007,6 +1013,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
             ),
             label: _tabLabels[3],
           ),
+        ],
+      ),
         ],
       ),
 

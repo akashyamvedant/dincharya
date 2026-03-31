@@ -9,6 +9,7 @@ import '../../services/subscription_manager.dart';
 import '../../widgets/premium_paywall_widget.dart';
 import '../../services/guided_session_service.dart';
 import '../../widgets/ads/native_ad_widget.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 import './widgets/session_card_widget.dart';
 import './widgets/programs_section.dart';
 import './widgets/quick_tools_section.dart';
@@ -694,7 +695,12 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Anchored Adaptive Banner — always visible on second highest-traffic screen
+          const AdaptiveBannerAdWidget(placement: BannerPlacement.guidedHub),
+          BottomNavigationBar(
         currentIndex: _currentBottomIndex,
         type: BottomNavigationBarType.fixed,
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -762,6 +768,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               break;
           }
         },
+      ),
+        ],
       ),
     );
   }

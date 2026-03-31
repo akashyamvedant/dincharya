@@ -9,6 +9,7 @@ import 'package:timezone/data/latest.dart' as tz;
 
 import 'package:dincharya/widgets/custom_error_widget.dart';
 import './services/ads_service.dart';
+import './core/constants/ad_constants.dart';
 import './services/auth_service.dart';
 import './services/notification_service.dart';
 import './services/routine_tracking_service.dart';
@@ -166,16 +167,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   
   // App Open Ad tracking
   bool _isShowingAd = false;
-  bool _hasShownAdThisSession = false; // Only show ad ONCE per session
   DateTime? _appPausedTime;
   
   // AdMob Policy Compliant Settings:
-  // - App Open ads should show when user returns to app after being away
-  // - Google recommends showing only when user has engaged with app a few times
+  // - App Open ads show when user returns after being away 30+ seconds
+  // - Time-based cooldown (60 min) replaces session-based blocking
   // - Must NOT show on app exit or before content is visible
   static const int _minSecondsInBackground = 30; // 30 seconds - reasonable time away
-  int _appLaunchCount = 0;
-  static const int _showAfterLaunches = 3; // Show after 3rd launch for better UX
   
   // Layer 2: Midnight cross-over timer
   Timer? _midnightTimer;
@@ -185,7 +183,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
-    _incrementLaunchCount();
   }
   
   @override
@@ -193,18 +190,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _midnightTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-  
-  // Track app launches for frequency capping
-  Future<void> _incrementLaunchCount() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _appLaunchCount = (prefs.getInt('app_launch_count') ?? 0) + 1;
-      await prefs.setInt('app_launch_count', _appLaunchCount);
-      debugPrint('📱 App launch count: $_appLaunchCount');
-    } catch (e) {
-      debugPrint('Error tracking launch: $e');
-    }
   }
   
   // App lifecycle observer — handles day change + App Open Ad
@@ -262,7 +247,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     debugPrint('⏰ Midnight check scheduled: ${duration.inMinutes}m from now');
   }
   
-  // Show App Open Ad when app resumes from background (ONCE per session)
+  // Show App Open Ad when app resumes from background (time-based cooldown)
   Future<void> _showAppOpenAdOnResume({bool isFromBackground = true}) async {
     // Skip if already showing
     if (_isShowingAd) {
@@ -270,23 +255,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return;
     }
     
-    // CRITICAL: Only show ad ONCE per session
-    if (_hasShownAdThisSession) {
-      debugPrint('✅ Ad already shown this session - skipping');
-      return;
-    }
-    
-    // Skip on first 2 launches (better UX)
-    if (_appLaunchCount < _showAfterLaunches) {
-      debugPrint('🔢 Skipping: Launch $_appLaunchCount < $_showAfterLaunches');
-      return;
-    }
-    
-    // If coming from background, check if user was away for 5+ minutes
+    // If coming from background, check if user was away for 30+ seconds
     if (isFromBackground && _appPausedTime != null) {
       final secondsSincePause = DateTime.now().difference(_appPausedTime!).inSeconds;
       if (secondsSincePause < _minSecondsInBackground) {
-        debugPrint('⏱️ Not long enough in background: ${secondsSincePause}s < ${_minSecondsInBackground}s (5 min)');
+        debugPrint('⏱️ Not long enough in background: ${secondsSincePause}s < ${_minSecondsInBackground}s');
         return;
       }
     }
@@ -298,14 +271,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return;
     }
     
+    // TIME-BASED COOLDOWN: Check if 60+ minutes since last App Open ad
+    final lastAppOpenTime = await adsService.getLastAppOpenTime();
+    if (lastAppOpenTime != null) {
+      final minutesSinceLast = DateTime.now().difference(lastAppOpenTime).inMinutes;
+      if (minutesSinceLast < AdConstants.minMinutesBetweenAppOpenAds) {
+        debugPrint('⏳ App Open cooldown: ${minutesSinceLast}m < ${AdConstants.minMinutesBetweenAppOpenAds}m — skipping');
+        return;
+      }
+    }
+    
     _isShowingAd = true;
     debugPrint('🎬 Showing App Open Ad...');
     
     try {
       final wasShown = await adsService.showAppOpenAd();
       if (wasShown) {
-        _hasShownAdThisSession = true; // Only mark if ad was ACTUALLY shown
-        debugPrint('✅ App Open Ad shown - will not show again this session');
+        await adsService.persistLastAppOpenTime();
+        debugPrint('✅ App Open Ad shown — cooldown reset to ${AdConstants.minMinutesBetweenAppOpenAds}m');
       } else {
         debugPrint('⚠️ App Open Ad not shown — will retry on next resume');
       }
@@ -348,9 +331,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         });
       } else {
         // Show App Open Ad on app launch (not from background)
-        if (_appLaunchCount >= _showAfterLaunches) {
-          _showAppOpenAdOnResume(isFromBackground: false);
-        }
+        _showAppOpenAdOnResume(isFromBackground: false);
       }
     } catch (e) {
       debugPrint('Failed to initialize app: $e');

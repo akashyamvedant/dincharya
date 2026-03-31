@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../services/guided_session_service.dart';
+import '../../core/constants/ad_constants.dart';
+import '../../widgets/ads/banner_ad_widget.dart';
 
 /// Program Detail Screen — shows day-by-day session list with progress tracking.
 class ProgramDetailScreen extends StatefulWidget {
@@ -337,8 +339,14 @@ class _ProgramDetailScreenState extends State<ProgramDetailScreen> {
         ],
       ),
 
-      // Enroll / Continue Button
-      bottomNavigationBar: _buildBottomAction(color),
+      // Enroll / Continue Button with Banner Ad above
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const AdaptiveBannerAdWidget(placement: BannerPlacement.programDetail),
+          _buildBottomAction(color),
+        ],
+      ),
     );
   }
 

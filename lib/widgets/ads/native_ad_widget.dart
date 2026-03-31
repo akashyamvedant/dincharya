@@ -144,6 +144,8 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
       case NativePlacement.routineMorning:
       case NativePlacement.routineAfternoon:
         return 330;
+      case NativePlacement.sessionTheory:
+        return 340;
     }
   }
 }

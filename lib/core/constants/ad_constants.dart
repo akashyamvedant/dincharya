@@ -13,11 +13,15 @@ import 'package:flutter/foundation.dart';
 
 /// Banner placement types for different screens
 enum BannerPlacement {
-  journal,        // Journal/Mood Tracker screen
-  meTab,          // Me Tab (Profile Settings)
-  editProfile,    // Edit Profile screen
-  yourJourney,    // History/Your Journey screen
-  changeProfile,  // Profile Selection screen
+  journal,           // Journal/Mood Tracker screen
+  meTab,             // Me Tab (Profile Settings)
+  editProfile,       // Edit Profile screen
+  yourJourney,       // History/Your Journey screen
+  changeProfile,     // Profile Selection screen
+  routineDashboard,  // Routine Dashboard anchored banner
+  guidedHub,         // Guided Sessions Hub anchored banner
+  sessionDetail,     // Media Player (Theory + Fallback) detail page
+  programDetail,     // Program Detail screen
 }
 
 /// Interstitial placement types for different user actions
@@ -34,6 +38,7 @@ enum NativePlacement {
   routineDashboard,   // Routine task list (after evening tasks)
   routineMorning,     // After morning task section
   routineAfternoon,   // After afternoon task section
+  sessionTheory,      // Media Player Theory tab (between content sections)
 }
 
 /// Rewarded Ad placement types for Guided Sessions
@@ -67,6 +72,10 @@ class AdConstants {
   static const String _prodBannerEditProfileAndroid = 'ca-app-pub-6276884053063994/5267629654';
   static const String _prodBannerYourJourneyAndroid = 'ca-app-pub-6276884053063994/1352495447';
   static const String _prodBannerChangeProfileAndroid = 'ca-app-pub-6276884053063994/5076057962';
+  static const String _prodBannerRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/5140568691';
+  static const String _prodBannerGuidedHubAndroid = 'ca-app-pub-6276884053063994/3827487020';
+  static const String _prodBannerSessionDetailAndroid = 'ca-app-pub-6276884053063994/3827487020';
+  static const String _prodBannerProgramDetailAndroid = 'ca-app-pub-6276884053063994/4317144444';
 
   // ════════════════════════════════════════════════════════════════
   // PRODUCTION INTERSTITIAL AD UNIT IDs - One per placement
@@ -81,6 +90,8 @@ class AdConstants {
   static const String _prodNativeSessionFeedAndroid = 'ca-app-pub-6276884053063994/8970291749';
   static const String _prodNativeMeTabAndroid = 'ca-app-pub-6276884053063994/7361835177';
   static const String _prodNativeRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/6713407416';
+  static const String _prodNativeRoutineMorningAndroid = 'ca-app-pub-6276884053063994/7910243828';
+  static const String _prodNativeRoutineAfternoonAndroid = 'ca-app-pub-6276884053063994/1970848987';
   
   // ════════════════════════════════════════════════════════════════
   // PRODUCTION REWARDED AD UNIT IDs - 9 placements for Guided Sessions
@@ -155,6 +166,14 @@ class AdConstants {
         return _prodBannerYourJourneyAndroid;
       case BannerPlacement.changeProfile:
         return _prodBannerChangeProfileAndroid;
+      case BannerPlacement.routineDashboard:
+        return _prodBannerRoutineDashboardAndroid;
+      case BannerPlacement.guidedHub:
+        return _prodBannerGuidedHubAndroid;
+      case BannerPlacement.sessionDetail:
+        return _prodBannerSessionDetailAndroid;
+      case BannerPlacement.programDetail:
+        return _prodBannerProgramDetailAndroid;
     }
   }
   
@@ -196,9 +215,11 @@ class AdConstants {
       case NativePlacement.routineDashboard:
         return _prodNativeRoutineDashboardAndroid;
       case NativePlacement.routineMorning:
-        return _prodNativeMeTabAndroid; // Reuses meTab ad unit
+        return _prodNativeRoutineMorningAndroid;
       case NativePlacement.routineAfternoon:
-        return _prodNativeRoutineDashboardAndroid; // Reuses routineDashboard ad unit
+        return _prodNativeRoutineAfternoonAndroid;
+      case NativePlacement.sessionTheory:
+        return _prodNativeSessionFeedAndroid; // Reuses sessionFeed — never on-screen simultaneously
     }
   }
   
@@ -273,12 +294,16 @@ class AdConstants {
   // ════════════════════════════════════════════════════════════════
   
   /// Show interstitial after this many user actions (natural transitions)
-  /// 5 actions = good balance between revenue and user experience
-  static const int interstitialFrequency = 5;
+  /// 3 actions = optimal for typical 1-3 action sessions
+  static const int interstitialFrequency = 3;
   
   /// Minimum seconds between interstitial ads (any placement)
-  /// 5 minutes (300s) = safe for wellness app category
-  static const int minSecondsBetweenInterstitials = 300;
+  /// 2 minutes (120s) = conservative but allows impressions within sessions
+  static const int minSecondsBetweenInterstitials = 120;
+  
+  /// Minimum minutes between App Open ads (time-based cooldown)
+  /// 60 minutes = allows re-engagement ads without being intrusive
+  static const int minMinutesBetweenAppOpenAds = 60;
   
   /// App Open ad expiry in hours (Google policy: max 4 hours)
   static const int appOpenAdExpiryHours = 4;
