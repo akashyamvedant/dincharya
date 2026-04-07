@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +21,7 @@ import './services/subscription_manager.dart';
 import './services/alarm_service.dart';
 import './services/theme_provider.dart';
 import './services/task_lifecycle_service.dart';
+import './services/firebase_analytics_service.dart';
 import 'core/app_export.dart';
 
 /// Global navigator key for navigation from services (e.g., notification taps)
@@ -72,6 +76,24 @@ void main() async {
     systemNavigationBarColor: Colors.transparent,
     systemNavigationBarDividerColor: Colors.transparent,
   ));
+
+  // Initialize Firebase BEFORE runApp (required for Analytics observer)
+  try {
+    await Firebase.initializeApp();
+    debugPrint('🔥 Firebase initialized (Analytics active)');
+    
+    // 🛡️ SECURITY: Activate Firebase App Check with Play Integrity
+    // This verifies that ad requests come from the genuine, untampered app binary.
+    // Blocks hijackers who embed our ad unit IDs in their fake apps.
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug      // Debug token for development
+          : AndroidProvider.playIntegrity, // Play Integrity for production
+    );
+    debugPrint('🛡️ Firebase App Check activated (Play Integrity)');
+  } catch (e) {
+    debugPrint('❌ Firebase initialization failed: $e');
+  }
 
   // Start the app immediately for faster startup
   runApp(const MyApp());
@@ -400,6 +422,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return MaterialApp(
               navigatorKey: navigatorKey,
               title: 'DinCharya',
+              // Firebase Analytics: auto-track screen_view on every route change
+              navigatorObservers: [
+                FirebaseAnalyticsService().observer,
+              ],
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,

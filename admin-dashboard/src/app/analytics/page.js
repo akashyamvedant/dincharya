@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 
 export default function AnalyticsPage() {
@@ -8,25 +8,76 @@ export default function AnalyticsPage() {
     const [period, setPeriod] = useState('30');
     const [tab, setTab] = useState('overview');
 
-    // Data states
+    // Supabase data states
     const [activeStats, setActiveStats] = useState({ dau: 0, wau: 0, mau: 0, total_users: 0 });
     const [dauChart, setDauChart] = useState([]);
     const [activityFeed, setActivityFeed] = useState([]);
     const [userSummary, setUserSummary] = useState([]);
     const [metrics, setMetrics] = useState({ userGrowth: [], categoryBreakdown: [], moodTrend: [], engagementByDay: [], topSessions: [] });
 
+    // GA4 data states
+    const [ga4Loading, setGa4Loading] = useState(false);
+    const [ga4Error, setGa4Error] = useState(null);
+    const [ga4Overview, setGa4Overview] = useState(null);
+    const [ga4Realtime, setGa4Realtime] = useState(null);
+    const [ga4DailyUsers, setGa4DailyUsers] = useState([]);
+    const [ga4Demographics, setGa4Demographics] = useState(null);
+    const [ga4Devices, setGa4Devices] = useState(null);
+    const [ga4TopScreens, setGa4TopScreens] = useState([]);
+    const [ga4Events, setGa4Events] = useState([]);
+    const [ga4Retention, setGa4Retention] = useState(null);
+    const [ga4Traffic, setGa4Traffic] = useState([]);
+
     useEffect(() => { fetchAll(); }, [period]);
+
+    // Auto-refresh realtime every 30s when on ga4 tab
+    useEffect(() => {
+        if (tab !== 'ga4') return;
+        const interval = setInterval(() => fetchGA4('realtime', setGa4Realtime), 30000);
+        return () => clearInterval(interval);
+    }, [tab]);
+
+    // Load GA4 data when switching to ga4 tab
+    useEffect(() => {
+        if (tab === 'ga4' && !ga4Overview) fetchAllGA4();
+    }, [tab]);
+
+    const fetchGA4 = async (type, setter) => {
+        try {
+            const res = await fetch(`/api/analytics/ga?type=${type}&days=${period}`);
+            const data = await res.json();
+            if (res.ok) setter(data);
+            else throw new Error(data.error);
+        } catch (e) { console.error(`GA4 ${type} error:`, e); }
+    };
+
+    const fetchAllGA4 = async () => {
+        setGa4Loading(true);
+        setGa4Error(null);
+        try {
+            await Promise.all([
+                fetchGA4('overview', setGa4Overview),
+                fetchGA4('realtime', setGa4Realtime),
+                fetchGA4('daily_users', setGa4DailyUsers),
+                fetchGA4('demographics', setGa4Demographics),
+                fetchGA4('devices', setGa4Devices),
+                fetchGA4('top_screens', setGa4TopScreens),
+                fetchGA4('events', setGa4Events),
+                fetchGA4('retention', setGa4Retention),
+                fetchGA4('traffic_sources', setGa4Traffic),
+            ]);
+        } catch (e) { setGa4Error(e.message); }
+        setGa4Loading(false);
+    };
 
     const fetchAll = async () => {
         setLoading(true);
         await Promise.all([
-            fetchActiveStats(),
-            fetchDauChart(),
-            fetchActivityFeed(),
-            fetchUserSummary(),
-            fetchExistingMetrics(),
+            fetchActiveStats(), fetchDauChart(), fetchActivityFeed(),
+            fetchUserSummary(), fetchExistingMetrics(),
         ]);
         setLoading(false);
+        if (tab === 'ga4') fetchAllGA4();
     };
 
     const fetchActiveStats = async () => {
@@ -52,8 +103,6 @@ export default function AnalyticsPage() {
     const fetchExistingMetrics = async () => {
         const days = parseInt(period);
         const since = new Date(); since.setDate(since.getDate() - days);
-
-        // User growth per day
         const userGrowth = [];
         for (let i = Math.min(days, 14) - 1; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
@@ -63,61 +112,42 @@ export default function AnalyticsPage() {
                 .gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
             userGrowth.push({ label: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }), value: count || 0 });
         }
-
-        // Category breakdown
         const { data: sessData } = await supabase.from('sessions').select('category');
         const catMap = {};
         (sessData || []).forEach(s => { catMap[s.category] = (catMap[s.category] || 0) + 1; });
         const categoryBreakdown = Object.entries(catMap).sort(([, a], [, b]) => b - a).map(([name, count]) => ({ name, count }));
-
-        // Mood trend from journals (fixed column name)
         const { data: moodData } = await supabase.from('journal_entries').select('mood_rating, created_at')
             .gte('created_at', since.toISOString()).order('created_at').limit(200);
         const moodByDay = {};
         (moodData || []).forEach(m => {
             const day = new Date(m.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric' });
             if (!moodByDay[day]) moodByDay[day] = { sum: 0, count: 0 };
-            moodByDay[day].sum += (m.mood_rating || 0);
-            moodByDay[day].count += 1;
+            moodByDay[day].sum += (m.mood_rating || 0); moodByDay[day].count += 1;
         });
         const moodTrend = Object.entries(moodByDay).map(([label, { sum, count }]) => ({ label, value: Math.round((sum / count) * 10) / 10 }));
-
-        // Top sessions by view count
         const { data: topData } = await supabase.from('sessions').select('title, category, view_count').order('view_count', { ascending: false }).limit(10);
-        const topSessions = topData || [];
-
-        // Practice engagement by day of week
         const { data: practiceData } = await supabase.from('practice_sessions').select('created_at')
             .gte('created_at', since.toISOString()).limit(500);
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const dayCounts = new Array(7).fill(0);
         (practiceData || []).forEach(p => { dayCounts[new Date(p.created_at).getDay()] += 1; });
         const engagementByDay = dayNames.map((name, i) => ({ name, count: dayCounts[i] }));
-
-        setMetrics({ userGrowth, categoryBreakdown, moodTrend, engagementByDay, topSessions });
+        setMetrics({ userGrowth, categoryBreakdown, moodTrend, engagementByDay, topSessions: topData || [] });
     };
 
-    const maxVal = (arr) => Math.max(1, ...arr.map(d => d.value || d.count || d.active_users || 0));
+    const maxVal = (arr) => Math.max(1, ...arr.map(d => d.value || d.count || d.active_users || d.activeUsers || d.views || 0));
 
     const activityIcon = (type) => {
-        switch (type) {
-            case 'routine': return '🏃';
-            case 'practice': return '🧘';
-            case 'journal': return '📝';
-            default: return '📌';
-        }
+        switch (type) { case 'routine': return '🏃'; case 'practice': return '🧘'; case 'journal': return '📝'; default: return '📌'; }
     };
 
     const relativeTime = (ts) => {
         if (!ts) return '—';
         const diff = Date.now() - new Date(ts).getTime();
         const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'Just now';
-        if (mins < 60) return `${mins}m ago`;
+        if (mins < 1) return 'Just now'; if (mins < 60) return `${mins}m ago`;
         const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h ago`;
-        const days = Math.floor(hrs / 24);
-        return `${days}d ago`;
+        if (hrs < 24) return `${hrs}h ago`; return `${Math.floor(hrs / 24)}d ago`;
     };
 
     const dauRetentionRate = () => {
@@ -125,8 +155,26 @@ export default function AnalyticsPage() {
         return Math.round((activeStats.dau / activeStats.total_users) * 100);
     };
 
+    const fmtDuration = (s) => { if (s < 60) return `${s}s`; return `${Math.floor(s / 60)}m ${s % 60}s`; };
+    const changeArrow = (v) => v > 0 ? `↑${v}%` : v < 0 ? `↓${Math.abs(v)}%` : '—';
+    const changeColor = (v) => v > 0 ? '#4ade80' : v < 0 ? '#f87171' : 'var(--text-muted)';
+
+    const deviceIcon = (d) => {
+        const dl = (d || '').toLowerCase();
+        if (dl.includes('mobile') || dl.includes('phone')) return '📱';
+        if (dl.includes('desktop')) return '💻';
+        if (dl.includes('tablet')) return '📟';
+        return '🖥️';
+    };
+
+    const eventIcon = (e) => {
+        const m = { 'session_start': '🚀', 'first_visit': '👋', 'first_open': '📲', 'screen_view': '👁️', 'user_engagement': '💡', 'task_completed': '✅', 'yoga_session_start': '🧘', 'yoga_session_complete': '🏆', 'daily_progress': '📊', 'subscription_event': '💎', 'ad_impression': '📢', 'ad_click': '👆', 'app_update': '🔄' };
+        return m[e] || '⚡';
+    };
+
     const tabs = [
         { id: 'overview', label: '📊 Overview' },
+        { id: 'ga4', label: '🔥 Google Analytics' },
         { id: 'activity', label: '🔴 Live Activity' },
         { id: 'users', label: '👥 User Breakdown' },
         { id: 'content', label: '📈 Content & Mood' },
@@ -233,6 +281,245 @@ export default function AnalyticsPage() {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* ═══════════ GOOGLE ANALYTICS TAB ═══════════ */}
+                    {tab === 'ga4' && (
+                        <div>
+                            {ga4Loading && <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 30 }}>Loading Google Analytics data...</p>}
+                            {ga4Error && <div className="card" style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', color: '#f87171', marginBottom: 16 }}>⚠️ {ga4Error}</div>}
+
+                            {!ga4Loading && ga4Overview && (<>
+                            {/* Realtime Banner */}
+                            {ga4Realtime && (
+                                <div className="card" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.1))', border: '1px solid rgba(239,68,68,0.3)', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }} />
+                                        <span style={{ fontSize: 13, fontWeight: 700, color: '#f87171' }}>LIVE NOW</span>
+                                        <span style={{ fontSize: 36, fontWeight: 900, color: '#fff' }}>{ga4Realtime.activeUsers}</span>
+                                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>active users</span>
+                                    </div>
+                                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                                        {(ga4Realtime.byDevice || []).map(d => (
+                                            <span key={d.device} style={{ fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '4px 10px', borderRadius: 20 }}>
+                                                {deviceIcon(d.device)} {d.device}: <b style={{ color: '#fff' }}>{d.users}</b>
+                                            </span>
+                                        ))}
+                                    </div>
+                                    {(ga4Realtime.byCountry || []).length > 0 && (
+                                        <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                                            {ga4Realtime.byCountry.slice(0, 6).map(c => (
+                                                <span key={c.country} style={{ fontSize: 11, color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '3px 8px', borderRadius: 12 }}>
+                                                    {c.country}: {c.users}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* GA4 Hero Cards */}
+                            <div className="stats-grid" style={{ marginBottom: 20 }}>
+                                {[
+                                    { label: 'Active Users', value: ga4Overview.activeUsers, icon: '👥', change: ga4Overview.changes?.activeUsers, gradient: 'rgba(99,102,241,0.1)', border: 'rgba(99,102,241,0.3)', color: '#818cf8' },
+                                    { label: 'New Users', value: ga4Overview.newUsers, icon: '🆕', change: ga4Overview.changes?.newUsers, gradient: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', color: '#34d399' },
+                                    { label: 'Sessions', value: ga4Overview.sessions, icon: '📊', change: ga4Overview.changes?.sessions, gradient: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', color: '#60a5fa' },
+                                    { label: 'Screen Views', value: ga4Overview.screenPageViews, icon: '👁️', change: ga4Overview.changes?.screenPageViews, gradient: 'rgba(168,85,247,0.1)', border: 'rgba(168,85,247,0.3)', color: '#a855f7' },
+                                ].map(c => (
+                                    <div key={c.label} className="card" style={{ textAlign: 'center', background: `linear-gradient(135deg, ${c.gradient}, transparent)`, border: `1px solid ${c.border}` }}>
+                                        <div style={{ fontSize: 32, fontWeight: 900, color: c.color }}>{c.value?.toLocaleString()}</div>
+                                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginTop: 2 }}>{c.icon} {c.label}</div>
+                                        {c.change !== undefined && <div style={{ fontSize: 11, fontWeight: 700, color: changeColor(c.change), marginTop: 4 }}>{changeArrow(c.change)} vs prev</div>}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Secondary metrics */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                                {[
+                                    { label: 'Engagement Rate', value: `${ga4Overview.engagementRate}%`, color: ga4Overview.engagementRate > 50 ? '#4ade80' : '#fbbf24' },
+                                    { label: 'Avg Session', value: fmtDuration(ga4Overview.avgSessionDuration), color: '#60a5fa' },
+                                    { label: 'Sessions/User', value: ga4Overview.sessionsPerUser, color: '#a855f7' },
+                                    { label: 'Total Users', value: ga4Overview.totalUsers?.toLocaleString(), color: '#818cf8' },
+                                ].map(m => (
+                                    <div key={m.label} className="card" style={{ textAlign: 'center', padding: '14px 10px' }}>
+                                        <div style={{ fontSize: 22, fontWeight: 900, color: m.color }}>{m.value}</div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{m.label}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Daily Users Chart */}
+                            {ga4DailyUsers.length > 0 && (
+                                <div className="card" style={{ marginBottom: 20 }}>
+                                    <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>📈 Daily Active Users (GA4 — Last {period} days)</h3>
+                                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 180, paddingBottom: 30 }}>
+                                        {ga4DailyUsers.map((d, i) => {
+                                            const max = maxVal(ga4DailyUsers);
+                                            const isToday = d.date === new Date().toISOString().split('T')[0];
+                                            return (
+                                                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                                                    {d.activeUsers > 0 && <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--accent)', marginBottom: 2 }}>{d.activeUsers}</div>}
+                                                    <div style={{ width: '100%', maxWidth: 20, minHeight: 3, height: `${Math.max(3, (d.activeUsers / max) * 140)}px`, background: isToday ? 'var(--accent-gradient)' : 'rgba(99,102,241,0.4)', borderRadius: '3px 3px 0 0', transition: 'height 0.5s', border: isToday ? '2px solid rgba(99,102,241,0.8)' : 'none' }} />
+                                                    {(i % Math.ceil(ga4DailyUsers.length / 8) === 0 || isToday) && (
+                                                        <div style={{ fontSize: 8, color: isToday ? 'var(--accent)' : 'var(--text-muted)', marginTop: 4, position: 'absolute', bottom: -22, whiteSpace: 'nowrap', fontWeight: isToday ? 700 : 400, transform: 'rotate(-45deg)' }}>
+                                                            {new Date(d.date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Two-column: Demographics + Devices */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                {/* Demographics */}
+                                {ga4Demographics && (
+                                    <div className="card">
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🌍 Top Countries</h3>
+                                        {ga4Demographics.countries.slice(0, 8).map((c, i) => {
+                                            const max = ga4Demographics.countries[0]?.users || 1;
+                                            return (
+                                                <div key={c.country} style={{ marginBottom: 8 }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                                                        <span style={{ fontWeight: i < 3 ? 700 : 400 }}>{i + 1}. {c.country}</span>
+                                                        <span style={{ color: 'var(--text-muted)' }}>{c.users} users · {c.sessions} sessions</span>
+                                                    </div>
+                                                    <div style={{ height: 5, background: 'var(--bg-hover)', borderRadius: 3 }}>
+                                                        <div style={{ height: '100%', width: `${(c.users / max) * 100}%`, background: 'var(--accent-gradient)', borderRadius: 3 }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {ga4Demographics.cities.length > 0 && (
+                                            <>
+                                                <h4 style={{ fontSize: 13, fontWeight: 700, marginTop: 16, marginBottom: 10, color: 'var(--text-secondary)' }}>🏙️ Top Cities</h4>
+                                                {ga4Demographics.cities.slice(0, 6).map(c => (
+                                                    <div key={c.city} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                                                        <span>{c.city}</span><span style={{ fontWeight: 700 }}>{c.users}</span>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Devices */}
+                                {ga4Devices && (
+                                    <div className="card">
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>📱 Devices</h3>
+                                        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                                            {ga4Devices.categories.map(d => {
+                                                const total = ga4Devices.categories.reduce((s, x) => s + x.users, 0) || 1;
+                                                const pct = Math.round((d.users / total) * 100);
+                                                return (
+                                                    <div key={d.device} style={{ flex: 1, textAlign: 'center', padding: 12, background: 'var(--bg-surface)', borderRadius: 10 }}>
+                                                        <div style={{ fontSize: 28 }}>{deviceIcon(d.device)}</div>
+                                                        <div style={{ fontSize: 20, fontWeight: 900, marginTop: 4 }}>{pct}%</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{d.device}</div>
+                                                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{d.users} users</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text-secondary)' }}>💿 Operating Systems</h4>
+                                        {ga4Devices.operatingSystems.slice(0, 5).map(o => (
+                                            <div key={o.os} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                                                <span>{o.os}</span><span style={{ fontWeight: 700 }}>{o.users}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Two-column: Top Screens + Events */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                {/* Top Screens */}
+                                {ga4TopScreens.length > 0 && (
+                                    <div className="card" style={{ padding: 0 }}>
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, padding: '18px 22px 12px' }}>📄 Top Screens</h3>
+                                        <table className="data-table">
+                                            <thead><tr><th>#</th><th>Screen</th><th>Views</th><th>Users</th></tr></thead>
+                                            <tbody>
+                                                {ga4TopScreens.slice(0, 12).map((s, i) => (
+                                                    <tr key={i}>
+                                                        <td style={{ fontWeight: 700, color: i < 3 ? 'var(--accent)' : 'var(--text-muted)' }}>{i + 1}</td>
+                                                        <td style={{ fontSize: 12, fontWeight: 600, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.screen}</td>
+                                                        <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{s.views}</td>
+                                                        <td style={{ fontFamily: 'monospace' }}>{s.users}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* Events */}
+                                {ga4Events.length > 0 && (
+                                    <div className="card" style={{ padding: 0 }}>
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, padding: '18px 22px 12px' }}>⚡ Events</h3>
+                                        <table className="data-table">
+                                            <thead><tr><th></th><th>Event</th><th>Count</th><th>Users</th></tr></thead>
+                                            <tbody>
+                                                {ga4Events.slice(0, 15).map((e, i) => (
+                                                    <tr key={i}>
+                                                        <td style={{ fontSize: 16 }}>{eventIcon(e.event)}</td>
+                                                        <td style={{ fontSize: 12, fontWeight: 600 }}>{e.event}</td>
+                                                        <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{e.count.toLocaleString()}</td>
+                                                        <td style={{ fontFamily: 'monospace' }}>{e.users}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Retention + Traffic */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                {ga4Retention && (
+                                    <div className="card">
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🔄 New vs Returning</h3>
+                                        <div style={{ display: 'flex', gap: 16 }}>
+                                            {['new', 'returning'].map(type => {
+                                                const d = ga4Retention[type];
+                                                if (!d) return null;
+                                                return (
+                                                    <div key={type} style={{ flex: 1, textAlign: 'center', padding: 16, background: 'var(--bg-surface)', borderRadius: 10 }}>
+                                                        <div style={{ fontSize: 14, fontWeight: 700, color: type === 'new' ? '#34d399' : '#60a5fa', textTransform: 'capitalize', marginBottom: 8 }}>
+                                                            {type === 'new' ? '🆕' : '🔁'} {type}
+                                                        </div>
+                                                        <div style={{ fontSize: 28, fontWeight: 900 }}>{d.users}</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.sessions} sessions</div>
+                                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{d.engagementRate}% engaged</div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                                {ga4Traffic.length > 0 && (
+                                    <div className="card">
+                                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🔗 Traffic Sources</h3>
+                                        {ga4Traffic.slice(0, 8).map((t, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                                                <span><b>{t.source}</b> / {t.medium}</span>
+                                                <span style={{ color: 'var(--text-muted)' }}>{t.sessions} sess · {t.users} users</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Refresh button */}
+                            <div style={{ textAlign: 'center', marginTop: 8 }}>
+                                <button onClick={fetchAllGA4} className="btn" style={{ fontSize: 12 }}>🔄 Refresh GA4 Data</button>
+                                <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>Data may have 24-48h processing delay (except Realtime)</p>
+                            </div>
+                            </>)}
                         </div>
                     )}
 

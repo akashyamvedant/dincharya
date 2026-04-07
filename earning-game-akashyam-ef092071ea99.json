@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "earning-game-akashyam",
+  "private_key_id": "ef092071ea991e8182bd16136b239b058cdf15fe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCxFiq+STF8tFQy\n5LWNY7LcwvoitoLfOUl822pJWbtivPngEI0uJkjELyjoRSKwA9rvBalyl0xKFxnP\nxQ7Mp1cYq1nCEYDEtWljnMZC+NsjwZ9QzUC9BDnBJH8l78cMRz1XV/T2ZUNttY0D\neXWoQgqGkKb2MCHXe5+UlAt9bwpbWvDxZfkSqP/kDeYg7Qm56idWBTlGicvvAFpL\nAf8YQVvu3a8ag9PKt2dJYrTekoyz0qdM3tWgN6CVfHGgekREwOXWcgp48CKBMtxH\nBNv7hpmOaI3vkl6hAK8XuAny6iRaH+O02n3q4O7IqZ32eOu2jbLjSc3ZjKedtjAW\nnQnvdif9AgMBAAECggEAKaz1Vz4Dgv0veaDAp2tIu1K5qnS4fQ9O368FpwiSpIyj\n49sRVsSUyHLu1ib7IGBv5GO5OqonvqIMJY0TTA+v3DLrV1RmMSUejd5l/HnznMkj\nFNGRREqbyvwrXkK9XgLgCU++a0Rup4GcE67AhV4xevTNDlBKjptd9YoX4CfDULdE\nZjJqQ0kkkztSOtEnB6oU3X2YJG4WJszVCpj9dHBACDTnJFNMnueQj62WdyyiuQow\nccOzbrVArONcVQT87+dhekMOkZin+mfWWo/7BWF83PaJ3+7Ym7/MUhAUu1KUNXuk\n9OVn+EwwQoJF/lnj2VWAV0fudgPhlDGG2ShgZmW+YwKBgQDipExsM8lKPGw/aqCi\nrcumPgBdcOo+MWa6JnuK5nlg1U4XffY6hwVacDSE8Ga2+Uwbe9sl17JaYqa+v5pK\n0Ny5/mh+Yr/0K5gh1ftcKQHK+Vs1zdwe+q3OhB4p+VOJO4WnzA6cAAJosdGd/B/7\nufecqfNxkB27QYA97Qpn9MaW7wKBgQDIBo+po9YPZOz1C1crPUOd9OXvMhhxt3nG\nytqOKc1qzjC0JelHZkQjc2xxsh4o6CWSg7kiHLYMrPqs8DTIamI15ELc8yd/vQ4H\n1wStGqdcLDZRua4SyrmNNxXOwY5yjYm4T6HEZPp7dHTI+EyrDR7Tsb5NP/mbUakx\nnRmKbAxP0wKBgAL10mm3Y3GsyF0rr11wl7BcLvUJfIXDb2wPBJ4T1JIHNzXnV0f8\na3166bSyzySkrPHO9FXSM2oqz7K+He3MPJXRVNwRviAaUapfeSEDCBr2ltJlFfLx\no0OHRj2WHBk2xdAjQi2XcnCboflGScSn8SwCrENXdovzlxE3/2LMN6vRAoGAUDZZ\nXBToXYoCgA3JKfzKZch0gKRdKxUBj5d/Z20aBA+ldkiRsOEwx+qcfUeJUqwtjQCn\nuCc9Vf30FG/LKueGdMgRjBsyJsaAnuI57NT4cj0El2dXiA+lsxx48U2rOwLJTJEa\ndPBthh5gSstPq3R6fTgU8VOLXB62M8AlIt5LXaMCgYEAxW7aU7Z502dE89O0DLUv\nwEmPxWsq4alw0DPGj0bB24s68HXnTCYMg/lg78pjcO8kOi3Ojhmf3FX8TCXbycRE\nA8x6trTQLx8u7rKjfvzzsJtj9o9tHXWgipoXmHMd6iyvwK2cXY0tMkvaUVYC2EoZ\nrFL9sfpOV5IjoR7CDszWcWE=\n-----END PRIVATE KEY-----\n",
+  "client_email": "analytics-reader@earning-game-akashyam.iam.gserviceaccount.com",
+  "client_id": "104846602884141578384",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/analytics-reader%40earning-game-akashyam.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
