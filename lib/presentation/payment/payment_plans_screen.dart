@@ -1,10 +1,11 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../models/payment_models.dart';
+import '../admin_messages/admin_message_popup.dart';
 
 class PaymentPlansScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -42,6 +43,21 @@ class _PaymentPlansScreenState extends State<PaymentPlansScreen>
 
     // Load Google Play products in background
     _loadGooglePlayProducts();
+    // Check for admin in-app messages targeting this page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAdminMessages();
+    });
+  }
+
+  /// Check for unread admin popup messages targeting this page.
+  Future<void> _checkAdminMessages() async {
+    try {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await AdminMessagePopup.showPendingMessages(context, triggerPage: 'payment');
+    } catch (e) {
+      debugPrint('⚠️ Admin message check failed: $e');
+    }
   }
 
   /// Load products from Google Play and update UI

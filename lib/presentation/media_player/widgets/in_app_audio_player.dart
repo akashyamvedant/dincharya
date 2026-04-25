@@ -22,6 +22,7 @@ class InAppAudioPlayer extends StatefulWidget {
   final int? durationSeconds;
   final VoidCallback? onComplete;
   final VoidCallback? onBack;
+  final bool autoPlay;
 
   const InAppAudioPlayer({
     super.key,
@@ -33,6 +34,7 @@ class InAppAudioPlayer extends StatefulWidget {
     this.durationSeconds,
     this.onComplete,
     this.onBack,
+    this.autoPlay = false,
   });
 
   @override
@@ -159,6 +161,11 @@ class _InAppAudioPlayerState extends State<InAppAudioPlayer>
       setState(() {
         _isLoading = false;
       });
+
+      // Auto-play if requested (e.g., guided audio in yoga practice)
+      if (widget.autoPlay) {
+        await _audioPlayer.resume();
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;

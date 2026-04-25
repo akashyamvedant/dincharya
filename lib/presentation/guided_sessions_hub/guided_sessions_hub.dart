@@ -25,6 +25,7 @@ import './widgets/post_session_checkin.dart';
 import './widgets/continue_session_card.dart';
 import './widgets/downloads_section.dart';
 import './widgets/weekly_challenge_widget.dart';
+import '../admin_messages/admin_message_popup.dart';
 
 class GuidedSessionsHub extends StatefulWidget {
   const GuidedSessionsHub({super.key});
@@ -84,6 +85,10 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     });
     _loadSessionsFromDB();
     _loadExtras();
+    // Check for admin in-app messages targeting this page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAdminMessages();
+    });
   }
 
   /// Load favorites, today's session, and stats in parallel
@@ -94,6 +99,17 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       _loadPracticeStats(),
       _loadResumeSession(),
     ]);
+  }
+
+  /// Check for unread admin popup messages targeting this page.
+  Future<void> _checkAdminMessages() async {
+    try {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await AdminMessagePopup.showPendingMessages(context, triggerPage: 'guided');
+    } catch (e) {
+      debugPrint('⚠️ Admin message check failed: $e');
+    }
   }
 
   Future<void> _loadResumeSession() async {

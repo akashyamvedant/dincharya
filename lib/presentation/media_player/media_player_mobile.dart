@@ -13,6 +13,8 @@ import '../../widgets/ads/native_ad_widget.dart';
 import '../../widgets/ads/banner_ad_widget.dart';
 import '../../services/guided_session_service.dart';
 import '../../services/yoga_pose_service.dart';
+import '../../services/yoga_tts_service.dart';
+import '../../services/tts_audio_service.dart';
 import '../yoga_practice/widgets/practice_tab.dart';
 import './widgets/in_app_youtube_player.dart';
 import './widgets/in_app_video_player.dart';
@@ -73,6 +75,9 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
 
   @override
   void dispose() {
+    // Stop all singleton TTS audio to prevent zombie playback
+    YogaTtsService().stop();
+    TtsAudioService().stop();
     _tabController?.dispose();
     _bookPageController?.dispose();
     super.dispose();
@@ -153,6 +158,11 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
     if (_hasPlayedMedia) {
       await AdsService().showInterstitialAdWithCapping(InterstitialPlacement.sessionEnded);
     }
+
+    // Stop all TTS audio to prevent zombie playback after leaving
+    YogaTtsService().stop();
+    TtsAudioService().stop();
+
     return true;
   }
 

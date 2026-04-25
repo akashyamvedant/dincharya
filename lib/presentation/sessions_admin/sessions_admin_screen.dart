@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:typed_data';
+import 'dart:io';
 
 import '../../services/supabase_service.dart';
 
@@ -547,12 +548,24 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
               onSelected: (value) {
                 if (value == 'edit') {
                   _showAddEditDialog(session);
+                } else if (value == 'steps') {
+                  _showStepsSheet(session);
                 } else if (value == 'delete') {
                   _deleteSession(session['id']);
                 }
               },
               itemBuilder: (context) => [
                 PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(
+                  value: 'steps',
+                  child: Row(
+                    children: [
+                      Icon(Icons.list_alt, size: 18, color: _primaryBrown),
+                      SizedBox(width: 8),
+                      Text('Manage Steps'),
+                    ],
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'delete',
                   child: Text('Delete', style: TextStyle(color: Colors.red)),
@@ -562,6 +575,43 @@ class _SessionsAdminScreenState extends State<SessionsAdminScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _showStepsSheet(Map<String, dynamic> session) async {
+    final client = await _supabaseService.client;
+    if (client == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Supabase not initialized')),
+      );
+      return;
+    }
+
+    // Find linked yoga_pose for this session
+    final poseRes = await client
+        .from('yoga_poses')
+        .select('id, name, name_hindi, total_steps')
+        .eq('linked_session_id', session['id'])
+        .maybeSingle();
+
+    if (poseRes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No yoga pose linked to this session. Link a pose first from the web admin.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _StepsManagementSheet(
+        poseId: poseRes['id'] as String,
+        poseName: poseRes['name'] as String? ?? 'Steps',
+        sessionTitle: session['title'] as String? ?? 'Session',
       ),
     );
   }
@@ -1581,6 +1631,751 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
             ),
             SizedBox(height: 1.5.h),
             child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Steps Management Bottom Sheet
+// ═══════════════════════════════════════════════════════
+
+class _StepsManagementSheet extends StatefulWidget {
+  final String poseId;
+  final String poseName;
+  final String sessionTitle;
+
+  const _StepsManagementSheet({
+    required this.poseId,
+    required this.poseName,
+    required this.sessionTitle,
+  });
+
+  @override
+  State<_StepsManagementSheet> createState() => _StepsManagementSheetState();
+}
+
+class _StepsManagementSheetState extends State<_StepsManagementSheet> {
+  final SupabaseService _supabaseService = SupabaseService();
+  List<Map<String, dynamic>> _steps = [];
+  bool _isLoading = true;
+
+  static const Color _primaryBrown = Color(0xFF8B4513);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSteps();
+  }
+
+  Future<void> _loadSteps() async {
+    setState(() => _isLoading = true);
+    try {
+      final client = await _supabaseService.client;
+      if (client == null) return;
+
+      final response = await client
+          .from('pose_steps')
+          .select()
+          .eq('pose_id', widget.poseId)
+          .order('step_number', ascending: true);
+
+      if (mounted) {
+        setState(() {
+          _steps = List<Map<String, dynamic>>.from(response);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading steps: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteStep(String id, String name) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Step'),
+        content: Text('Delete "$name"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        final client = await _supabaseService.client;
+        if (client == null) return;
+        await client.from('pose_steps').delete().eq('id', id);
+        // Update total_steps count
+        final remaining = await client.from('pose_steps').select('id').eq('pose_id', widget.poseId);
+        await client.from('yoga_poses').update({'total_steps': (remaining as List).length}).eq('id', widget.poseId);
+        _loadSteps();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  void _openEditDialog([Map<String, dynamic>? step]) {
+    showDialog(
+      context: context,
+      builder: (context) => _StepEditDialog(
+        poseId: widget.poseId,
+        step: step,
+        nextStepNumber: _steps.length + 1,
+        onSaved: () {
+          Navigator.pop(context);
+          _loadSteps();
+        },
+      ),
+    );
+  }
+
+  IconData _stepTypeIcon(String? type) {
+    switch (type) {
+      case 'guided_audio': return Icons.headphones;
+      case 'meditation_open': return Icons.notifications_active;
+      default: return Icons.self_improvement;
+    }
+  }
+
+  Color _stepTypeColor(String? type) {
+    switch (type) {
+      case 'guided_audio': return const Color(0xFF6D28D9);
+      case 'meditation_open': return const Color(0xFF92400E);
+      default: return const Color(0xFF166534);
+    }
+  }
+
+  String _stepTypeLabel(String? type) {
+    switch (type) {
+      case 'guided_audio': return 'Guided Audio';
+      case 'meditation_open': return 'Open Meditation';
+      default: return 'Pose';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 85.h,
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[400],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: EdgeInsets.all(4.w),
+            child: Row(
+              children: [
+                Icon(Icons.list_alt, color: _primaryBrown),
+                SizedBox(width: 2.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Steps: ${widget.poseName}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16.sp,
+                        ),
+                      ),
+                      Text(
+                        '${widget.sessionTitle} • ${_steps.length} steps',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loadSteps,
+                  icon: Icon(Icons.refresh, color: _primaryBrown),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1),
+
+          // Steps list
+          Expanded(
+            child: _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : _steps.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.list_alt, size: 48, color: Colors.grey[400]),
+                            SizedBox(height: 1.h),
+                            Text('No steps yet', style: TextStyle(color: Colors.grey[600])),
+                            SizedBox(height: 2.h),
+                            ElevatedButton.icon(
+                              onPressed: () => _openEditDialog(),
+                              icon: Icon(Icons.add),
+                              label: Text('Add First Step'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryBrown,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                        itemCount: _steps.length,
+                        itemBuilder: (context, index) {
+                          final step = _steps[index];
+                          final stepType = step['step_type'] as String? ?? 'pose';
+                          final name = step['name'] as String? ?? 'Step ${index + 1}';
+                          final duration = step['duration_seconds'] as int? ?? 10;
+
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 1.h),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: _stepTypeColor(stepType).withOpacity(0.3),
+                              ),
+                            ),
+                            child: ListTile(
+                              contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: _stepTypeColor(stepType).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${step['step_number'] ?? index + 1}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: _stepTypeColor(stepType),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.sp),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                children: [
+                                  // Step type badge
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _stepTypeColor(stepType).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(_stepTypeIcon(stepType), size: 12, color: _stepTypeColor(stepType)),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          _stepTypeLabel(stepType),
+                                          style: TextStyle(fontSize: 10, color: _stepTypeColor(stepType), fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Duration
+                                  Text('⏱️ ${duration}s', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                                  // Audio indicator
+                                  if (step['audio_url'] != null && (step['audio_url'] as String).isNotEmpty)
+                                    Text('🎵 Audio', style: TextStyle(fontSize: 11, color: Color(0xFF6D28D9))),
+                                  // Bell indicator
+                                  if (stepType == 'meditation_open' && step['bell_interval_minutes'] != null)
+                                    Text('🔔 ${step['bell_interval_minutes']}min', style: TextStyle(fontSize: 11, color: Color(0xFF92400E))),
+                                ],
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                onSelected: (v) {
+                                  if (v == 'edit') _openEditDialog(step);
+                                  if (v == 'delete') _deleteStep(step['id'], name);
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+
+          // Add button
+          SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(3.w),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _openEditDialog(),
+                  icon: Icon(Icons.add),
+                  label: Text('Add Step'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primaryBrown,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// Step Edit Dialog
+// ═══════════════════════════════════════════════════════
+
+class _StepEditDialog extends StatefulWidget {
+  final String poseId;
+  final Map<String, dynamic>? step;
+  final int nextStepNumber;
+  final VoidCallback onSaved;
+
+  const _StepEditDialog({
+    required this.poseId,
+    this.step,
+    required this.nextStepNumber,
+    required this.onSaved,
+  });
+
+  @override
+  State<_StepEditDialog> createState() => _StepEditDialogState();
+}
+
+class _StepEditDialogState extends State<_StepEditDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final SupabaseService _supabaseService = SupabaseService();
+
+  late TextEditingController _nameController;
+  late TextEditingController _nameHindiController;
+  late TextEditingController _instructionController;
+  late TextEditingController _durationController;
+  late TextEditingController _audioUrlController;
+  late TextEditingController _bellIntervalController;
+
+  String _stepType = 'pose';
+  String _breathing = 'normal';
+  bool _isSaving = false;
+  bool _isUploading = false;
+
+  bool get isEditing => widget.step != null;
+  static const Color _primaryBrown = Color(0xFF8B4513);
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.step;
+    _nameController = TextEditingController(text: s?['name'] ?? '');
+    _nameHindiController = TextEditingController(text: s?['name_hindi'] ?? '');
+    _instructionController = TextEditingController(text: s?['instruction'] ?? '');
+    _durationController = TextEditingController(text: '${s?['duration_seconds'] ?? 10}');
+    _audioUrlController = TextEditingController(text: s?['audio_url'] ?? '');
+    _bellIntervalController = TextEditingController(text: '${s?['bell_interval_minutes'] ?? 5}');
+    _stepType = s?['step_type'] ?? 'pose';
+    _breathing = s?['breathing'] ?? 'normal';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _nameHindiController.dispose();
+    _instructionController.dispose();
+    _durationController.dispose();
+    _audioUrlController.dispose();
+    _bellIntervalController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndUploadAudio() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'wav', 'aac', 'm4a', 'ogg'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.first;
+      if (file.bytes == null && file.path == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not read file')),
+        );
+        return;
+      }
+
+      setState(() => _isUploading = true);
+
+      // Read file bytes
+      List<int> fileBytes;
+      if (file.bytes != null) {
+        fileBytes = file.bytes!;
+      } else {
+        final f = File(file.path!);
+        fileBytes = await f.readAsBytes();
+      }
+
+      // Generate unique path
+      final ext = file.extension ?? 'mp3';
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final storagePath = 'audio/steps/${widget.poseId}_${timestamp}.$ext';
+
+      // Upload via SupabaseService
+      final publicUrl = await _supabaseService.uploadFile(
+        'sessions-media',
+        storagePath,
+        fileBytes,
+      );
+
+      setState(() {
+        _audioUrlController.text = publicUrl;
+        _isUploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Audio uploaded successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isUploading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Upload failed: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
+    try {
+      final client = await _supabaseService.client;
+      if (client == null) throw Exception('Supabase not initialized');
+
+      final stepNum = widget.step?['step_number'] ?? widget.nextStepNumber;
+
+      final data = {
+        'pose_id': widget.poseId,
+        'step_number': stepNum,
+        'name': _nameController.text.trim(),
+        'name_hindi': _nameHindiController.text.trim().isNotEmpty ? _nameHindiController.text.trim() : null,
+        'instruction': _instructionController.text.trim().isNotEmpty ? _instructionController.text.trim() : null,
+        'breathing': _breathing,
+        'duration_seconds': int.tryParse(_durationController.text) ?? 10,
+        'display_order': stepNum,
+        'step_type': _stepType,
+        'audio_url': _audioUrlController.text.trim().isNotEmpty ? _audioUrlController.text.trim() : null,
+        'bell_interval_minutes': _stepType == 'meditation_open'
+            ? (int.tryParse(_bellIntervalController.text) ?? 5)
+            : null,
+      };
+
+      if (isEditing) {
+        await client.from('pose_steps').update(data).eq('id', widget.step!['id']);
+      } else {
+        await client.from('pose_steps').insert(data);
+      }
+
+      // Update total_steps
+      final allSteps = await client.from('pose_steps').select('id').eq('pose_id', widget.poseId);
+      await client.from('yoga_poses').update({'total_steps': (allSteps as List).length}).eq('id', widget.poseId);
+
+      widget.onSaved();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: 90.w,
+        constraints: BoxConstraints(maxHeight: 80.h),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: EdgeInsets.all(4.w),
+              decoration: BoxDecoration(
+                color: _primaryBrown,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+              ),
+              child: Row(
+                children: [
+                  Icon(isEditing ? Icons.edit : Icons.add, color: Colors.white),
+                  SizedBox(width: 2.w),
+                  Text(
+                    isEditing ? 'Edit Step' : 'Add Step',
+                    style: TextStyle(color: Colors.white, fontSize: 16.sp, fontWeight: FontWeight.bold),
+                  ),
+                  Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+
+            // Form
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(4.w),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Step Type selector
+                      Text('Step Type *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.sp)),
+                      SizedBox(height: 1.h),
+                      SegmentedButton<String>(
+                        segments: [
+                          ButtonSegment(value: 'pose', label: Text('🧘 Pose', style: TextStyle(fontSize: 12.sp))),
+                          ButtonSegment(value: 'guided_audio', label: Text('🎧 Guided', style: TextStyle(fontSize: 12.sp))),
+                          ButtonSegment(value: 'meditation_open', label: Text('🔔 Open', style: TextStyle(fontSize: 12.sp))),
+                        ],
+                        selected: {_stepType},
+                        onSelectionChanged: (v) => setState(() => _stepType = v.first),
+                      ),
+                      SizedBox(height: 0.5.h),
+                      Text(
+                        _stepType == 'pose'
+                            ? 'Standard pose with breathing & image'
+                            : _stepType == 'guided_audio'
+                                ? 'Audio-guided meditation (auto-ends with audio)'
+                                : 'Self-paced meditation with interval bell',
+                        style: TextStyle(fontSize: 11.sp, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 2.h),
+
+                      // Name
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: 'Name *',
+                          hintText: 'e.g. Deep Meditation',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => v?.isEmpty == true ? 'Required' : null,
+                      ),
+                      SizedBox(height: 1.5.h),
+
+                      // Name Hindi
+                      TextFormField(
+                        controller: _nameHindiController,
+                        decoration: InputDecoration(
+                          labelText: 'Name (Hindi)',
+                          hintText: 'e.g. गहरा ध्यान',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 1.5.h),
+
+                      // Instruction
+                      TextFormField(
+                        controller: _instructionController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Instruction',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 1.5.h),
+
+                      // Duration
+                      TextFormField(
+                        controller: _durationController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Duration (seconds)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.timer),
+                          suffixText: '= ${(int.tryParse(_durationController.text) ?? 0) ~/ 60} min',
+                        ),
+                      ),
+                      SizedBox(height: 2.h),
+
+                      // ── Audio URL (for guided_audio & meditation_open) ──
+                      if (_stepType == 'guided_audio' || _stepType == 'meditation_open') ...[
+                        Text(
+                          _stepType == 'guided_audio' ? '🎵 Guided Audio' : '🎵 Loop Audio',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.sp),
+                        ),
+                        SizedBox(height: 1.h),
+                        // Upload Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isUploading ? null : _pickAndUploadAudio,
+                            icon: _isUploading
+                                ? SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                : Icon(Icons.upload_file),
+                            label: Text(_isUploading ? 'Uploading...' : 'Upload Audio File'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF6D28D9),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        // Or paste URL
+                        TextFormField(
+                          controller: _audioUrlController,
+                          decoration: InputDecoration(
+                            labelText: 'Or paste Audio URL',
+                            hintText: 'https://...mp3',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.link, color: Color(0xFF6D28D9)),
+                            suffixIcon: _audioUrlController.text.isNotEmpty
+                                ? Icon(Icons.check_circle, color: Colors.green)
+                                : null,
+                          ),
+                        ),
+                        if (_audioUrlController.text.isNotEmpty)
+                          Padding(
+                            padding: EdgeInsets.only(top: 0.5.h),
+                            child: Text(
+                              '✅ Audio set',
+                              style: TextStyle(fontSize: 11.sp, color: Colors.green[700]),
+                            ),
+                          ),
+                        SizedBox(height: 2.h),
+                      ],
+
+                      // ── Bell Interval (only meditation_open) ──
+                      if (_stepType == 'meditation_open') ...[
+                        Text('🔔 Bell Interval (minutes)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.sp)),
+                        SizedBox(height: 0.5.h),
+                        TextFormField(
+                          controller: _bellIntervalController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Minutes',
+                            hintText: '5',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.notifications_active, color: Color(0xFF92400E)),
+                          ),
+                        ),
+                        Text(
+                          'A bell will ring at this interval',
+                          style: TextStyle(fontSize: 10.sp, color: Colors.grey[600]),
+                        ),
+                        SizedBox(height: 2.h),
+                      ],
+
+                      // ── Breathing (only for pose type) ──
+                      if (_stepType == 'pose') ...[
+                        Text('Breathing', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.sp)),
+                        SizedBox(height: 1.h),
+                        SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(value: 'inhale', label: Text('Inhale', style: TextStyle(fontSize: 11.sp))),
+                            ButtonSegment(value: 'exhale', label: Text('Exhale', style: TextStyle(fontSize: 11.sp))),
+                            ButtonSegment(value: 'hold', label: Text('Hold', style: TextStyle(fontSize: 11.sp))),
+                            ButtonSegment(value: 'normal', label: Text('Normal', style: TextStyle(fontSize: 11.sp))),
+                          ],
+                          selected: {_breathing},
+                          onSelectionChanged: (v) => setState(() => _breathing = v.first),
+                        ),
+                        SizedBox(height: 2.h),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Actions
+            Container(
+              padding: EdgeInsets.all(4.w),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel'),
+                    ),
+                  ),
+                  SizedBox(width: 3.w),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primaryBrown,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: _isSaving
+                          ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text(isEditing ? 'Update Step' : 'Add Step'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

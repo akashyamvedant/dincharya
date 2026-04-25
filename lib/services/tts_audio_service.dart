@@ -40,6 +40,7 @@ class TtsAudioService {
 
   bool _isPlaying = false;
   bool get isPlaying => _isPlaying;
+  int _cancelToken = 0; // Incremented on stop() to abort in-flight playback
 
   // ═══════════════════════════════════════════════════════════════
   // PUBLIC API
@@ -110,6 +111,7 @@ class TtsAudioService {
 
   /// Stop any currently playing audio
   Future<void> stop() async {
+    _cancelToken++; // Signal in-flight playback to abort
     try {
       await _audioPlayer.stop();
       _isPlaying = false;
@@ -486,12 +488,17 @@ class TtsAudioService {
 
   /// Play audio from local file path. Returns true when playback completes.
   Future<bool> _playAudioFile(String filePath) async {
+    final token = _cancelToken;
     try {
       _isPlaying = true;
       await _audioPlayer.play(DeviceFileSource(filePath));
       
-      // Wait for playback to complete
+      // Wait for playback to complete OR cancellation
       await _audioPlayer.onPlayerComplete.first;
+      if (_cancelToken != token) {
+        _isPlaying = false;
+        return false; // Was cancelled
+      }
       _isPlaying = false;
       return true;
     } catch (e) {
@@ -503,12 +510,17 @@ class TtsAudioService {
 
   /// Play audio from URL. Returns true when playback completes.
   Future<bool> _playAudioUrl(String url) async {
+    final token = _cancelToken;
     try {
       _isPlaying = true;
       await _audioPlayer.play(UrlSource(url));
       
-      // Wait for playback to complete
+      // Wait for playback to complete OR cancellation
       await _audioPlayer.onPlayerComplete.first;
+      if (_cancelToken != token) {
+        _isPlaying = false;
+        return false; // Was cancelled
+      }
       _isPlaying = false;
       return true;
     } catch (e) {

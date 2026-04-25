@@ -64,62 +64,64 @@ class AdConstants {
   AdConstants._();
 
   // ════════════════════════════════════════════════════════════════
-  // PRODUCTION BANNER AD UNIT IDs - One per placement (recommended)
-  // Get these from AdMob Console: Apps > Dincharya > Ad units
+  // PRODUCTION BANNER AD UNIT IDs v2 - Anti-hijack rotation (Apr 2026)
+  // All IDs are UNIQUE per placement for precise analytics
   // ════════════════════════════════════════════════════════════════
-  static const String _prodBannerJournalAndroid = 'ca-app-pub-6276884053063994/2514578501';
-  static const String _prodBannerMeTabAndroid = 'ca-app-pub-6276884053063994/4355563733';
-  static const String _prodBannerEditProfileAndroid = 'ca-app-pub-6276884053063994/5267629654';
-  static const String _prodBannerYourJourneyAndroid = 'ca-app-pub-6276884053063994/1352495447';
-  static const String _prodBannerChangeProfileAndroid = 'ca-app-pub-6276884053063994/5076057962';
-  static const String _prodBannerRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/5140568691';
-  static const String _prodBannerGuidedHubAndroid = 'ca-app-pub-6276884053063994/3827487020';
-  static const String _prodBannerSessionDetailAndroid = 'ca-app-pub-6276884053063994/3827487020';
-  static const String _prodBannerProgramDetailAndroid = 'ca-app-pub-6276884053063994/4317144444';
+  static const String _prodBannerJournalAndroid = 'ca-app-pub-6276884053063994/9539652127';
+  static const String _prodBannerMeTabAndroid = 'ca-app-pub-6276884053063994/8371086865';
+  static const String _prodBannerEditProfileAndroid = 'ca-app-pub-6276884053063994/5657293617';
+  static const String _prodBannerYourJourneyAndroid = 'ca-app-pub-6276884053063994/4431841857';
+  static const String _prodBannerChangeProfileAndroid = 'ca-app-pub-6276884053063994/2974243773';
+  static const String _prodBannerRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/3118760187';
+  static const String _prodBannerGuidedHubAndroid = 'ca-app-pub-6276884053063994/6729655953';
+  static const String _prodBannerSessionDetailAndroid = 'ca-app-pub-6276884053063994/5875739282';
+  static const String _prodBannerProgramDetailAndroid = 'ca-app-pub-6276884053063994/2790410943';
 
   // ════════════════════════════════════════════════════════════════
-  // PRODUCTION INTERSTITIAL AD UNIT IDs - One per placement
+  // PRODUCTION INTERSTITIAL AD UNIT IDs v2 - Anti-hijack rotation
   // ════════════════════════════════════════════════════════════════
-  static const String _prodInterstitialTaskAddedAndroid = 'ca-app-pub-6276884053063994/8888415167';
-  static const String _prodInterstitialJournalSavedAndroid = 'ca-app-pub-6276884053063994/6728885130';
-  static const String _prodInterstitialSessionEndedAndroid = 'ca-app-pub-6276884053063994/6150360709';
+  static const String _prodInterstitialTaskAddedAndroid = 'ca-app-pub-6276884053063994/5649554758';
+  static const String _prodInterstitialJournalSavedAndroid = 'ca-app-pub-6276884053063994/2887660047';
+  static const String _prodInterstitialSessionEndedAndroid = 'ca-app-pub-6276884053063994/7948415030';
 
   // ════════════════════════════════════════════════════════════════
-  // PRODUCTION NATIVE AD UNIT IDs - One per placement
+  // PRODUCTION NATIVE AD UNIT IDs v2 - Anti-hijack rotation
+  // All 6 placements now have UNIQUE IDs (sessionTheory no longer reuses sessionFeed)
   // ════════════════════════════════════════════════════════════════
-  static const String _prodNativeSessionFeedAndroid = 'ca-app-pub-6276884053063994/8970291749';
-  static const String _prodNativeMeTabAndroid = 'ca-app-pub-6276884053063994/7361835177';
-  static const String _prodNativeRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/6713407416';
-  static const String _prodNativeRoutineMorningAndroid = 'ca-app-pub-6276884053063994/7910243828';
-  static const String _prodNativeRoutineAfternoonAndroid = 'ca-app-pub-6276884053063994/1970848987';
+  static const String _prodNativeSessionFeedAndroid = 'ca-app-pub-6276884053063994/4009170024';
+  static const String _prodNativeMeTabAndroid = 'ca-app-pub-6276884053063994/6336559272';
+  static const String _prodNativeRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/7756843346';
+  static const String _prodNativeRoutineMorningAndroid = 'ca-app-pub-6276884053063994/1191434998';
+  static const String _prodNativeRoutineAfternoonAndroid = 'ca-app-pub-6276884053063994/1477329275';
+  static const String _prodNativeSessionTheoryAndroid = 'ca-app-pub-6276884053063994/3626026640';
   
   // ════════════════════════════════════════════════════════════════
-  // PRODUCTION REWARDED AD UNIT IDs - 9 placements for Guided Sessions
+  // PRODUCTION REWARDED AD UNIT IDs v2 - Anti-hijack rotation
   // ════════════════════════════════════════════════════════════════
   
-  // Meditation Tab - 3 sessions
-  static const String _prodRewardedMeditation1Android = 'ca-app-pub-6276884053063994/4867236020';
-  static const String _prodRewardedMeditation2Android = 'ca-app-pub-6276884053063994/3554154359';
-  static const String _prodRewardedMeditation3Android = 'ca-app-pub-6276884053063994/6997014842';
+  // Meditation Tab - 3 sessions (v2 ✅)
+  static const String _prodRewardedMeditation1Android = 'ca-app-pub-6276884053063994/2341473940';
+  static const String _prodRewardedMeditation2Android = 'ca-app-pub-6276884053063994/1028392279';
+  static const String _prodRewardedMeditation3Android = 'ca-app-pub-6276884053063994/5408835420';
   
-  // Breathe Tab - 3 sessions
-  static const String _prodRewardedBreathe1Android = 'ca-app-pub-6276884053063994/6758902193';
-  static const String _prodRewardedBreathe2Android = 'ca-app-pub-6276884053063994/6100426644';
-  static const String _prodRewardedBreathe3Android = 'ca-app-pub-6276884053063994/8389987560';
+  // Breathe Tab - 3 sessions (v2 ✅)
+  static const String _prodRewardedBreathe1Android = 'ca-app-pub-6276884053063994/5225002596';
+  static const String _prodRewardedBreathe2Android = 'ca-app-pub-6276884053063994/3339175477';
+  static const String _prodRewardedBreathe3Android = 'ca-app-pub-6276884053063994/6097200752';
   
-  // Yoga Tab - 3 sessions
-  static const String _prodRewardedYoga1Android = 'ca-app-pub-6276884053063994/8614909347';
-  static const String _prodRewardedYoga2Android = 'ca-app-pub-6276884053063994/8765392083';
-  static const String _prodRewardedYoga3Android = 'ca-app-pub-6276884053063994/4332448782';
+  // Yoga Tab - 3 sessions (v2 ✅)
+  static const String _prodRewardedYoga1Android = 'ca-app-pub-6276884053063994/4784119086';
+  static const String _prodRewardedYoga2Android = 'ca-app-pub-6276884053063994/5937405346';
+  static const String _prodRewardedYoga3Android = 'ca-app-pub-6276884053063994/3311242000';
   
-  // Legacy single rewarded (for backward compatibility)
-  static const String _prodRewardedAndroid = 'ca-app-pub-6276884053063994/7657210076';
+  // Legacy single rewarded (v2 ✅)
+  static const String _prodRewardedAndroid = 'ca-app-pub-6276884053063994/3471037413';
   static const String _prodRewardedIOS = 'ca-app-pub-6276884053063994/YOUR_REWARDED_IOS';
   
   // ════════════════════════════════════════════════════════════════
-  // APP OPEN AD UNIT IDs
+  // APP OPEN AD UNIT IDs v2 - Anti-hijack rotation
   // ════════════════════════════════════════════════════════════════
-  static const String _prodAppOpenAndroid = 'ca-app-pub-6276884053063994/1201496833';
+  static const String _prodAppOpenAndroid = 'ca-app-pub-6276884053063994/2157955749';
   static const String _prodAppOpenIOS = 'ca-app-pub-6276884053063994/YOUR_APP_OPEN_IOS';
 
   // ════════════════════════════════════════════════════════════════
@@ -219,7 +221,7 @@ class AdConstants {
       case NativePlacement.routineAfternoon:
         return _prodNativeRoutineAfternoonAndroid;
       case NativePlacement.sessionTheory:
-        return _prodNativeSessionFeedAndroid; // Reuses sessionFeed — never on-screen simultaneously
+        return _prodNativeSessionTheoryAndroid; // Now has its own unique ID for precise analytics
     }
   }
   
@@ -288,22 +290,24 @@ class AdConstants {
 
   // ════════════════════════════════════════════════════════════════
   // FREQUENCY CAPPING - AdMob 2026 Policy Compliant
-  // Google recommends: max 1 interstitial per hour per user
-  // Wellness apps should be even more conservative to avoid
-  // negative reviews and user churn
+  // Tuned for actual user behavior: avg session = 2m 6s, 2.09 sessions/AU
+  // Previous settings (freq=3, gap=120s) caused 0% interstitial show rate
   // ════════════════════════════════════════════════════════════════
   
   /// Show interstitial after this many user actions (natural transitions)
-  /// 3 actions = optimal for typical 1-3 action sessions
-  static const int interstitialFrequency = 3;
+  /// 2 actions = tuned for avg 2-3 actions per 2-min session
+  /// (was 3 — users never reached threshold, causing 0% show rate)
+  static const int interstitialFrequency = 2;
   
   /// Minimum seconds between interstitial ads (any placement)
-  /// 2 minutes (120s) = conservative but allows impressions within sessions
-  static const int minSecondsBetweenInterstitials = 120;
+  /// 45s = allows 1 ad per typical 2-min session without being aggressive
+  /// (was 120s — exceeded avg session duration, blocking all shows)
+  static const int minSecondsBetweenInterstitials = 45;
   
   /// Minimum minutes between App Open ads (time-based cooldown)
-  /// 60 minutes = allows re-engagement ads without being intrusive
-  static const int minMinutesBetweenAppOpenAds = 60;
+  /// 30 minutes = balanced for 2.09 sessions/user pattern
+  /// (was 60m — ads expired before next show opportunity, wasting 78% of loads)
+  static const int minMinutesBetweenAppOpenAds = 30;
   
   /// App Open ad expiry in hours (Google policy: max 4 hours)
   static const int appOpenAdExpiryHours = 4;

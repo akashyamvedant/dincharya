@@ -14,6 +14,7 @@ import '../../services/supabase_service.dart';
 import '../../services/subscription_manager.dart';
 import '../../widgets/ads/native_ad_widget.dart';
 import '../payment/payment_plans_screen.dart';
+import '../admin_messages/admin_message_popup.dart';
 
 class ProfileSettings extends StatefulWidget {
   const ProfileSettings({super.key});
@@ -44,6 +45,21 @@ class _ProfileSettingsState extends State<ProfileSettings> {
     super.initState();
     _loadUserData();
     _loadAppVersion();
+    // Check for admin in-app messages targeting this page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAdminMessages();
+    });
+  }
+
+  /// Check for unread admin popup messages targeting this page.
+  Future<void> _checkAdminMessages() async {
+    try {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await AdminMessagePopup.showPendingMessages(context, triggerPage: 'profile');
+    } catch (e) {
+      debugPrint('⚠️ Admin message check failed: $e');
+    }
   }
 
   Future<void> _loadAppVersion() async {
@@ -1139,6 +1155,16 @@ class _ProfileSettingsState extends State<ProfileSettings> {
                 Colors.deepPurple,
                 onTap: () {
                   Navigator.pushNamed(context, '/sessions-admin');
+                },
+              ),
+              _buildDivider(),
+              _buildModernSettingsTile(
+                'Send Messages',
+                'Admin: Send popup messages to users',
+                Icons.campaign,
+                Colors.orange,
+                onTap: () {
+                  Navigator.pushNamed(context, '/admin-messages');
                 },
               ),
             ],

@@ -19,6 +19,7 @@ import '../presentation/profile_selection/profile_selection_screen.dart';
 import '../presentation/history/history_screen.dart';
 import '../presentation/media_player/media_player_screen.dart';
 import '../presentation/sessions_admin/sessions_admin_screen.dart';
+import '../presentation/admin_messages/send_message_screen.dart';
 import '../presentation/support/help_center_screen.dart';
 import '../presentation/support/contact_support_screen.dart';
 import '../presentation/support/my_tickets_screen.dart';
@@ -64,6 +65,7 @@ class AppRoutes {
   static const String ticketDetail = '/ticket-detail';
   static const String community = '/community';
   static const String alarmRing = '/alarm-ring';
+  static const String adminMessages = '/admin-messages';
 
   static Map<String, WidgetBuilder> get routes => {
         splashScreen: (context) => const SplashScreen(),
@@ -92,6 +94,7 @@ class AppRoutes {
         sessionHistory: (context) => const SessionHistoryScreen(),
         aiGuide: (context) => const AiGuideScreen(),
         community: (context) => const CommunityChatScreen(),
+        adminMessages: (context) => const SendMessageScreen(),
       };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {

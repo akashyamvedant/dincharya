@@ -24,6 +24,7 @@ export default function PoseStepsPage() {
     instruction: '', instruction_hindi: '',
     breathing: 'normal', mantra: '', duration_seconds: 10,
     image_url: '', animation_url: '', tips: '',
+    step_type: 'pose', audio_url: '', bell_interval_minutes: 5,
   };
   const [form, setForm] = useState(defaultForm);
 
@@ -61,6 +62,9 @@ export default function PoseStepsPage() {
       duration_seconds: step.duration_seconds || 10,
       image_url: step.image_url || '', animation_url: step.animation_url || '',
       tips: Array.isArray(step.tips) ? step.tips.join('\n') : '',
+      step_type: step.step_type || 'pose',
+      audio_url: step.audio_url || '',
+      bell_interval_minutes: step.bell_interval_minutes || 5,
     });
     setShowModal(true);
   };
@@ -80,6 +84,9 @@ export default function PoseStepsPage() {
       animation_url: form.animation_url || null,
       tips: form.tips ? form.tips.split('\n').map(t => t.trim()).filter(Boolean) : [],
       display_order: parseInt(form.step_number) || 0,
+      step_type: form.step_type || 'pose',
+      audio_url: form.audio_url || null,
+      bell_interval_minutes: form.step_type === 'meditation_open' ? (parseInt(form.bell_interval_minutes) || 5) : null,
     };
 
     if (editing) {
@@ -126,6 +133,9 @@ export default function PoseStepsPage() {
         animation_url: s.animation_url || null,
         tips: Array.isArray(s.tips) ? s.tips : [],
         display_order: s.step_number || i + 1,
+        step_type: s.step_type || 'pose',
+        audio_url: s.audio_url || null,
+        bell_interval_minutes: s.bell_interval_minutes || null,
       }));
 
       const { error } = await supabase.from('pose_steps').insert(payloads);
@@ -164,6 +174,15 @@ export default function PoseStepsPage() {
       normal: { bg: '#f0fdf4', color: '#166534', icon: '🌿', label: 'Normal' },
     };
     return styles[b] || styles.normal;
+  };
+
+  const stepTypeStyle = (t) => {
+    const styles = {
+      pose: { bg: '#f0fdf4', color: '#166534', icon: '🧘', label: 'Pose' },
+      guided_audio: { bg: '#ede9fe', color: '#6d28d9', icon: '🎧', label: 'Guided Audio' },
+      meditation_open: { bg: '#fef3c7', color: '#92400e', icon: '🔔', label: 'Open Meditation' },
+    };
+    return styles[t] || styles.pose;
   };
 
   const totalDuration = steps.reduce((sum, s) => sum + (s.duration_seconds || 10), 0);
@@ -227,16 +246,27 @@ export default function PoseStepsPage() {
 
                     {/* Content */}
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, fontSize: 15 }}>{step.name}</span>
                         {step.name_hindi && <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>({step.name_hindi})</span>}
-                        {/* Breathing badge */}
-                        <span style={{
-                          background: bs.bg, color: bs.color, padding: '2px 10px',
-                          borderRadius: 12, fontSize: 11, fontWeight: 600,
-                        }}>
-                          {bs.icon} {bs.label}
-                        </span>
+                        {/* Step Type badge */}
+                        {(() => { const sts = stepTypeStyle(step.step_type); return (
+                          <span style={{
+                            background: sts.bg, color: sts.color, padding: '2px 10px',
+                            borderRadius: 12, fontSize: 11, fontWeight: 600,
+                          }}>
+                            {sts.icon} {sts.label}
+                          </span>
+                        ); })()}
+                        {/* Breathing badge - only for pose type */}
+                        {(!step.step_type || step.step_type === 'pose') && (
+                          <span style={{
+                            background: bs.bg, color: bs.color, padding: '2px 10px',
+                            borderRadius: 12, fontSize: 11, fontWeight: 600,
+                          }}>
+                            {bs.icon} {bs.label}
+                          </span>
+                        )}
                         {/* Duration */}
                         <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>⏱️ {step.duration_seconds}s</span>
                       </div>
@@ -266,6 +296,10 @@ export default function PoseStepsPage() {
                         )}
                         {step.image_url && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>🖼️ Image</span>}
                         {step.animation_url && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>🎬 Animation</span>}
+                        {step.audio_url && <span style={{ fontSize: 11, color: '#6d28d9' }}>🎵 Audio</span>}
+                        {step.step_type === 'meditation_open' && step.bell_interval_minutes && (
+                          <span style={{ fontSize: 11, color: '#92400e' }}>🔔 Bell: {step.bell_interval_minutes}min</span>
+                        )}
                       </div>
                     </div>
 
@@ -289,6 +323,34 @@ export default function PoseStepsPage() {
             <h2>{editing ? `Edit Step #${editing.step_number}` : `Add Step #${form.step_number}`}</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {/* ── Step Type Selector ── */}
+              <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                <label style={{ fontWeight: 700, marginBottom: 8, display: 'block' }}>Step Type *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{ value: 'pose', icon: '🧘', label: 'Pose' }, { value: 'guided_audio', icon: '🎧', label: 'Guided Audio' }, { value: 'meditation_open', icon: '🔔', label: 'Open Meditation' }].map(t => {
+                    const isSelected = form.step_type === t.value;
+                    const sts = stepTypeStyle(t.value);
+                    return (
+                      <button key={t.value} type="button" onClick={() => setForm({ ...form, step_type: t.value })}
+                        style={{
+                          flex: 1, padding: '10px 14px', borderRadius: 10,
+                          border: isSelected ? `2px solid ${sts.color}` : '1px solid var(--border)',
+                          background: isSelected ? sts.bg : 'transparent', color: sts.color,
+                          fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        }}>
+                        <span style={{ fontSize: 18 }}>{t.icon}</span> {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                  {form.step_type === 'pose' && '🧘 Standard pose step with breathing, mantra & image'}
+                  {form.step_type === 'guided_audio' && '🎧 Guided meditation with audio player — step auto-completes when audio ends'}
+                  {form.step_type === 'meditation_open' && '🔔 Self-paced meditation with looping audio & interval bell'}
+                </div>
+              </div>
+
               <div className="form-group">
                 <label>Step Number *</label>
                 <input className="form-input" type="number" value={form.step_number} onChange={e => setForm({ ...form, step_number: e.target.value })} />
@@ -296,6 +358,8 @@ export default function PoseStepsPage() {
               <div className="form-group">
                 <label>Duration (seconds) *</label>
                 <input className="form-input" type="number" value={form.duration_seconds} onChange={e => setForm({ ...form, duration_seconds: e.target.value })} />
+                {form.step_type === 'guided_audio' && <small style={{ color: 'var(--text-muted)' }}>Tip: Set to audio length or use 0 for auto</small>}
+                {form.step_type === 'meditation_open' && <small style={{ color: 'var(--text-muted)' }}>User controls when to stop</small>}
               </div>
               <div className="form-group">
                 <label>Name (English) *</label>
@@ -315,52 +379,94 @@ export default function PoseStepsPage() {
                 <textarea className="form-input" rows={3} value={form.instruction_hindi} onChange={e => setForm({ ...form, instruction_hindi: e.target.value })}
                   placeholder="सीधे खड़े हों, हाथों को छाती के सामने जोड़ें..." />
               </div>
-              <div className="form-group">
-                <label>Breathing *</label>
-                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  {['inhale', 'exhale', 'hold', 'normal'].map(b => {
-                    const bs = breathingStyle(b);
-                    const isSelected = form.breathing === b;
-                    return (
-                      <button key={b} type="button" onClick={() => setForm({ ...form, breathing: b })}
-                        style={{
-                          padding: '8px 14px', borderRadius: 8, border: isSelected ? `2px solid ${bs.color}` : '1px solid var(--border)',
-                          background: isSelected ? bs.bg : 'transparent', color: bs.color, fontWeight: 600,
-                          fontSize: 12, cursor: 'pointer', transition: 'all 0.2s',
-                        }}>
-                        {bs.icon} {bs.label}
-                      </button>
-                    );
-                  })}
+
+              {/* ── Audio URL (for guided_audio & meditation_open) ── */}
+              {(form.step_type === 'guided_audio' || form.step_type === 'meditation_open') && (
+                <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🎵 {form.step_type === 'guided_audio' ? 'Guided Meditation Audio' : 'Loop Audio'}
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>
+                      {form.step_type === 'guided_audio' ? '(plays once, step ends with audio)' : '(loops continuously)'}
+                    </span>
+                  </label>
+                  <MediaUploader
+                    bucket="session-media"
+                    folder="meditation-audio"
+                    accept="audio/*"
+                    label="Meditation Audio"
+                    value={form.audio_url}
+                    onChange={(url) => setForm({ ...form, audio_url: url })}
+                    maxSizeMB={100}
+                  />
                 </div>
-              </div>
-              <div className="form-group">
-                <label>Mantra</label>
-                <input className="form-input" value={form.mantra} onChange={e => setForm({ ...form, mantra: e.target.value })} placeholder="e.g. ॐ मित्राय नमः" />
-              </div>
-              <div className="form-group">
-                <label>Image</label>
-                <MediaUploader
-                  bucket="session-media"
-                  folder="poses"
-                  accept="image/*"
-                  label="Pose Image"
-                  value={form.image_url}
-                  onChange={(url) => setForm({ ...form, image_url: url })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Animation (Lottie)</label>
-                <MediaUploader
-                  bucket="session-media"
-                  folder="animations"
-                  accept=".json,.lottie,application/json"
-                  label="Lottie Animation"
-                  value={form.animation_url}
-                  onChange={(url) => setForm({ ...form, animation_url: url })}
-                  showPreview={false}
-                />
-              </div>
+              )}
+
+              {/* ── Bell Interval (only for meditation_open) ── */}
+              {form.step_type === 'meditation_open' && (
+                <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                  <label style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🔔 Bell Interval (minutes)
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>Plays a bell sound at this interval</span>
+                  </label>
+                  <input className="form-input" type="number" min="1" max="60" value={form.bell_interval_minutes}
+                    onChange={e => setForm({ ...form, bell_interval_minutes: e.target.value })}
+                    placeholder="5" style={{ maxWidth: 200 }} />
+                  <small style={{ color: 'var(--text-muted)' }}>A soft bell will ring every {form.bell_interval_minutes || 5} minute(s) during meditation</small>
+                </div>
+              )}
+
+              {/* ── Pose-specific fields (only for pose type) ── */}
+              {(!form.step_type || form.step_type === 'pose') && (
+                <>
+                  <div className="form-group">
+                    <label>Breathing *</label>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                      {['inhale', 'exhale', 'hold', 'normal'].map(b => {
+                        const bs = breathingStyle(b);
+                        const isSelected = form.breathing === b;
+                        return (
+                          <button key={b} type="button" onClick={() => setForm({ ...form, breathing: b })}
+                            style={{
+                              padding: '8px 14px', borderRadius: 8, border: isSelected ? `2px solid ${bs.color}` : '1px solid var(--border)',
+                              background: isSelected ? bs.bg : 'transparent', color: bs.color, fontWeight: 600,
+                              fontSize: 12, cursor: 'pointer', transition: 'all 0.2s',
+                            }}>
+                            {bs.icon} {bs.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Mantra</label>
+                    <input className="form-input" value={form.mantra} onChange={e => setForm({ ...form, mantra: e.target.value })} placeholder="e.g. ॐ मित्राय नमः" />
+                  </div>
+                  <div className="form-group">
+                    <label>Image</label>
+                    <MediaUploader
+                      bucket="session-media"
+                      folder="poses"
+                      accept="image/*"
+                      label="Pose Image"
+                      value={form.image_url}
+                      onChange={(url) => setForm({ ...form, image_url: url })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Animation (Lottie)</label>
+                    <MediaUploader
+                      bucket="session-media"
+                      folder="animations"
+                      accept=".json,.lottie,application/json"
+                      label="Lottie Animation"
+                      value={form.animation_url}
+                      onChange={(url) => setForm({ ...form, animation_url: url })}
+                      showPreview={false}
+                    />
+                  </div>
+                </>
+              )}
+
               <div className="form-group" style={{ gridColumn: '1/-1' }}>
                 <label>Tips (one per line)</label>
                 <textarea className="form-input" rows={3} value={form.tips} onChange={e => setForm({ ...form, tips: e.target.value })}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../admin_messages/admin_message_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
 import 'package:uuid/uuid.dart'; // For generating unique IDs
@@ -105,6 +106,22 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     
     // Listen for tab navigation requests from notification taps
     _deepLinkService.navigateToRoutineTab.addListener(_onNavigateToRoutineTab);
+    
+    // Check for admin in-app messages after UI is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAdminMessages();
+    });
+  }
+
+  /// Check for unread admin popup messages and show if any exist.
+  Future<void> _checkAdminMessages() async {
+    try {
+      await Future.delayed(const Duration(seconds: 2)); // Let dashboard settle
+      if (!mounted) return;
+      await AdminMessagePopup.showPendingMessages(context, triggerPage: 'dashboard');
+    } catch (e) {
+      debugPrint('⚠️ Admin message check failed: $e');
+    }
   }
 
   /// Initialize lifecycle service and check for day change

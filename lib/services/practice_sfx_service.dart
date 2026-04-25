@@ -24,7 +24,7 @@ class PracticeSfxService {
     if (!_enabled || _disposed) return;
     try {
       await _bellPlayer.setVolume(0.4);
-      await _bellPlayer.play(AssetSource('sounds/transition_bell.mp3'));
+      await _bellPlayer.play(AssetSource('sounds/bell.wav'));
     } catch (_) {
       // Fallback: system click
       try { SystemSound.play(SystemSoundType.click); } catch (_) {}

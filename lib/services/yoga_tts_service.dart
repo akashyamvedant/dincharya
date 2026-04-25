@@ -120,7 +120,9 @@ class YogaTtsService {
   }
 
   Future<void> stop() async {
-    if (_isSpeaking) await _tts.stop();
+    try {
+      await _tts.stop(); // Always stop, even if _isSpeaking is false (race condition safety)
+    } catch (_) {}
     _isSpeaking = false;
   }
 

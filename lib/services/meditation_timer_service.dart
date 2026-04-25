@@ -111,7 +111,7 @@ class MeditationTimerService {
     try {
       // Use a built-in Android notification sound as bell
       await _bellPlayer.play(
-        AssetSource('audio/bell.mp3'),
+        AssetSource('sounds/bell.wav'),
         volume: 0.8,
       );
     } catch (e) {

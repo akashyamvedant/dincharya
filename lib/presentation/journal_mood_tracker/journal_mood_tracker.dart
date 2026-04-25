@@ -15,6 +15,7 @@ import './widgets/bottom_action_widget.dart';
 import './widgets/calendar_widget.dart';
 import './widgets/journal_entry_widget.dart';
 import './widgets/mood_selector_widget.dart';
+import '../admin_messages/admin_message_popup.dart';
 
 class JournalMoodTracker extends StatefulWidget {
   const JournalMoodTracker({super.key});
@@ -82,6 +83,21 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
     _loadJournalEntries(); // Load entries on init
     _loadEntryForDate(_selectedDate); // Load today's entry
     _journalController.addListener(_onTextChanged);
+    // Check for admin in-app messages targeting this page
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAdminMessages();
+    });
+  }
+
+  /// Check for unread admin popup messages targeting this page.
+  Future<void> _checkAdminMessages() async {
+    try {
+      await Future.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      await AdminMessagePopup.showPendingMessages(context, triggerPage: 'journal');
+    } catch (e) {
+      debugPrint('⚠️ Admin message check failed: $e');
+    }
   }
 
   @override
