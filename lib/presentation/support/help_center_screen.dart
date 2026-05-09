@@ -123,7 +123,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> with TickerProvider
         },
         {
           'question': 'Subscription price क्या है?',
-          'answer': 'Premium subscription ₹199/month या ₹1999/year (Save 17%) में available है। 7-day free trial भी available है!'
+          'answer': 'Premium subscription ₹199/month या ₹1999/year (Save 17%) में available है। Me tab → Subscription card से purchase कर सकते हैं!'
         },
         {
           'question': 'Subscription कैसे cancel करें?',

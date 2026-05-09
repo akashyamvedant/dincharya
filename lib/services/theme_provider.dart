@@ -11,7 +11,7 @@ class ThemeProvider extends ChangeNotifier {
 
   static const String _themeKey = 'theme_mode'; // system | light | dark
 
-  ThemeMode _themeMode = ThemeMode.light; // Default to light
+  ThemeMode _themeMode = ThemeMode.dark; // Default to dark
 
   ThemeMode get themeMode => _themeMode;
 
@@ -34,7 +34,7 @@ class ThemeProvider extends ChangeNotifier {
           await prefs.setString(_themeKey, _themeModeToString(_themeMode));
           await prefs.remove('is_dark_mode');
         } else {
-          _themeMode = ThemeMode.light;
+          _themeMode = ThemeMode.dark;
         }
       } else {
         _themeMode = _stringToThemeMode(saved);
@@ -43,7 +43,7 @@ class ThemeProvider extends ChangeNotifier {
       debugPrint('🎨 Theme loaded: $_themeMode');
     } catch (e) {
       debugPrint('Failed to load theme: $e');
-      _themeMode = ThemeMode.light;
+      _themeMode = ThemeMode.dark;
     }
     notifyListeners();
   }
@@ -81,7 +81,7 @@ class ThemeProvider extends ChangeNotifier {
       case 'dark': return ThemeMode.dark;
       case 'light': return ThemeMode.light;
       case 'system': return ThemeMode.system;
-      default: return ThemeMode.light;
+      default: return ThemeMode.dark;
     }
   }
 }

@@ -385,6 +385,8 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                   PracticeTab(
                     pose: _linkedPose!,
                     steps: _poseSteps,
+                    sessionId: widget.session['id']?.toString(),
+                    category: widget.session['category']?.toString(),
                   ),
                 ],
               ),

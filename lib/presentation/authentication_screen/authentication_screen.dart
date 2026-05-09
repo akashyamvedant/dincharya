@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -203,6 +204,12 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         }
       }
       // No lifestyle profile = new user or never completed setup - go to profile selection
+      // Set premium upsell flag for new Google users too
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('show_premium_offer', true);
+        debugPrint('🎯 Premium offer flag set for new Google user');
+      } catch (_) {}
       Navigator.pushReplacementNamed(context, AppRoutes.profileSelection);
     } catch (e) {
       debugPrint('Error checking lifestyle profile: $e');

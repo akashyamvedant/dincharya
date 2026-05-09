@@ -485,7 +485,17 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           // Refresh stats
           _loadPracticeStats();
         },
-        onSkip: () => Navigator.pop(context),
+        onSkip: () {
+          Navigator.pop(context);
+          // Still record the session (without mood/energy) on skip
+          _guidedService.recordSessionAuto(
+            practiceType: category,
+            technique: title,
+            durationSeconds: duration,
+            sessionId: session['id']?.toString(),
+          );
+          _loadPracticeStats();
+        },
       ),
     );
   }

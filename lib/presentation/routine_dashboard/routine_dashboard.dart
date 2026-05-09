@@ -28,6 +28,8 @@ import './widgets/celebration_overlay.dart';
 import './widgets/quick_tasks_section.dart';
 import '../../widgets/ads/native_ad_widget.dart';
 import '../../widgets/ads/banner_ad_widget.dart';
+import '../../widgets/premium_paywall_widget.dart';
+import '../../services/subscription_manager.dart';
 
 
 class RoutineDashboard extends StatefulWidget {
@@ -107,9 +109,10 @@ class _RoutineDashboardState extends State<RoutineDashboard>
     // Listen for tab navigation requests from notification taps
     _deepLinkService.navigateToRoutineTab.addListener(_onNavigateToRoutineTab);
     
-    // Check for admin in-app messages after UI is ready
+    // Check for admin in-app messages and premium offer after UI is ready
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAdminMessages();
+      _checkPremiumOffer();
     });
   }
 
@@ -121,6 +124,39 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       await AdminMessagePopup.showPendingMessages(context, triggerPage: 'dashboard');
     } catch (e) {
       debugPrint('⚠️ Admin message check failed: $e');
+    }
+  }
+
+  /// Show one-time premium upsell for new users (replaces old free trial).
+  /// Flag is set after signup in auth_service.dart.
+  Future<void> _checkPremiumOffer() async {
+    try {
+      // Wait for dashboard to fully settle + admin messages to finish
+      await Future.delayed(const Duration(seconds: 4));
+      if (!mounted) return;
+
+      // Skip if already premium
+      final subManager = SubscriptionManager();
+      if (subManager.isPremium) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final shouldShow = prefs.getBool('show_premium_offer') ?? false;
+      if (!shouldShow) return;
+
+      // Clear flag immediately so it only shows once
+      await prefs.setBool('show_premium_offer', false);
+
+      if (!mounted) return;
+      await showPremiumPaywall(
+        context,
+        featureName: 'Welcome to DinCharya! 🎉',
+        description:
+            'Premium में Ad-free experience, unlimited AI Guide, advanced analytics और बहुत कुछ मिलेगा।\n\nसिर्फ ₹199/month से शुरू!',
+        icon: Icons.card_giftcard,
+      );
+      debugPrint('🎯 Welcome premium offer shown to new user');
+    } catch (e) {
+      debugPrint('⚠️ Premium offer check failed: $e');
     }
   }
 
@@ -1527,6 +1563,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           _totalXP += 25; // Increment local XP
           _showCelebration = true;
         });
+
+        // Premium nudge after 3rd task completion (engagement-based upsell)
+        _checkTaskCompletionNudge();
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1546,6 +1585,46 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           ),
         );
       }
+    }
+  }
+
+  /// Engagement-based premium upsell — shown once after 3rd task completion.
+  /// Only for free users. Non-blocking, shows after celebration dismisses.
+  Future<void> _checkTaskCompletionNudge() async {
+    try {
+      // Skip if already premium
+      final subManager = SubscriptionManager();
+      if (subManager.isPremium) return;
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Check if nudge was already shown
+      final nudgeShown = prefs.getBool('task_completion_nudge_shown') ?? false;
+      if (nudgeShown) return;
+
+      // Increment completion counter
+      final completionCount = (prefs.getInt('task_completion_count') ?? 0) + 1;
+      await prefs.setInt('task_completion_count', completionCount);
+
+      // Show nudge on 3rd completion
+      if (completionCount >= 3) {
+        await prefs.setBool('task_completion_nudge_shown', true);
+
+        // Wait for celebration overlay to dismiss
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+
+        await showPremiumPaywall(
+          context,
+          featureName: 'आप बहुत अच्छा कर रहे हैं! 🔥',
+          description:
+              'Premium में upgrade करें और पाएं:\n• Ad-free अनुभव\n• Unlimited AI Guide\n• Advanced Analytics\n\nसिर्फ ₹199/month!',
+          icon: Icons.trending_up,
+        );
+        debugPrint('🎯 Task completion premium nudge shown (3rd task)');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Task completion nudge failed: $e');
     }
   }
 

@@ -222,9 +222,48 @@ class GuidedSessionService {
       });
 
       await _updateDailyProgress(practiceType, durationSeconds);
+      await _updateGuidedStreak();
       debugPrint('✅ Session recorded: $technique ($durationSeconds sec)');
     } catch (e) {
       debugPrint('❌ Error recording session: $e');
+    }
+  }
+
+  /// Auto-record a session with minimal data (no mood/energy).
+  /// Used when PracticeTab completes or user skips post-session check-in.
+  /// Requires at least 30 seconds to avoid accidental recordings.
+  Future<void> recordSessionAuto({
+    required String practiceType,
+    required String technique,
+    required int durationSeconds,
+    String? sessionId,
+  }) async {
+    if (durationSeconds < 30) {
+      debugPrint('⏭️ Session too short (<30s), not recording: $technique');
+      return;
+    }
+    try {
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) return;
+
+      final client = await _supabase.client;
+      if (client == null) return;
+
+      await client.from('practice_sessions').insert({
+        'user_id': userId,
+        'practice_type': practiceType,
+        'technique': technique,
+        'session_id': sessionId,
+        'duration_seconds': durationSeconds,
+        'is_completed': true,
+        'completed_at': DateTime.now().toIso8601String(),
+      });
+
+      await _updateDailyProgress(practiceType, durationSeconds);
+      await _updateGuidedStreak();
+      debugPrint('✅ Auto-recorded session: $technique ($durationSeconds sec)');
+    } catch (e) {
+      debugPrint('❌ Error auto-recording session: $e');
     }
   }
 
@@ -303,7 +342,7 @@ class GuidedSessionService {
 
       final sessions = await client
           .from('practice_sessions')
-          .select('id')
+          .select('id, completed_at')
           .eq('user_id', userId)
           .gte('completed_at', monday.toIso8601String());
 
@@ -312,16 +351,13 @@ class GuidedSessionService {
         totalMinutes += (day['total_minutes'] as int?) ?? 0;
       }
 
-      final profile = await client
-          .from('user_profiles')
-          .select('current_streak')
-          .eq('id', userId)
-          .maybeSingle();
+      // Calculate guided streak independently from practice_sessions dates
+      final streak = await _calculateGuidedStreak();
 
       return {
         'totalMinutes': totalMinutes,
         'sessionsCount': sessions.length,
-        'streak': profile?['current_streak'] ?? 0,
+        'streak': streak,
         'dailyProgress': List<Map<String, dynamic>>.from(progress),
       };
     } catch (e) {
@@ -710,6 +746,13 @@ class GuidedSessionService {
       }
 
       debugPrint('💾 Session progress saved: ${positionSeconds}s / ${totalDuration}s (completed: $isCompleted)');
+
+      // When session is completed, update daily stats and streak
+      // This ensures non-Guided-Hub paths (Routine link, deep link) still count
+      if (isCompleted) {
+        await _updateDailyProgress(category, positionSeconds);
+        await _updateGuidedStreak();
+      }
     } catch (e) {
       debugPrint('❌ Error saving session progress: $e');
     }
@@ -826,6 +869,94 @@ class GuidedSessionService {
     } catch (e) {
       debugPrint('❌ Error getting participants: $e');
       return 0;
+    }
+  }
+
+  // ─────────────────────────────────────────
+  // GUIDED SESSION STREAK (independent)
+  // ─────────────────────────────────────────
+
+  /// Calculate guided session streak from practice_sessions dates.
+  /// This is independent of the routine streak in user_profiles.current_streak.
+  Future<int> _calculateGuidedStreak() async {
+    try {
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) return 0;
+
+      final client = await _supabase.client;
+      if (client == null) return 0;
+
+      // Fetch last 90 days of completed sessions (enough for streak calc)
+      final since = DateTime.now().subtract(const Duration(days: 90));
+      final records = await client
+          .from('practice_sessions')
+          .select('completed_at')
+          .eq('user_id', userId)
+          .gte('completed_at', since.toIso8601String())
+          .order('completed_at', ascending: false);
+
+      if (records.isEmpty) return 0;
+
+      // Collect unique dates
+      final practiceDays = <String>{};
+      for (final r in records) {
+        final dateStr = r['completed_at']?.toString();
+        if (dateStr != null && dateStr.length >= 10) {
+          final date = DateTime.tryParse(dateStr);
+          if (date != null) {
+            practiceDays.add(DateFormat('yyyy-MM-dd').format(date));
+          }
+        }
+      }
+
+      // Walk backwards from today counting consecutive days
+      int streak = 0;
+      DateTime day = DateTime.now();
+      final todayKey = DateFormat('yyyy-MM-dd').format(day);
+
+      // If today has no session, check if yesterday had one (streak still alive)
+      if (!practiceDays.contains(todayKey)) {
+        day = day.subtract(const Duration(days: 1));
+      }
+
+      while (true) {
+        final key = DateFormat('yyyy-MM-dd').format(day);
+        if (practiceDays.contains(key)) {
+          streak++;
+          day = day.subtract(const Duration(days: 1));
+        } else {
+          break;
+        }
+      }
+
+      return streak;
+    } catch (e) {
+      debugPrint('❌ Error calculating guided streak: $e');
+      return 0;
+    }
+  }
+
+  /// Update the guided session streak in user_profiles after recording a session.
+  Future<void> _updateGuidedStreak() async {
+    try {
+      final userId = _supabase.currentUser?.id;
+      if (userId == null) return;
+
+      final client = await _supabase.client;
+      if (client == null) return;
+
+      final streak = await _calculateGuidedStreak();
+
+      // Store guided streak separately (won't overwrite routine streak)
+      await client.from('user_profiles').update({
+        'guided_streak': streak,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      debugPrint('🔥 Guided streak updated: $streak days');
+    } catch (e) {
+      // Non-critical — streak display is best-effort
+      debugPrint('⚠️ Error updating guided streak: $e');
     }
   }
 }

@@ -105,55 +105,259 @@ export default function AnalyticsPage() {
         if (tab === 'ga4') fetchAllGA4();
     };
 
+    // ─── Direct table queries (no RPC functions needed) ─────────
     const fetchActiveStats = async () => {
-        const { data, error } = await supabase.rpc('get_active_user_stats');
-        if (!error && data) setActiveStats(data);
+        try {
+            const now = new Date();
+            const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+            const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+            const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
+
+            // Total users
+            const { count: totalUsers } = await supabase.from('user_profiles').select('id', { count: 'exact', head: true });
+
+            // DAU — users who have routine_tracking entries today
+            const { data: todayRoutines } = await supabase.from('routine_tracking')
+                .select('user_id').eq('tracking_date', now.toISOString().split('T')[0]);
+            const { data: todayJournals } = await supabase.from('journal_entries')
+                .select('user_id').gte('created_at', todayStart.toISOString());
+            const todayUserIds = new Set([
+                ...(todayRoutines || []).map(r => r.user_id),
+                ...(todayJournals || []).map(j => j.user_id),
+            ].filter(Boolean));
+
+            // WAU — last 7 days
+            const { data: weekRoutines } = await supabase.from('routine_tracking')
+                .select('user_id').gte('tracking_date', weekAgo.toISOString().split('T')[0]);
+            const { data: weekJournals } = await supabase.from('journal_entries')
+                .select('user_id').gte('created_at', weekAgo.toISOString());
+            const weekUserIds = new Set([
+                ...(weekRoutines || []).map(r => r.user_id),
+                ...(weekJournals || []).map(j => j.user_id),
+            ].filter(Boolean));
+
+            // MAU — last 30 days
+            const { data: monthRoutines } = await supabase.from('routine_tracking')
+                .select('user_id').gte('tracking_date', monthAgo.toISOString().split('T')[0]);
+            const { data: monthJournals } = await supabase.from('journal_entries')
+                .select('user_id').gte('created_at', monthAgo.toISOString());
+            const monthUserIds = new Set([
+                ...(monthRoutines || []).map(r => r.user_id),
+                ...(monthJournals || []).map(j => j.user_id),
+            ].filter(Boolean));
+
+            setActiveStats({
+                dau: todayUserIds.size,
+                wau: weekUserIds.size,
+                mau: monthUserIds.size,
+                total_users: totalUsers || 0,
+            });
+        } catch (e) { console.error('Active stats error:', e); }
     };
+
     const fetchDauChart = async () => {
-        const { data, error } = await supabase.rpc('get_dau_chart', { days_back: parseInt(period) });
-        if (!error && data) setDauChart(data);
+        try {
+            const days = parseInt(period);
+            const chartData = [];
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayStart = new Date(d); dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(d); dayEnd.setHours(23, 59, 59, 999);
+
+                const { data: rData } = await supabase.from('routine_tracking')
+                    .select('user_id').eq('tracking_date', dateStr);
+                const { data: jData } = await supabase.from('journal_entries')
+                    .select('user_id').gte('created_at', dayStart.toISOString()).lte('created_at', dayEnd.toISOString());
+                const uniqueUsers = new Set([
+                    ...(rData || []).map(r => r.user_id),
+                    ...(jData || []).map(j => j.user_id),
+                ].filter(Boolean));
+
+                chartData.push({ day: dateStr, active_users: uniqueUsers.size });
+            }
+            setDauChart(chartData);
+        } catch (e) { console.error('DAU chart error:', e); }
     };
+
     const fetchActivityFeed = async () => {
-        const { data, error } = await supabase.rpc('get_user_activity_feed', { limit_count: 50 });
-        if (!error && data) setActivityFeed(data);
+        try {
+            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+
+            // Fetch recent routine tracking
+            const { data: routines } = await supabase.from('routine_tracking')
+                .select('user_id, activity_name, completed, tracking_date, completed_at, xp_earned')
+                .gte('tracking_date', weekAgo.toISOString().split('T')[0])
+                .order('tracking_date', { ascending: false }).limit(30);
+
+            // Fetch recent journals
+            const { data: journals } = await supabase.from('journal_entries')
+                .select('user_id, mood_rating, created_at')
+                .gte('created_at', weekAgo.toISOString())
+                .order('created_at', { ascending: false }).limit(20);
+
+            // Get all user ids from both
+            const allUserIds = [...new Set([
+                ...(routines || []).map(r => r.user_id),
+                ...(journals || []).map(j => j.user_id),
+            ].filter(Boolean))];
+
+            // Fetch profiles
+            let profileMap = {};
+            if (allUserIds.length > 0) {
+                const { data: profiles } = await supabase.from('user_profiles')
+                    .select('id, full_name, email').in('id', allUserIds);
+                (profiles || []).forEach(p => { profileMap[p.id] = p; });
+            }
+
+            // Merge into activity feed
+            const feed = [];
+            (routines || []).forEach(r => {
+                const p = profileMap[r.user_id] || {};
+                feed.push({
+                    activity_type: 'routine',
+                    full_name: p.full_name || '',
+                    email: p.email || '',
+                    activity_description: `${r.completed ? '✅ Completed' : '❌ Skipped'} "${r.activity_name}"${r.xp_earned ? ` (+${r.xp_earned} XP)` : ''}`,
+                    activity_time: r.completed_at || `${r.tracking_date}T12:00:00Z`,
+                });
+            });
+            (journals || []).forEach(j => {
+                const p = profileMap[j.user_id] || {};
+                feed.push({
+                    activity_type: 'journal',
+                    full_name: p.full_name || '',
+                    email: p.email || '',
+                    activity_description: `Wrote journal entry${j.mood_rating ? ` (mood: ${j.mood_rating}/5)` : ''}`,
+                    activity_time: j.created_at,
+                });
+            });
+
+            // Sort by time, newest first
+            feed.sort((a, b) => new Date(b.activity_time) - new Date(a.activity_time));
+            setActivityFeed(feed.slice(0, 50));
+        } catch (e) { console.error('Activity feed error:', e); }
     };
+
     const fetchUserSummary = async () => {
-        const { data, error } = await supabase.rpc('get_user_activity_summary');
-        if (!error && data) setUserSummary(data);
+        try {
+            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+            const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+
+            // Get all users
+            const { data: allUsers } = await supabase.from('user_profiles')
+                .select('id, full_name, email, created_at');
+
+            if (!allUsers || allUsers.length === 0) { setUserSummary([]); return; }
+
+            // Get recent routines
+            const { data: recentRoutines } = await supabase.from('routine_tracking')
+                .select('user_id, completed, tracking_date, completed_at')
+                .gte('tracking_date', weekAgo.toISOString().split('T')[0]);
+
+            // Get recent journals
+            const { data: recentJournals } = await supabase.from('journal_entries')
+                .select('user_id, created_at')
+                .gte('created_at', weekAgo.toISOString());
+
+            // Build per-user summary
+            const summary = allUsers.map(u => {
+                const userRoutines = (recentRoutines || []).filter(r => r.user_id === u.id);
+                const userJournals = (recentJournals || []).filter(j => j.user_id === u.id);
+                const completedRoutines = userRoutines.filter(r => r.completed);
+
+                // Find last active timestamp
+                const lastRoutine = userRoutines.length > 0 ? userRoutines.reduce((latest, r) => {
+                    const t = r.completed_at || `${r.tracking_date}T23:59:59Z`;
+                    return t > latest ? t : latest;
+                }, '') : null;
+                const lastJournal = userJournals.length > 0 ? userJournals[0]?.created_at : null;
+                const lastActive = [lastRoutine, lastJournal].filter(Boolean).sort().reverse()[0] || u.created_at;
+
+                return {
+                    user_id: u.id,
+                    full_name: u.full_name,
+                    email: u.email,
+                    last_active: lastActive,
+                    routines_7d: userRoutines.length,
+                    routines_completed_7d: completedRoutines.length,
+                    practices_7d: 0, // practice_sessions table may not exist
+                    journals_7d: userJournals.length,
+                };
+            });
+
+            // Sort by most active (total activity) then filter users with any activity
+            summary.sort((a, b) => {
+                const aTotal = a.routines_7d + a.journals_7d;
+                const bTotal = b.routines_7d + b.journals_7d;
+                return bTotal - aTotal;
+            });
+
+            // Show users who were active in last 30 days or have recent activity
+            const activeSummary = summary.filter(u => {
+                const hasActivity = u.routines_7d > 0 || u.journals_7d > 0;
+                const recentlyCreated = new Date(u.last_active) >= monthAgo;
+                return hasActivity || recentlyCreated;
+            });
+
+            setUserSummary(activeSummary.length > 0 ? activeSummary : summary.slice(0, 20));
+        } catch (e) { console.error('User summary error:', e); }
     };
+
     const fetchExistingMetrics = async () => {
-        const days = parseInt(period);
-        const since = new Date(); since.setDate(since.getDate() - days);
-        const userGrowth = [];
-        for (let i = Math.min(days, 14) - 1; i >= 0; i--) {
-            const d = new Date(); d.setDate(d.getDate() - i);
-            const start = new Date(d); start.setHours(0, 0, 0, 0);
-            const end = new Date(d); end.setHours(23, 59, 59, 999);
-            const { count } = await supabase.from('user_profiles').select('id', { count: 'exact', head: true })
-                .gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
-            userGrowth.push({ label: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }), value: count || 0 });
-        }
-        const { data: sessData } = await supabase.from('sessions').select('category');
-        const catMap = {};
-        (sessData || []).forEach(s => { catMap[s.category] = (catMap[s.category] || 0) + 1; });
-        const categoryBreakdown = Object.entries(catMap).sort(([, a], [, b]) => b - a).map(([name, count]) => ({ name, count }));
-        const { data: moodData } = await supabase.from('journal_entries').select('mood_rating, created_at')
-            .gte('created_at', since.toISOString()).order('created_at').limit(200);
-        const moodByDay = {};
-        (moodData || []).forEach(m => {
-            const day = new Date(m.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric' });
-            if (!moodByDay[day]) moodByDay[day] = { sum: 0, count: 0 };
-            moodByDay[day].sum += (m.mood_rating || 0); moodByDay[day].count += 1;
-        });
-        const moodTrend = Object.entries(moodByDay).map(([label, { sum, count }]) => ({ label, value: Math.round((sum / count) * 10) / 10 }));
-        const { data: topData } = await supabase.from('sessions').select('title, category, view_count').order('view_count', { ascending: false }).limit(10);
-        const { data: practiceData } = await supabase.from('practice_sessions').select('created_at')
-            .gte('created_at', since.toISOString()).limit(500);
-        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const dayCounts = new Array(7).fill(0);
-        (practiceData || []).forEach(p => { dayCounts[new Date(p.created_at).getDay()] += 1; });
-        const engagementByDay = dayNames.map((name, i) => ({ name, count: dayCounts[i] }));
-        setMetrics({ userGrowth, categoryBreakdown, moodTrend, engagementByDay, topSessions: topData || [] });
+        try {
+            const days = parseInt(period);
+            const since = new Date(); since.setDate(since.getDate() - days);
+
+            // New signups chart
+            const userGrowth = [];
+            for (let i = Math.min(days, 14) - 1; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const start = new Date(d); start.setHours(0, 0, 0, 0);
+                const end = new Date(d); end.setHours(23, 59, 59, 999);
+                const { count } = await supabase.from('user_profiles').select('id', { count: 'exact', head: true })
+                    .gte('created_at', start.toISOString()).lte('created_at', end.toISOString());
+                userGrowth.push({ label: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }), value: count || 0 });
+            }
+
+            // Session categories
+            const { data: sessData } = await supabase.from('sessions').select('category');
+            const catMap = {};
+            (sessData || []).forEach(s => { if (s.category) catMap[s.category] = (catMap[s.category] || 0) + 1; });
+            const categoryBreakdown = Object.entries(catMap).sort(([, a], [, b]) => b - a).map(([name, count]) => ({ name, count }));
+
+            // Mood trend
+            const { data: moodData } = await supabase.from('journal_entries').select('mood_rating, created_at')
+                .gte('created_at', since.toISOString()).order('created_at').limit(200);
+            const moodByDay = {};
+            (moodData || []).forEach(m => {
+                const day = new Date(m.created_at).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+                if (!moodByDay[day]) moodByDay[day] = { sum: 0, count: 0 };
+                moodByDay[day].sum += (m.mood_rating || 0); moodByDay[day].count += 1;
+            });
+            const moodTrend = Object.entries(moodByDay).map(([label, { sum, count }]) => ({ label, value: Math.round((sum / count) * 10) / 10 }));
+
+            // Top sessions
+            const { data: topData } = await supabase.from('sessions').select('title, category, view_count').order('view_count', { ascending: false }).limit(10);
+
+            // Practice by day of week — using routine_tracking instead of practice_sessions
+            const { data: routineData } = await supabase.from('routine_tracking')
+                .select('tracking_date, completed')
+                .eq('completed', true)
+                .gte('tracking_date', since.toISOString().split('T')[0])
+                .limit(500);
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const dayCounts = new Array(7).fill(0);
+            (routineData || []).forEach(r => {
+                if (r.tracking_date) {
+                    const d = new Date(r.tracking_date + 'T12:00:00');
+                    dayCounts[d.getDay()] += 1;
+                }
+            });
+            const engagementByDay = dayNames.map((name, i) => ({ name, count: dayCounts[i] }));
+
+            setMetrics({ userGrowth, categoryBreakdown, moodTrend, engagementByDay, topSessions: topData || [] });
+        } catch (e) { console.error('Metrics error:', e); }
     };
 
     // ─── Helpers ─────────────────────────────────────────

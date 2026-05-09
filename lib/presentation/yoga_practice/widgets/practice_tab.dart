@@ -7,6 +7,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../services/yoga_tts_service.dart';
 import '../../../services/tts_audio_service.dart';
+import '../../../services/guided_session_service.dart';
 import './cached_pose_image.dart';
 import '../../media_player/widgets/in_app_audio_player.dart';
 import '../../../services/media_cache_service.dart';
@@ -23,11 +24,15 @@ enum _BreathPracticePhase { inhale, holdInhale, exhale, holdExhale }
 class PracticeTab extends StatefulWidget {
   final Map<String, dynamic> pose;
   final List<Map<String, dynamic>> steps;
+  final String? sessionId;  // DB session ID for tracking
+  final String? category;   // yoga / pranayama / meditation
 
   const PracticeTab({
     super.key,
     required this.pose,
     required this.steps,
+    this.sessionId,
+    this.category,
   });
 
   @override
@@ -868,6 +873,9 @@ class _PracticeTabState extends State<PracticeTab>
   }
 
   void _showCompletionDialog() {
+    // Auto-record the completed practice session
+    _recordPracticeCompletion();
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -893,6 +901,26 @@ class _PracticeTabState extends State<PracticeTab>
         ],
       ),
     );
+  }
+
+  /// Auto-record the completed practice to practice_sessions table.
+  void _recordPracticeCompletion() {
+    // Calculate total duration from all steps
+    int totalSeconds = 0;
+    for (final s in widget.steps) {
+      totalSeconds += (s['duration_seconds'] as int?) ?? 10;
+    }
+
+    final poseName = widget.pose['name_hindi'] ?? widget.pose['name'] ?? 'Practice';
+    final category = widget.category ?? widget.pose['category'] ?? 'yoga';
+
+    GuidedSessionService().recordSessionAuto(
+      practiceType: category.toString(),
+      technique: poseName.toString(),
+      durationSeconds: totalSeconds,
+      sessionId: widget.sessionId,
+    );
+    debugPrint('📊 Practice completion recorded: $poseName ($totalSeconds sec)');
   }
 
   // ─── Total duration ─────────────

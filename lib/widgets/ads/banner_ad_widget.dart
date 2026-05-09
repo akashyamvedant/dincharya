@@ -94,10 +94,16 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       final adUnitId = AdConstants.getBannerAdId(widget.placement);
       debugPrint('🎯 Banner [${widget.placement.name}]: Loading size ${_adSize!.width}x${_adSize!.height}');
       
+      final isCollapsible = widget.placement == BannerPlacement.routineDashboard || 
+                            widget.placement == BannerPlacement.guidedHub || 
+                            widget.placement == BannerPlacement.journal;
+      
       _bannerAd = BannerAd(
         adUnitId: adUnitId,
         size: _adSize!,
-        request: const AdRequest(),
+        request: isCollapsible 
+            ? const AdRequest(extras: {'collapsible': 'bottom'}) 
+            : const AdRequest(),
         listener: BannerAdListener(
           onAdLoaded: (ad) {
             debugPrint('✅ Banner [${widget.placement.name}]: Loaded (${_adSize!.width}x${_adSize!.height})');

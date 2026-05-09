@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../core/constants/ad_constants.dart';
 import '../../services/ads_service.dart';
@@ -8,8 +9,9 @@ import '../../services/theme_provider.dart';
 
 /// Native Ad Widget that matches Dincharya's warm brown theme
 /// 
-/// REACTIVE: Listens to SubscriptionManager — if user buys premium mid-session,
-/// the loaded ad is disposed immediately without requiring app restart.
+/// REACTIVE & VISIBILITY-AWARE: 
+/// 1. Listens to SubscriptionManager — if user buys premium mid-session, ad is disposed.
+/// 2. Uses VisibilityDetector — only requests ad when container is actually visible on screen.
 class NativeAdWidget extends StatefulWidget {
   final NativePlacement placement;
   final double? height;
@@ -27,14 +29,15 @@ class NativeAdWidget extends StatefulWidget {
 class _NativeAdWidgetState extends State<NativeAdWidget> {
   NativeAd? _nativeAd;
   bool _isLoaded = false;
+  bool _hasRequestedAd = false; // Prevents multiple requests
   final SubscriptionManager _subManager = SubscriptionManager();
 
   @override
   void initState() {
     super.initState();
-    // Listen for premium status changes (e.g., user buys premium mid-session)
+    // Listen for premium status changes
     _subManager.addListener(_onPremiumStatusChanged);
-    _loadAd();
+    // REMOVED _loadAd() from here. We now load lazily via VisibilityDetector.
   }
 
   /// React to premium status changes — dispose ad immediately
@@ -52,19 +55,22 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   }
 
   void _loadAd() async {
-    final adsService = AdsService();
+    if (_hasRequestedAd) return;
     
-    // Wait for AdsService initialization before checking premium status
+    final adsService = AdsService();
     await adsService.waitForInitialization;
     
-    // Don't load if premium user
-    if (!adsService.shouldShowAds) {
-      return;
-    }
+    if (!adsService.shouldShowAds) return;
+
+    setState(() {
+      _hasRequestedAd = true;
+    });
 
     if (!mounted) return;
 
     final isDark = ThemeProvider().isDarkMode;
+    
+    debugPrint('👁️ VisibilityDetector: Triggering load for Native Ad [${widget.placement.name}]');
 
     _nativeAd = NativeAd(
       adUnitId: AdConstants.getNativeAdId(widget.placement),
@@ -73,9 +79,7 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
       listener: NativeAdListener(
         onAdLoaded: (ad) {
           debugPrint('✅ Native ad loaded for ${widget.placement.name}');
-          if (mounted) {
-            setState(() => _isLoaded = true);
-          }
+          if (mounted) setState(() => _isLoaded = true);
         },
         onAdFailedToLoad: (ad, error) {
           debugPrint('❌ Native ad failed: code=${error.code}, domain=${error.domain}, message=${error.message}');
@@ -87,18 +91,10 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
             });
           }
         },
-        onAdClicked: (ad) {
-          debugPrint('👆 Native ad clicked: ${widget.placement.name}');
-        },
-        onAdImpression: (ad) {
-          debugPrint('👀 Native ad [${widget.placement.name}]: ✅ IMPRESSION RECORDED');
-        },
-        onAdClosed: (ad) {
-          debugPrint('🚪 Native ad closed: ${widget.placement.name}');
-        },
-        onAdOpened: (ad) {
-          debugPrint('📭 Native ad opened: ${widget.placement.name}');
-        },
+        onAdClicked: (ad) => debugPrint('👆 Native ad clicked: ${widget.placement.name}'),
+        onAdImpression: (ad) => debugPrint('👀 Native ad [${widget.placement.name}]: ✅ IMPRESSION RECORDED'),
+        onAdClosed: (ad) => debugPrint('🚪 Native ad closed: ${widget.placement.name}'),
+        onAdOpened: (ad) => debugPrint('📭 Native ad opened: ${widget.placement.name}'),
       ),
       request: const AdRequest(),
     );
@@ -115,21 +111,53 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isLoaded || _nativeAd == null) {
-      return const SizedBox(height: 4);
+    // If premium, return nothing. If ad failed to load completely, return nothing.
+    if (_subManager.isPremium || (_hasRequestedAd && !_isLoaded && _nativeAd == null)) {
+      return const SizedBox.shrink();
     }
 
     final maxAdHeight = widget.height ?? _getMaxHeight();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: maxAdHeight,
-          minHeight: 120,
-          maxWidth: double.infinity,
+    return VisibilityDetector(
+      key: Key('native_ad_${widget.placement.name}'),
+      onVisibilityChanged: (visibilityInfo) {
+        // Load ad when at least 10% visible
+        if (visibilityInfo.visibleFraction >= 0.1 && !_hasRequestedAd) {
+          _loadAd();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: maxAdHeight,
+            minHeight: 120,
+            maxWidth: double.infinity,
+          ),
+          child: _isLoaded && _nativeAd != null
+              ? AdWidget(ad: _nativeAd!)
+              : _buildLoadingPlaceholder(context), // Show placeholder while loading
         ),
-        child: AdWidget(ad: _nativeAd!),
+      ),
+    );
+  }
+  
+  /// A subtle placeholder to prevent layout shifts while the ad loads
+  Widget _buildLoadingPlaceholder(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+        ),
+      ),
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+        ),
       ),
     );
   }

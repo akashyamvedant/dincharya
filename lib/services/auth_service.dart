@@ -8,7 +8,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 
 import './supabase_service.dart';
-import './subscription_manager.dart';
+// import './subscription_manager.dart'; // Removed: free trial disabled
 import '../core/utils/validators.dart';
 
 // lib/services/auth_service.dart
@@ -390,14 +390,14 @@ class AuthService {
           debugPrint('⚠️ Error saving session: $e');
         }
 
-        // Auto-start 7-day free trial for new users
+        // Flag to show premium upsell on first dashboard visit
+        // (replaces old auto-trial which had 0% conversion)
         try {
-          final trialStarted = await SubscriptionManager().startFreeTrial();
-          if (trialStarted) {
-            debugPrint('🎉 7-day free trial activated for new user');
-          }
+          final offerPrefs = await SharedPreferences.getInstance();
+          await offerPrefs.setBool('show_premium_offer', true);
+          debugPrint('🎯 Premium offer flag set for new user');
         } catch (e) {
-          debugPrint('⚠️ Trial activation failed (non-blocking): $e');
+          debugPrint('⚠️ Failed to set premium offer flag: $e');
         }
 
         return {
