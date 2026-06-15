@@ -252,7 +252,10 @@ class SupabaseService {
 
       final response = await _client
           .from('user_profiles')
-          .select()
+          .select('id, full_name, email, bio, avatar_url, dominant_dosha, primary_goals, '
+              'lifestyle_profile, current_streak, best_streak, last_active_date, '
+              'total_tasks_completed, total_minutes_tracked, guided_streak, '
+              'created_at, updated_at')
           .eq('id', userId)
           .limit(1);
       return List<Map<String, dynamic>>.from(response);
@@ -399,7 +402,10 @@ class SupabaseService {
 
       final response = await client
           .from('local_tasks')
-          .select()
+          .select('id, user_id, title, description, category, type, time, duration, '
+              'duration_minutes, icon, is_inevitable, alarm_enabled, alarm_sound, '
+              'linked_session_id, due_date, priority, status, is_completed, '
+              'profile_source, task_status, status_updated_at, created_at, updated_at')
           .eq('user_id', userId)
           .order('created_at');
 
@@ -549,7 +555,7 @@ class SupabaseService {
           .from('local_tasks')
           .update(sanitizedUpdates)
           .eq('id', taskId)
-          .select()
+          .select('id, title, activity, category, time, status, date')
           .limit(1);
 
       return List<Map<String, dynamic>>.from(response);
@@ -623,7 +629,9 @@ class SupabaseService {
 
       final response = await client
           .from('local_tasks')
-          .select()
+          .select('id, user_id, title, description, category, type, time, duration, '
+              'duration_minutes, icon, is_inevitable, alarm_enabled, alarm_sound, '
+              'linked_session_id, profile_source, created_at')
           .eq('user_id', userId)
           .eq('profile_source', profileId);
       return List<Map<String, dynamic>>.from(response);
@@ -689,9 +697,11 @@ class SupabaseService {
 
       final response = await client
           .from('journal_entries')
-          .select()
+          .select('id, user_id, title, content, mood_rating, image_urls, audio_url, '
+              'date, word_count, writing_time, has_photo, created_at, updated_at')
           .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(100);
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       debugPrint('Error getting journal entries: $e');

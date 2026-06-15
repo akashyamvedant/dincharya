@@ -23,16 +23,17 @@ class CommunityService {
       final client = await _supabaseService.client;
       if (client == null) return [];
 
+      const msgCols = 'id, user_id, user_name, user_avatar_url, message, media_url, media_type, is_pinned, created_at';
       var query = client
           .from('community_messages')
-          .select()
+          .select(msgCols)
           .order('created_at', ascending: false)
           .limit(limit);
 
       if (before != null) {
         query = client
             .from('community_messages')
-            .select()
+            .select(msgCols)
             .lt('created_at', before.toIso8601String())
             .order('created_at', ascending: false)
             .limit(limit);
@@ -55,7 +56,7 @@ class CommunityService {
 
       final data = await client
           .from('community_messages')
-          .select()
+          .select('id, user_id, user_name, user_avatar_url, message, media_url, media_type, is_pinned, created_at')
           .eq('is_pinned', true)
           .order('created_at', ascending: false)
           .limit(10);

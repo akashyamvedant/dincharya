@@ -469,7 +469,7 @@ class RoutineTrackingService {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final data = await client
           .from('routine_tracking')
-          .select()
+          .select('id, task_id, activity_name, scheduled_time, completed, completed_at, tracking_date, actual_duration_minutes, skip_reason, xp_earned')
           .eq('user_id', currentUser.id)
           .eq('tracking_date', today);
 
@@ -494,7 +494,7 @@ class RoutineTrackingService {
 
       final data = await client
           .from('routine_tracking')
-          .select()
+          .select('id, task_id, activity_name, scheduled_time, completed, completed_at, tracking_date, skip_reason, xp_earned')
           .eq('user_id', currentUser.id)
           .gte('tracking_date', cutoffDateStr)
           .order('tracking_date', ascending: false);
@@ -518,7 +518,7 @@ class RoutineTrackingService {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final todayData = await client
           .from('routine_tracking')
-          .select()
+          .select('completed')
           .eq('user_id', currentUser.id)
           .eq('tracking_date', today);
 

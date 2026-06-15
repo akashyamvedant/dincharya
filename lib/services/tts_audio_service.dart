@@ -276,7 +276,7 @@ class TtsAudioService {
 
       final response = await client
           .from('pose_step_audio')
-          .select()
+          .select('id, audio_url, text_hash')
           .eq('pose_id', poseId)
           .eq('step_number', stepNumber)
           .eq('language', language)

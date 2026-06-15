@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:intl/intl.dart';
 
@@ -46,7 +46,7 @@ class _SessionHistoryScreenState extends State<SessionHistoryScreen> {
 
       final data = await client
           .from('practice_sessions')
-          .select()
+          .select('completed_at, duration_seconds, technique, practice_type, mood_after, energy_after')
           .eq('user_id', userId)
           .order('completed_at', ascending: false)
           .limit(100);

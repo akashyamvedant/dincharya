@@ -545,7 +545,7 @@ class PaymentService {
 
       final data = await client
           .from('subscriptions')
-          .select()
+          .select('id')
           .eq('user_id', userId)
           .eq('status', 'active')
           .gt('expires_at', DateTime.now().toIso8601String())
@@ -569,7 +569,7 @@ class PaymentService {
 
       final data = await client
           .from('subscriptions')
-          .select()
+          .select('razorpay_payment_id, razorpay_order_id, status, expires_at')
           .eq('user_id', userId)
           .order('created_at', ascending: false)
           .limit(1);

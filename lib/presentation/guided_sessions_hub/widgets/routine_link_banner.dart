@@ -183,7 +183,9 @@ class _RoutineLinkBannerState extends State<RoutineLinkBanner> {
                     final matchCategory = isSpiritual ? 'meditation' : 'yoga';
                     final sessions = await client
                         .from('sessions')
-                        .select()
+                        .select('id, title, title_hindi, description, category, difficulty, duration, '
+                            'media_type, media_url, youtube_url, video_url, audio_url, '
+                            'thumbnail_url, instructor_name, is_premium, tags, view_count')
                         .eq('category', matchCategory)
                         .eq('is_active', true)
                         .order('view_count', ascending: false)

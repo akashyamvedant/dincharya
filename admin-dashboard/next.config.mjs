@@ -1,9 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Skip ESLint during builds (flat config can cause Vercel build issues)
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Prevent source maps in production for security
   productionBrowserSourceMaps: false,
   // Security headers

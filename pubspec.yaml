@@ -57,6 +57,7 @@ dependencies:
   
   # Utilities
   url_launcher: ^6.3.2
+  app_links: ^6.4.0            # Android App Links — shareable deep links for sessions
   intl: ^0.20.2
   flutter_dotenv: ^5.2.1
   

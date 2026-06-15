@@ -38,7 +38,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         if (userId != null) {
           var query = client
               .from('support_tickets')
-              .select()
+              .select('id, user_id, subject, message, category, priority, status, created_at, updated_at')
               .eq('user_id', userId)
               .order('created_at', ascending: false);
 

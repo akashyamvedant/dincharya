@@ -153,7 +153,7 @@ class TaskLifecycleService {
       // STEP 1: Get ALL tasks BEFORE resetting (we need current state for tracking)
       final allTasks = await client
           .from('local_tasks')
-          .select()
+          .select('id, title, time, task_status, is_completed, profile_source')
           .eq('user_id', userId);
 
       // Filter to only active profile + custom tasks

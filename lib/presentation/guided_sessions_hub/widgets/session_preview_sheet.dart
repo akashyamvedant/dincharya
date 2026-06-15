@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../services/media_cache_service.dart';
+import '../../../services/deep_link_service.dart';
 
 /// Session preview bottom sheet — shown on long-press of a session card.
 /// Displays full details (thumbnail, description, duration, difficulty, instructor)
@@ -207,7 +209,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
 
                   SizedBox(height: 2.h),
 
-                  // Actions Row — Favorite, Download, Start
+                  // Actions Row — Favorite, Download, Share, Start
                   Row(
                     children: [
                       // Favorite
@@ -223,6 +225,21 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
                       SizedBox(width: 2.w),
                       // Download
                       _buildDownloadButton(primaryBrown),
+                      SizedBox(width: 2.w),
+                      // Share
+                      _buildActionButton(
+                        icon: Icons.share_rounded,
+                        label: 'Share',
+                        color: primaryBrown,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          final shareText = DeepLinkService.generateShareText(widget.session);
+                          Share.share(
+                            shareText,
+                            subject: 'Check out this session on Dincharya!',
+                          );
+                        },
+                      ),
                       SizedBox(width: 2.w),
                       // Start
                       Expanded(

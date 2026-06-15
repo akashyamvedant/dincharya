@@ -49,7 +49,9 @@ class AdminMessageService {
       final now = DateTime.now().toUtc().toIso8601String();
       final messages = await client
           .from('admin_messages')
-          .select()
+          .select('id, title, message, type, cta_text, cta_url, image_url, '
+              'is_active, show_once, max_impressions, priority, '
+              'target_audience, trigger_pages, starts_at, expires_at, created_at')
           .eq('is_active', true)
           .or('expires_at.is.null,expires_at.gt.$now')
           .or('starts_at.is.null,starts_at.lte.$now')
@@ -236,7 +238,9 @@ class AdminMessageService {
       // Fetch original message
       final original = await client
           .from('admin_messages')
-          .select()
+          .select('title, message, type, cta_text, cta_url, image_url, '
+              'show_once, max_impressions, priority, '
+              'target_audience, trigger_pages')
           .eq('id', messageId)
           .single();
 
@@ -266,7 +270,10 @@ class AdminMessageService {
 
       final messages = await client
           .from('admin_messages')
-          .select()
+          .select('id, title, message, type, cta_text, cta_url, image_url, '
+              'is_active, show_once, max_impressions, priority, '
+              'target_audience, trigger_pages, starts_at, expires_at, '
+              'created_by, created_at, updated_at')
           .order('created_at', ascending: false);
 
       if (messages.isEmpty) return [];

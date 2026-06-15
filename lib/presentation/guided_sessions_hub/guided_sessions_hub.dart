@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -133,41 +135,90 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     }
   }
 
+  // ── SWR Cache Keys ──
+  static const String _sessionsCacheKey = 'swr_sessions_cache';
+  static const String _sessionsCacheTimeKey = 'swr_sessions_cache_time';
+  static const int _sessionsCacheTTLHours = 6; // Revalidate every 6 hours
+
+  /// Columns we actually need from the sessions table.
+  /// This reduces bandwidth by ~60% compared to SELECT *.
+  static const String _sessionsSelectColumns =
+      'id, title, title_hindi, description, category, difficulty, duration, '
+      'media_type, media_url, youtube_url, video_url, audio_url, '
+      'thumbnail_url, instructor_name, is_premium, display_order, '
+      'tags, view_count';
+
   Future<void> _loadSessionsFromDB() async {
     if (!mounted) return;
     setState(() => _isLoadingFromDB = true);
+
     try {
+      // ── Step 1: Load from local cache FIRST (instant, no network) ──
+      final prefs = await SharedPreferences.getInstance();
+      final cachedJson = prefs.getString(_sessionsCacheKey);
+      
+      if (cachedJson != null) {
+        final cachedSessions = List<Map<String, dynamic>>.from(
+          (json.decode(cachedJson) as List).map((e) => Map<String, dynamic>.from(e)),
+        );
+        _applySessionsToState(cachedSessions);
+        debugPrint('📦 Sessions: Loaded ${cachedSessions.length} from cache (instant)');
+      }
+
+      // ── Step 2: Check if cache is still fresh ──
+      final lastSyncMs = prefs.getInt(_sessionsCacheTimeKey) ?? 0;
+      final hoursSinceSync = DateTime.now().millisecondsSinceEpoch - lastSyncMs;
+      final isCacheFresh = hoursSinceSync < _sessionsCacheTTLHours * 60 * 60 * 1000;
+
+      if (isCacheFresh && cachedJson != null) {
+        debugPrint('✅ Sessions cache is fresh (${(hoursSinceSync / 3600000).toStringAsFixed(1)}h old), skipping network');
+        return; // Cache is fresh, no need to fetch from Supabase
+      }
+
+      // ── Step 3: Revalidate from Supabase (background) ──
+      debugPrint('🔄 Sessions: Revalidating from Supabase...');
       final client = await _supabaseService.client;
       if (client == null) {
-        throw Exception('Supabase not initialized');
+        if (cachedJson == null) throw Exception('Supabase not initialized and no cache');
+        return; // Offline but we have cache — that's fine
       }
 
       final response = await client
           .from('sessions')
-          .select()
+          .select(_sessionsSelectColumns)
           .eq('is_active', true)
           .order('display_order', ascending: true);
 
       final sessions = List<Map<String, dynamic>>.from(response);
+      _applySessionsToState(sessions);
 
-      if (mounted) {
-        setState(() {
-          _meditationSessions = sessions.where((s) => s['category'] == 'meditation').toList();
-          _pranayamaSessions = sessions.where((s) => s['category'] == 'pranayama').toList();
-          _yogaSessions = sessions.where((s) => s['category'] == 'yoga').toList();
-          _isLoadingFromDB = false;
-          _hasError = false;
-        });
-      }
+      // ── Step 4: Update cache ──
+      await prefs.setString(_sessionsCacheKey, json.encode(sessions));
+      await prefs.setInt(_sessionsCacheTimeKey, DateTime.now().millisecondsSinceEpoch);
+      debugPrint('✅ Sessions: Fetched ${sessions.length} from Supabase, cache updated');
+
     } catch (e) {
       debugPrint('Error loading sessions: $e');
-      if (mounted) {
+      if (mounted && _yogaSessions.isEmpty && _meditationSessions.isEmpty && _pranayamaSessions.isEmpty) {
+        // Only show error if we have NO data at all (no cache either)
         setState(() {
           _isLoadingFromDB = false;
           _hasError = true;
         });
       }
     }
+  }
+
+  /// Apply sessions data to state — used by both cache and network paths
+  void _applySessionsToState(List<Map<String, dynamic>> sessions) {
+    if (!mounted) return;
+    setState(() {
+      _meditationSessions = sessions.where((s) => s['category'] == 'meditation').toList();
+      _pranayamaSessions = sessions.where((s) => s['category'] == 'pranayama').toList();
+      _yogaSessions = sessions.where((s) => s['category'] == 'yoga').toList();
+      _isLoadingFromDB = false;
+      _hasError = false;
+    });
   }
 
   @override

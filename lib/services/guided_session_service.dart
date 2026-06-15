@@ -173,7 +173,9 @@ class GuidedSessionService {
 
       final response = await client
           .from('user_favorites')
-          .select('session_id, sessions(*)')
+          .select('session_id, sessions(id, title, title_hindi, description, category, difficulty, duration, '
+              'media_type, media_url, youtube_url, video_url, audio_url, '
+              'thumbnail_url, instructor_name, is_premium, tags, view_count)')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
@@ -281,7 +283,7 @@ class GuidedSessionService {
 
       final existing = await client
           .from('user_progress')
-          .select()
+          .select('id, total_minutes, meditation_minutes, pranayama_minutes, yoga_minutes')
           .eq('user_id', userId)
           .eq('date', today)
           .maybeSingle();
@@ -335,7 +337,7 @@ class GuidedSessionService {
 
       final progress = await client
           .from('user_progress')
-          .select()
+          .select('id, total_minutes, meditation_minutes, pranayama_minutes, yoga_minutes, date')
           .eq('user_id', userId)
           .gte('date', mondayStr)
           .order('date');
@@ -414,10 +416,13 @@ class GuidedSessionService {
         reason = '$reason\nPicked for your $doshaName constitution';
       }
 
-      // Fetch sessions from recommended category
+      // Fetch sessions from recommended category (specific columns to save bandwidth)
+      const sessionCols = 'id, title, title_hindi, description, category, difficulty, duration, '
+          'media_type, media_url, youtube_url, video_url, audio_url, '
+          'thumbnail_url, instructor_name, is_premium, tags, view_count';
       final sessions = await client
           .from('sessions')
-          .select()
+          .select(sessionCols)
           .eq('category', recommendedCategory)
           .eq('is_active', true)
           .order('view_count', ascending: false)
@@ -426,7 +431,7 @@ class GuidedSessionService {
       if (sessions.isEmpty) {
         final fallback = await client
             .from('sessions')
-            .select()
+            .select(sessionCols)
             .eq('is_active', true)
             .limit(1);
         if (fallback.isEmpty) return null;
@@ -504,7 +509,7 @@ class GuidedSessionService {
 
       final response = await client
           .from('programs')
-          .select()
+          .select('id, title, description, category, dosha_affinity, total_sessions, thumbnail_url, is_active, created_at')
           .eq('is_active', true)
           .order('created_at', ascending: false);
 
@@ -539,7 +544,9 @@ class GuidedSessionService {
 
       final response = await client
           .from('user_program_enrollments')
-          .select('*, programs(*)')
+          .select('id, user_id, program_id, current_session_index, completed, enrolled_at, '
+              'programs(id, title, description, category, difficulty, total_sessions, '
+              'thumbnail_url, instructor_name, is_premium)')
           .eq('user_id', userId)
           .eq('completed', false)
           .order('enrolled_at', ascending: false);
@@ -628,7 +635,10 @@ class GuidedSessionService {
 
       final response = await client
           .from('program_sessions')
-          .select('*, sessions(*)')
+          .select('id, program_id, session_id, sequence_order, '
+              'sessions(id, title, title_hindi, description, category, difficulty, duration, '
+              'media_type, media_url, youtube_url, video_url, audio_url, '
+              'thumbnail_url, instructor_name, is_premium, tags, view_count)')
           .eq('program_id', programId)
           .order('sequence_order');
 
@@ -786,10 +796,12 @@ class GuidedSessionService {
       final sessionId = record['session_id'] as String?;
       if (sessionId == null) return null;
 
-      // Fetch the actual session details
+      // Fetch the actual session details (only needed columns)
       final sessionData = await client
           .from('sessions')
-          .select()
+          .select('id, title, title_hindi, description, category, difficulty, duration, '
+              'media_type, media_url, youtube_url, video_url, audio_url, '
+              'thumbnail_url, instructor_name, is_premium, tags, view_count')
           .eq('id', sessionId)
           .eq('is_active', true)
           .limit(1);

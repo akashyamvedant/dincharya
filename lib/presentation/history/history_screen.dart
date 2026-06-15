@@ -80,11 +80,13 @@ class _HistoryScreenState extends State<HistoryScreen> with TickerProviderStateM
       final client = await _supabaseService.client;
       if (client == null) return;
 
-      // Fetch actual tracking history from routine_tracking table
+      // Fetch tracking history — specific columns only, limited to 90 days
+      final since = DateTime.now().subtract(const Duration(days: 90)).toIso8601String().substring(0, 10);
       final trackingHistory = await client
           .from('routine_tracking')
-          .select()
+          .select('tracking_date, task_id, activity_name, scheduled_time, completed')
           .eq('user_id', userId)
+          .gte('tracking_date', since)
           .order('tracking_date', ascending: false);
       
       // Also fetch user profile for best_streak

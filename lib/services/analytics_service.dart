@@ -114,10 +114,13 @@ class AnalyticsService {
       final client = await _supabase.client;
       if (client == null) return [];
       
+      // Only fetch columns needed for analytics + last 90 days only (not entire history!)
+      final since = DateTime.now().subtract(const Duration(days: 90)).toIso8601String().substring(0, 10);
       final history = await client
           .from('routine_tracking')
-          .select()
+          .select('tracking_date, activity_name, completed, scheduled_time, actual_time')
           .eq('user_id', userId)
+          .gte('tracking_date', since)
           .order('tracking_date', ascending: false);
       
       _cachedHistory = List<Map<String, dynamic>>.from(history);

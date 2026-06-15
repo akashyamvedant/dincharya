@@ -110,7 +110,7 @@ class SubscriptionManager extends ChangeNotifier {
       // Query for active subscription (includes paid + trial)
       final data = await client
           .from('subscriptions')
-          .select()
+          .select('id, plan_id, status, is_trial, expires_at, trial_expires_at')
           .eq('user_id', userId)
           .eq('status', 'active')
           .gt('expires_at', DateTime.now().toIso8601String())

@@ -787,7 +787,7 @@ $userContext
 
       final data = await client
           .from('ai_chat_messages')
-          .select()
+          .select('id, role, content, image_url, created_at')
           .eq('user_id', user.id)
           .order('created_at', ascending: true)
           .limit(50);
@@ -1171,7 +1171,9 @@ $userContext
 
       var query = client
           .from('sessions')
-          .select()
+          .select('id, title, title_hindi, description, category, difficulty, duration, '
+              'media_type, media_url, youtube_url, video_url, audio_url, '
+              'thumbnail_url, instructor_name, is_premium, tags, view_count')
           .eq('category', category)
           .eq('is_active', true);
 
@@ -1203,7 +1205,7 @@ $userContext
 
       final response = await client
           .from('local_tasks')
-          .select()
+          .select('id, title, activity, category, time, status, date')
           .eq('user_id', userId)
           .eq('date', todayStr)
           .order('time');
@@ -1212,7 +1214,7 @@ $userContext
       if ((response as List).isEmpty) {
         final fallback = await client
             .from('local_tasks')
-            .select()
+            .select('id, title, activity, category, time, status, date')
             .eq('user_id', userId)
             .order('time')
             .limit(10);

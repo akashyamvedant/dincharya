@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../services/deep_link_service.dart';
 
 /// "Today's Session" hero card — personalized recommendation at top of Guided hub
 class TodaysSessionCard extends StatelessWidget {
@@ -69,6 +71,33 @@ class TodaysSessionCard extends StatelessWidget {
                   _getCategoryIcon(category),
                   size: 120,
                   color: Colors.white.withOpacity(0.05),
+                ),
+              ),
+
+              // Share button — top right
+              Positioned(
+                right: 12,
+                top: 12,
+                child: GestureDetector(
+                  onTap: () {
+                    final shareText = DeepLinkService.generateShareText(session);
+                    Share.share(
+                      shareText,
+                      subject: 'Check out this session on Dincharya!',
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.share_rounded,
+                      color: Colors.white70,
+                      size: 18,
+                    ),
+                  ),
                 ),
               ),
 

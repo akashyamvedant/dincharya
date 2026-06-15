@@ -670,7 +670,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       
       final weeklyTracking = await client
           .from('routine_tracking')
-          .select()
+          .select('tracking_date, task_id, activity_name, completed')
           .eq('user_id', userId)
           .gte('tracking_date', monday.toIso8601String().split('T')[0])
           .lte('tracking_date', now.toIso8601String().split('T')[0]);
@@ -1927,7 +1927,9 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
       final response = await client
           .from('sessions')
-          .select()
+          .select('id, title, title_hindi, description, category, difficulty, duration, '
+              'media_type, media_url, youtube_url, video_url, audio_url, '
+              'thumbnail_url, instructor_name, is_premium, tags, view_count')
           .eq('id', sessionId)
           .eq('is_active', true)
           .limit(1);

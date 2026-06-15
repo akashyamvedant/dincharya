@@ -51,13 +51,13 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         // Also refresh ticket status
         final ticketData = await client
             .from('support_tickets')
-            .select()
+            .select('id, user_id, subject, message, category, priority, status, created_at, updated_at')
             .eq('id', _ticket['id'])
             .single();
         
         final data = await client
             .from('ticket_replies')
-            .select()
+            .select('id, ticket_id, sender_type, sender_id, message, created_at')
             .eq('ticket_id', _ticket['id'])
             .order('created_at', ascending: true);
 

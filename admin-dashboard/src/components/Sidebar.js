@@ -15,6 +15,7 @@ const navItems = [
     { href: '/content', label: 'Content', icon: '📝' },
     { href: '/tickets', label: 'Tickets', icon: '🎫', badgeKey: 'openTickets' },
     { href: '/analytics', label: 'Analytics', icon: '📈' },
+    { href: '/social-media', label: 'Social Media', icon: '🤖' },
     { href: '/routines', label: 'Routines', icon: '⏰' },
     { href: '/journals', label: 'Journals', icon: '📓' },
     { href: '/emails', label: 'Emails', icon: '📧' },

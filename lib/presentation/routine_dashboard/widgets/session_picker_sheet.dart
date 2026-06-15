@@ -46,7 +46,7 @@ class _SessionPickerSheetState extends State<SessionPickerSheet> {
 
       final response = await client
           .from('sessions')
-          .select()
+          .select('id, title, description, category, duration, difficulty, is_premium, thumbnail_url')
           .eq('category', widget.category)
           .eq('is_active', true)
           .order('view_count', ascending: false);

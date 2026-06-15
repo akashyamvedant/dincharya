@@ -938,20 +938,27 @@ class AdsService {
       try {
         final appCheckToken = await FirebaseAppCheck.instance.getToken();
         if (appCheckToken == null) {
-          debugPrint('🛡️ SECURITY WARNING: App Check token is null — '
-              'possible tampered/unsigned app');
-          // In production with enforcement ON, this blocks fake apps.
-          // Don't return false yet — let it degrade gracefully until
-          // Firebase Console enforcement is enabled.
-          // Once enforcement is ON, uncomment: return false;
+          debugPrint('🛡️ SECURITY BLOCK: App Check token is null — '
+              'tampered/cloned app detected. Blocking ads.');
+          // ENFORCED: Null token = not a genuine Play Store app.
+          // This blocks hijackers who embed our ad unit IDs in their fake apps.
+          return false;
         } else {
           debugPrint('🛡️ Check 2 PASSED: App Check token received '
               '(${appCheckToken.length > 20 ? appCheckToken.substring(0, 20) : appCheckToken}...)');
         }
       } catch (e) {
-        // App Check may fail in debug/sideloaded builds — log but don't block
-        debugPrint('🛡️ App Check token fetch failed: $e '
-            '(expected in debug mode)');
+        // App Check may fail in debug builds or very first install — 
+        // log but allow ads to continue (Play Integrity will still protect)
+        debugPrint('🛡️ App Check token fetch exception: $e');
+        // In debug mode, this is expected. In release, it may mean
+        // the device doesn't support Play Integrity (rare).
+        if (!kDebugMode) {
+          debugPrint('🛡️ SECURITY WARNING: App Check failed in RELEASE mode — '
+              'possible sideloaded/tampered app');
+          // Block ads for non-debug builds that fail App Check
+          return false;
+        }
       }
       
       // ── CHECK 3: Version format sanity check ──

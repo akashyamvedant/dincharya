@@ -12,6 +12,7 @@ import 'package:timezone/data/latest.dart' as tz;
 
 import 'package:dincharya/widgets/custom_error_widget.dart';
 import './services/ads_service.dart';
+import './services/deep_link_service.dart';
 import './core/constants/ad_constants.dart';
 import './services/auth_service.dart';
 import './services/notification_service.dart';
@@ -210,6 +211,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _midnightTimer?.cancel();
+    DeepLinkService().dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -355,6 +357,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         // Show App Open Ad on app launch (not from background)
         _showAppOpenAdOnResume(isFromBackground: false);
       }
+      
+      // Initialize Deep Link Service for shareable session links
+      // Must be after navigator is ready (post first frame)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinkService().initialize(navigatorKey);
+      });
     } catch (e) {
       debugPrint('Failed to initialize app: $e');
       SecurityConfig.logSecurityViolation('INITIALIZATION_FAILED',

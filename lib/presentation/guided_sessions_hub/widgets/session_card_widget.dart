@@ -1,7 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../services/deep_link_service.dart';
 import './breathing_animation_widget.dart';
 
 /// Minimal Headspace-inspired Session Card
@@ -161,6 +163,35 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
                               ),
                             ),
                           if (widget.onFavoriteToggle == null) const SizedBox(),
+                          SizedBox(width: 4),
+                          // Share button
+                          GestureDetector(
+                            onTap: () {
+                              final shareText = DeepLinkService.generateShareText(widget.session);
+                              Share.share(
+                                shareText,
+                                subject: 'Check out this session on Dincharya!',
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface.withOpacity(0.9),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.share_rounded,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                size: 18,
+                              ),
+                            ),
+                          ),
                           SizedBox(width: 4),
                           // Premium badge
                           if (isPremium) _buildPremiumBadge(),
