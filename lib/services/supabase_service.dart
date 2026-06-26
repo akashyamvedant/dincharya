@@ -555,7 +555,7 @@ class SupabaseService {
           .from('local_tasks')
           .update(sanitizedUpdates)
           .eq('id', taskId)
-          .select('id, title, activity, category, time, status, date')
+          .select('id, title, description, category, time, status, is_completed, updated_at')
           .limit(1);
 
       return List<Map<String, dynamic>>.from(response);

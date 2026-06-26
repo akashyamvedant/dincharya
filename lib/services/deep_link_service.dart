@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import './supabase_service.dart';
+import '../presentation/guided_sessions_hub/widgets/session_preview_sheet.dart';
 
 /// Service to handle Android App Links (deep links) for session sharing.
 ///
@@ -94,7 +95,9 @@ class DeepLinkService {
     debugPrint('⚠️ Unrecognized deep link path: ${uri.path}');
   }
 
-  /// Fetch session from Supabase by UUID and navigate to MediaPlayerScreen.
+  /// Fetch session from Supabase by UUID and navigate to GuidedSessionsHub.
+  /// Shows a preview sheet for the shared session so the user can decide
+  /// whether to start it — instead of auto-playing.
   Future<void> _openSessionById(String sessionId) async {
     final navigator = _navigatorKey?.currentState;
     if (navigator == null) {
@@ -136,8 +139,33 @@ class DeepLinkService {
       final session = Map<String, dynamic>.from(response);
       debugPrint('✅ Deep link: Session found — "${session['title']}"');
 
-      // Navigate to MediaPlayerScreen
-      navigator.pushNamed('/media-player', arguments: session);
+      // Navigate to Guided Sessions Hub (the sessions list)
+      navigator.pushNamed('/guided-sessions-hub');
+
+      // After a brief delay (to let the hub build), show the session preview sheet
+      Future.delayed(const Duration(milliseconds: 600), () {
+        final context = navigator.context;
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75,
+          ),
+          builder: (sheetContext) => SessionPreviewSheet(
+            session: session,
+            onStart: () {
+              Navigator.pop(sheetContext);
+              navigator.pushNamed('/media-player', arguments: session);
+            },
+            onToggleFavorite: () {
+              // Favorite toggle — handled by hub's state, just close sheet
+              Navigator.pop(sheetContext);
+            },
+            isFavorite: false,
+          ),
+        );
+      });
     } catch (e) {
       debugPrint('❌ Deep link session fetch error: $e');
       _dismissLoadingDialog(navigator);
