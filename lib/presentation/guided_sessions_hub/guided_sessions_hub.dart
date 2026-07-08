@@ -65,6 +65,9 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
   // Resume session
   Map<String, dynamic>? _resumeSession;
 
+  // Deep link highlight
+  String? _highlightSessionId;
+  final ScrollController _scrollController = ScrollController();
 
   // Mock data as fallback if database fails
   final List<Map<String, dynamic>> _fallbackMeditationSessions = [
@@ -90,6 +93,14 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
     // Check for admin in-app messages targeting this page
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAdminMessages();
+      // Read deep link highlight session ID from route arguments
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic> && args['highlightSessionId'] != null) {
+        setState(() {
+          _highlightSessionId = args['highlightSessionId'] as String;
+        });
+        debugPrint('🔗 Deep link: Will highlight session $_highlightSessionId');
+      }
     });
   }
 
@@ -219,12 +230,70 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       _isLoadingFromDB = false;
       _hasError = false;
     });
+
+    // Deep link: auto-switch tab and scroll to highlighted session
+    if (_highlightSessionId != null) {
+      _scrollToHighlightedSession();
+    }
+  }
+
+  /// Find highlighted session's category tab, switch to it, and scroll to the card
+  void _scrollToHighlightedSession() {
+    if (_highlightSessionId == null) return;
+
+    // Determine which tab the session belongs to
+    int targetTab = 0; // default yoga
+    int sessionIndexInList = -1;
+
+    // Check yoga (tab 0)
+    sessionIndexInList = _yogaSessions.indexWhere(
+      (s) => s['id']?.toString() == _highlightSessionId,
+    );
+    if (sessionIndexInList >= 0) {
+      targetTab = 0;
+    } else {
+      // Check pranayama (tab 1)
+      sessionIndexInList = _pranayamaSessions.indexWhere(
+        (s) => s['id']?.toString() == _highlightSessionId,
+      );
+      if (sessionIndexInList >= 0) {
+        targetTab = 1;
+      } else {
+        // Check meditation (tab 2)
+        sessionIndexInList = _meditationSessions.indexWhere(
+          (s) => s['id']?.toString() == _highlightSessionId,
+        );
+        if (sessionIndexInList >= 0) {
+          targetTab = 2;
+        }
+      }
+    }
+
+    if (sessionIndexInList < 0) {
+      debugPrint('⚠️ Deep link: Session $_highlightSessionId not found in any tab');
+      return;
+    }
+
+    debugPrint('🔗 Deep link: Found session in tab $targetTab at index $sessionIndexInList');
+
+    // Switch to the correct tab
+    if (_tabController.index != targetTab) {
+      _tabController.animateTo(targetTab);
+    }
+
+    // Auto-clear highlight after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() => _highlightSessionId = null);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -531,6 +600,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
               energyBefore: energyBefore,
               energyAfter: energyAfter,
               notes: notes,
+              sessionId: session['id']?.toString(),
             );
           } catch (_) {}
           // Refresh stats
@@ -805,9 +875,19 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
             label: 'Guided',
           ),
           BottomNavigationBarItem(
+            icon: Icon(
+              Icons.local_fire_department,
+              color: _currentBottomIndex == 2
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 24,
+            ),
+            label: 'Tapasya',
+          ),
+          BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'book',
-              color: _currentBottomIndex == 2
+              color: _currentBottomIndex == 3
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
@@ -817,7 +897,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'person',
-              color: _currentBottomIndex == 3
+              color: _currentBottomIndex == 4
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
@@ -826,22 +906,26 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           ),
         ],
         onTap: (index) {
+          if (index == _currentBottomIndex) return;
           setState(() {
             _currentBottomIndex = index;
           });
 
           switch (index) {
             case 0:
-              Navigator.pushNamed(context, '/routine-dashboard');
+              Navigator.pushReplacementNamed(context, '/routine-dashboard');
               break;
             case 1:
               // Already on guided sessions hub
               break;
             case 2:
-              Navigator.pushNamed(context, '/journal-mood-tracker');
+              Navigator.pushReplacementNamed(context, '/tapasya');
               break;
             case 3:
-              Navigator.pushNamed(context, '/profile-settings');
+              Navigator.pushReplacementNamed(context, '/journal-mood-tracker');
+              break;
+            case 4:
+              Navigator.pushReplacementNamed(context, '/profile-settings');
               break;
           }
         },
@@ -1130,6 +1214,7 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           showBreathingAnimation:
               _tabController.index == 0,
           isFavorite: _guidedService.isFavorite(sessionId),
+          isHighlighted: _highlightSessionId == sessionId,
           onFavoriteToggle: () async {
             await _guidedService.toggleFavorite(sessionId);
             if (mounted) setState(() {});

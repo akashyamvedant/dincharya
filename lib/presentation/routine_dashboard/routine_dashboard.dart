@@ -91,7 +91,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   bool _updateAvailable = false;
   bool _flexibleUpdateDownloaded = false;
 
-  final List<String> _tabLabels = ['Routine', 'Guided', 'Journal', 'Me'];
+  final List<String> _tabLabels = ['Routine', 'Guided', 'Tapasya', 'Journal', 'Me'];
 
 
   @override
@@ -1047,8 +1047,8 @@ class _RoutineDashboardState extends State<RoutineDashboard>
             label: _tabLabels[1],
           ),
           BottomNavigationBarItem(
-            icon: CustomIconWidget(
-              iconName: 'book',
+            icon: Icon(
+              Icons.local_fire_department,
               color: _currentTabIndex == 2
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1058,13 +1058,23 @@ class _RoutineDashboardState extends State<RoutineDashboard>
           ),
           BottomNavigationBarItem(
             icon: CustomIconWidget(
-              iconName: 'person',
+              iconName: 'book',
               color: _currentTabIndex == 3
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 24,
             ),
             label: _tabLabels[3],
+          ),
+          BottomNavigationBarItem(
+            icon: CustomIconWidget(
+              iconName: 'person',
+              color: _currentTabIndex == 4
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 24,
+            ),
+            label: _tabLabels[4],
           ),
         ],
       ),
@@ -1889,18 +1899,20 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
   // Fixed bottom navigation - no setState, just navigate
   void _onTabChanged(int index) {
-    // Don't update currentTabIndex - let each screen handle its own state
     switch (index) {
       case 0:
-        // Already on Routine tab - do nothing
+        // Already on Routine tab
         break;
       case 1:
         Navigator.pushNamed(context, AppRoutes.guidedSessionsHub);
         break;
       case 2:
-        Navigator.pushNamed(context, AppRoutes.journalMoodTracker);
+        Navigator.pushNamed(context, '/tapasya');
         break;
       case 3:
+        Navigator.pushNamed(context, AppRoutes.journalMoodTracker);
+        break;
+      case 4:
         Navigator.pushNamed(context, AppRoutes.profileSettings);
         break;
     }

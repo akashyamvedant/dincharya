@@ -14,6 +14,7 @@ class SessionCardWidget extends StatefulWidget {
   final bool showBreathingAnimation;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final bool isHighlighted;
 
   const SessionCardWidget({
     super.key,
@@ -23,6 +24,7 @@ class SessionCardWidget extends StatefulWidget {
     this.showBreathingAnimation = false,
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.isHighlighted = false,
   });
 
   @override
@@ -73,12 +75,20 @@ class _SessionCardWidgetState extends State<SessionCardWidget> {
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
+            border: widget.isHighlighted
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2.5,
+                  )
+                : null,
             boxShadow: [
               BoxShadow(
-                color: Theme.of(context).colorScheme.primary.withOpacity(_isPressed ? 0.15 : 0.08),
-                blurRadius: _isPressed ? 20 : 15,
+                color: widget.isHighlighted
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.4)
+                    : Theme.of(context).colorScheme.primary.withOpacity(_isPressed ? 0.15 : 0.08),
+                blurRadius: widget.isHighlighted ? 25 : (_isPressed ? 20 : 15),
                 offset: Offset(0, _isPressed ? 8 : 5),
-                spreadRadius: _isPressed ? 2 : 0,
+                spreadRadius: widget.isHighlighted ? 4 : (_isPressed ? 2 : 0),
               ),
             ],
           ),

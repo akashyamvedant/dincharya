@@ -58,15 +58,7 @@ void main() async {
     );
   };
 
-  // Set device orientation
-  try {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-  } catch (e) {
-    debugPrint('Failed to set device orientation: $e');
-  }
+
 
   // Enable edge-to-edge display for Android 15+ (SDK 35) compatibility.
   // This fixes Play Console recommendation: "Edge-to-edge may not display for all users"
@@ -424,6 +416,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     return Sizer(
       builder: (context, orientation, deviceType) {
+        // Set dynamic orientation: unlock landscape for tablet/desktop, lock portrait for mobile
+        final double shortestSide = MediaQuery.of(context).size.shortestSide;
+        if (shortestSide >= 600 || kIsWeb) {
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+        } else {
+          SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+          ]);
+        }
         return ListenableBuilder(
           listenable: _themeProvider,
           builder: (context, _) {

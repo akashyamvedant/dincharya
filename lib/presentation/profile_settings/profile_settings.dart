@@ -24,7 +24,7 @@ class ProfileSettings extends StatefulWidget {
 }
 
 class _ProfileSettingsState extends State<ProfileSettings> {
-  int _currentIndex = 3; // Me tab is active
+  int _currentIndex = 4; // Me tab is active (5th tab)
   // ignore: unused_field - used for loading state
   bool _isLoading = true;
   bool _isLoggedIn = false;
@@ -306,9 +306,21 @@ class _ProfileSettingsState extends State<ProfileSettings> {
             label: 'Guided',
           ),
           BottomNavigationBarItem(
+            icon: Icon(
+              Icons.local_fire_department,
+              color: _currentIndex == 2
+                  ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
+                      ?? Color(0xFF8B4513))
+                  : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
+                      ?? Theme.of(context).colorScheme.onSurfaceVariant),
+              size: 24,
+            ),
+            label: 'Tapasya',
+          ),
+          BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'book',
-              color: _currentIndex == 2
+              color: _currentIndex == 3
                   ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
                       ?? Color(0xFF8B4513))
                   : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
@@ -320,7 +332,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           BottomNavigationBarItem(
             icon: CustomIconWidget(
               iconName: 'person',
-              color: _currentIndex == 3
+              color: _currentIndex == 4
                   ? (Theme.of(context).bottomNavigationBarTheme.selectedItemColor
                       ?? Color(0xFF8B4513))
                   : (Theme.of(context).bottomNavigationBarTheme.unselectedItemColor
@@ -347,9 +359,12 @@ class _ProfileSettingsState extends State<ProfileSettings> {
         Navigator.pushReplacementNamed(context, '/guided-sessions-hub');
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, '/journal-mood-tracker');
+        Navigator.pushReplacementNamed(context, '/tapasya');
         break;
       case 3:
+        Navigator.pushReplacementNamed(context, '/journal-mood-tracker');
+        break;
+      case 4:
         // Already on Me tab
         break;
     }

@@ -254,7 +254,7 @@ class SupabaseService {
           .from('user_profiles')
           .select('id, full_name, email, bio, avatar_url, dominant_dosha, primary_goals, '
               'lifestyle_profile, current_streak, best_streak, last_active_date, '
-              'total_tasks_completed, total_minutes_tracked, guided_streak, '
+              'total_tasks_completed, total_minutes_tracked, guided_streak, is_admin, '
               'created_at, updated_at')
           .eq('id', userId)
           .limit(1);

@@ -75,6 +75,7 @@ dependencies:
   flutter_tts: ^4.2.0              # Hindi/English voice guidance
   lottie: ^3.3.2                   # Lightweight pose animations
   camera: ^0.12.0                # For self-practice PIP view
+  wakelock_plus: ^1.2.8           # Keep screen on during live sadhana
   
   # In-App Updates (Google Play Core)
   in_app_update: ^4.2.5          # Official Android In-App Updates API

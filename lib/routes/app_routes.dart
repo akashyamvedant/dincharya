@@ -32,6 +32,15 @@ import '../presentation/program_detail/program_detail_screen.dart';
 import '../presentation/ai_guide/ai_guide_screen.dart';
 import '../presentation/community/community_chat_screen.dart';
 import '../presentation/alarm_ring/alarm_ring_screen.dart';
+import '../presentation/tapasya/tapasya_hub.dart';
+import '../presentation/tapasya/create_challenge_screen.dart';
+import '../presentation/tapasya/challenge_detail_screen.dart';
+import '../presentation/tapasya/badges_gallery_screen.dart';
+import '../presentation/tapasya/community_challenges_screen.dart';
+import '../presentation/tapasya/create_circle_screen.dart';
+import '../presentation/tapasya/circle_detail_screen.dart';
+import '../presentation/tapasya/live_room_screen.dart';
+import '../presentation/tapasya/live_summary_screen.dart';
 
 class AppRoutes {
   static const String splashScreen = '/splash-screen';
@@ -67,6 +76,17 @@ class AppRoutes {
   static const String alarmRing = '/alarm-ring';
   static const String adminMessages = '/admin-messages';
 
+  // Tapasya routes
+  static const String tapasyaHub = '/tapasya';
+  static const String createChallenge = '/tapasya/create-challenge';
+  static const String challengeDetail = '/tapasya/challenge';
+  static const String badgesGallery = '/tapasya/badges';
+  static const String communityChallenge = '/tapasya/community';
+  static const String createCircle = '/tapasya/create-circle';
+  static const String circleDetail = '/tapasya/circle';
+  static const String liveRoom = '/tapasya/live-room';
+  static const String liveSummary = '/tapasya/live-summary';
+
   static Map<String, WidgetBuilder> get routes => {
         splashScreen: (context) => const SplashScreen(),
         onboardingFlow: (context) => const OnboardingFlow(),
@@ -95,10 +115,78 @@ class AppRoutes {
         aiGuide: (context) => const AiGuideScreen(),
         community: (context) => const CommunityChatScreen(),
         adminMessages: (context) => const SendMessageScreen(),
+        tapasyaHub: (context) => const TapasyaHub(),
+        createChallenge: (context) => const CreateChallengeScreen(),
+        badgesGallery: (context) => const BadgesGalleryScreen(),
+        communityChallenge: (context) => const CommunityChallengesScreen(),
+        createCircle: (context) => const CreateCircleScreen(),
+        circleDetail: (context) => const CircleDetailScreen(),
+        liveRoom: (context) => const LiveRoomScreen(),
+        liveSummary: (context) => const LiveSummaryScreen(),
       };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    // ── Deep link route: /session/{uuid} ──
+    // When Android opens the app via a deep link, Flutter interprets
+    // the URL path as a route. Catch it here to prevent "Page not found".
+    final routeName = settings.name ?? '';
+    if (routeName.startsWith('/session/')) {
+      final sessionId = routeName.substring('/session/'.length);
+      if (sessionId.isNotEmpty) {
+        debugPrint('🔗 onGenerateRoute: Intercepted deep link route → session/$sessionId');
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: guidedSessionsHub,
+            arguments: {'highlightSessionId': sessionId},
+          ),
+          builder: (context) => const GuidedSessionsHub(),
+        );
+      }
+    }
+
+    // ── Deep link route: /challenge/{uuid} ──
+    if (routeName.startsWith('/challenge/')) {
+      final challengeId = routeName.substring('/challenge/'.length);
+      if (challengeId.isNotEmpty) {
+        debugPrint('🔗 onGenerateRoute: Intercepted challenge deep link → $challengeId');
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: challengeDetail,
+            arguments: {'id': challengeId},
+          ),
+          builder: (context) => const ChallengeDetailScreen(),
+        );
+      }
+    }
+
+    // ── Deep link route: /circle/{code} ──
+    if (routeName.startsWith('/circle/')) {
+      final inviteCode = routeName.substring('/circle/'.length);
+      if (inviteCode.isNotEmpty) {
+        debugPrint('🔗 onGenerateRoute: Intercepted circle deep link → $inviteCode');
+        return MaterialPageRoute(
+          settings: RouteSettings(
+            name: tapasyaHub,
+            arguments: {'joinCircleInviteCode': inviteCode},
+          ),
+          builder: (context) => const TapasyaHub(),
+        );
+      }
+    }
+
     switch (settings.name) {
+      // Tapasya circle detail (accepts arguments)
+      case circleDetail:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const CircleDetailScreen(),
+        );
+      // Tapasya challenge detail (accepts arguments)
+      case challengeDetail:
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (context) => const ChallengeDetailScreen(),
+        );
       case alarmRing:
         final payload = settings.arguments as String?;
         if (payload != null) {

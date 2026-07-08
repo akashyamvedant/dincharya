@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import './supabase_service.dart';
+import './tapasya_service.dart';
 
 /// Service for managing guided sessions: favorites, tracking, and recommendations
 class GuidedSessionService {
@@ -202,6 +203,7 @@ class GuidedSessionService {
     int? energyBefore,
     int? energyAfter,
     String? notes,
+    String? sessionId,
   }) async {
     try {
       final userId = _supabase.currentUser?.id;
@@ -214,6 +216,7 @@ class GuidedSessionService {
         'user_id': userId,
         'practice_type': practiceType,
         'technique': technique,
+        'session_id': sessionId,
         'duration_seconds': durationSeconds,
         'mood_before': moodBefore,
         'mood_after': moodAfter,
@@ -226,6 +229,14 @@ class GuidedSessionService {
       await _updateDailyProgress(practiceType, durationSeconds);
       await _updateGuidedStreak();
       debugPrint('✅ Session recorded: $technique ($durationSeconds sec)');
+
+      // ── Tapasya auto-tracking: sync challenge progress ──
+      TapasyaService().syncChallengeProgress(
+        userId: userId,
+        category: practiceType,
+        sessionId: sessionId,
+        durationSeconds: durationSeconds,
+      );
     } catch (e) {
       debugPrint('❌ Error recording session: $e');
     }
@@ -264,6 +275,14 @@ class GuidedSessionService {
       await _updateDailyProgress(practiceType, durationSeconds);
       await _updateGuidedStreak();
       debugPrint('✅ Auto-recorded session: $technique ($durationSeconds sec)');
+
+      // ── Tapasya auto-tracking: sync challenge progress ──
+      TapasyaService().syncChallengeProgress(
+        userId: userId,
+        category: practiceType,
+        sessionId: sessionId,
+        durationSeconds: durationSeconds,
+      );
     } catch (e) {
       debugPrint('❌ Error auto-recording session: $e');
     }

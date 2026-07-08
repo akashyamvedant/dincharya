@@ -1112,23 +1112,26 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
         ]),
         bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            currentIndex: 2, // Journal tab active
+            currentIndex: 3, // Journal tab is now index 3
             backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
             selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor ?? warmBrown,
             unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor ?? Colors.grey[600],
             onTap: (index) {
               switch (index) {
                 case 0:
-                  Navigator.pushNamed(context, AppRoutes.routineDashboard);
+                  Navigator.pushReplacementNamed(context, AppRoutes.routineDashboard);
                   break;
                 case 1:
-                  Navigator.pushNamed(context, AppRoutes.guidedSessionsHub);
+                  Navigator.pushReplacementNamed(context, AppRoutes.guidedSessionsHub);
                   break;
                 case 2:
-                  // Current screen - Journal
+                  Navigator.pushReplacementNamed(context, '/tapasya');
                   break;
                 case 3:
-                  Navigator.pushNamed(context, AppRoutes.profileSettings);
+                  // Current screen - Journal
+                  break;
+                case 4:
+                  Navigator.pushReplacementNamed(context, AppRoutes.profileSettings);
                   break;
               }
             },
@@ -1141,6 +1144,10 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                   icon: Icon(Icons.self_improvement, color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor, size: 24),
                   activeIcon: Icon(Icons.self_improvement, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   label: 'Guided'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.local_fire_department, color: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor, size: 24),
+                  activeIcon: Icon(Icons.local_fire_department, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
+                  label: 'Tapasya'),
               BottomNavigationBarItem(
                   icon: Icon(Icons.book, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
                   activeIcon: Icon(Icons.book, color: Theme.of(context).bottomNavigationBarTheme.selectedItemColor, size: 24),
