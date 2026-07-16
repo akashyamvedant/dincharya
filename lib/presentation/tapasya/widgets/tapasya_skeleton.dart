@@ -73,7 +73,7 @@ class _TapasyaSkeletonState extends State<TapasyaSkeleton>
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(opacity),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: opacity),
         borderRadius: BorderRadius.circular(8),
       ),
     );
@@ -84,7 +84,7 @@ class _TapasyaSkeletonState extends State<TapasyaSkeleton>
     return Container(
       width: width,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(opacity),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: opacity),
         borderRadius: BorderRadius.circular(20),
       ),
     );
@@ -95,7 +95,7 @@ class _TapasyaSkeletonState extends State<TapasyaSkeleton>
     return Container(
       height: 7.h,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(opacity),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: opacity),
         borderRadius: BorderRadius.circular(14),
       ),
     );

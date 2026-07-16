@@ -16,7 +16,6 @@ class LiveRoomScreen extends StatefulWidget {
 
 class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStateMixin {
   final TapasyaService _tapasyaService = TapasyaService();
-  final SupabaseClient _supabase = Supabase.instance.client;
 
   Map<String, dynamic>? _room;
   Map<String, dynamic>? _circle;
@@ -38,9 +37,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   bool _isCameraOn = false;
   bool _isCameraInitializing = false;
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void initState() {
     super.initState();
     _pulseController = AnimationController(
@@ -64,7 +61,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   }
 
   void _initRoom() {
-    final userId = _supabase.auth.currentUser?.id;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     _isHost = _room!['host_id'] == userId;
     _totalDurationSeconds = _room!['duration_seconds'] ?? 600;
 
@@ -270,8 +267,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: _primaryColor)),
+      return Scaffold(body: Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)),
       );
     }
 
@@ -363,12 +359,12 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                       child: Container(
                         padding: EdgeInsets.all(2.w),
                         decoration: BoxDecoration(
-                          color: _isCameraOn ? _primaryColor.withOpacity(0.3) : Colors.white10,
+                          color: _isCameraOn ? theme.colorScheme.primary.withValues(alpha: 0.3) : Colors.white10,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           _isCameraOn ? Icons.videocam : Icons.videocam_off,
-                          color: _isCameraOn ? _primaryColor : Colors.white70,
+                          color: _isCameraOn ? theme.colorScheme.primary : Colors.white70,
                           size: 20,
                         ),
                       ),
@@ -391,7 +387,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                             child: CircularProgressIndicator(
                               value: progress,
                               strokeWidth: 10,
-                              color: _primaryColor,
+                              color: theme.colorScheme.primary,
                               backgroundColor: Colors.white12,
                             ),
                           ),
@@ -438,7 +434,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                           alignment: Alignment.centerLeft,
                           child: CircleAvatar(
                             radius: 18,
-                            backgroundColor: _primaryColor,
+                            backgroundColor: theme.colorScheme.primary,
                             child: const Text('Me', style: TextStyle(color: Colors.white, fontSize: 12)),
                           ),
                         )
@@ -469,7 +465,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                   child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 2.w),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.04),
+                      color: Colors.white.withValues(alpha: 0.04),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: _messages.isEmpty
@@ -491,7 +487,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                                 children: [
                                   Text(
                                     '${msg['display_name']}: ',
-                                    style: const TextStyle(color: _primaryColor, fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(
                                     msg['message'] ?? '',
@@ -590,10 +586,10 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> with TickerProviderStat
                   height: 18.h,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _primaryColor.withOpacity(0.6), width: 2),
+                    border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.6), width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         blurRadius: 10,
                       ),
                     ],

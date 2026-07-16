@@ -20,9 +20,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
   List<Map<String, dynamic>> _challenges = [];
   bool _isLoading = true;
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void initState() {
     super.initState();
     _loadChallenges();
@@ -57,10 +55,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
           : RefreshIndicator(
               onRefresh: _loadChallenges,
-              color: _primaryColor,
+              color: theme.colorScheme.primary,
               child: _challenges.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -110,10 +108,10 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                           margin: EdgeInsets.only(bottom: 2.h),
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: theme.colorScheme.outline.withOpacity(0.15),
+                              color: theme.colorScheme.outline.withValues(alpha: 0.15),
                             ),
                           ),
                           child: Row(
@@ -122,8 +120,8 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                                 width: 50,
                                 height: 50,
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [_primaryColor, Color(0xFFBF360C)],
+                                  gradient: LinearGradient(
+                                    colors: [theme.colorScheme.primary, const Color(0xFFBF360C)],
                                   ),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -188,7 +186,7 @@ class _CommunityChallengesScreenState extends State<CommunityChallengesScreen> {
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: isJoined ? Colors.green[600] : _primaryColor,
+                                  backgroundColor: isJoined ? Colors.green[600] : theme.colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),

@@ -26,9 +26,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
   bool _isSaving = false;
 
   final List<String> _moods = ['😢', '😐', '🙂', '😃', '🧘'];
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
@@ -121,7 +119,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
               child: Container(
                 padding: EdgeInsets.all(6.w),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.08),
+                  color: Colors.green.withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: const Text('🎉', style: TextStyle(fontSize: 48)),
@@ -188,10 +186,10 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
                     duration: const Duration(milliseconds: 200),
                     padding: EdgeInsets.all(3.5.w),
                     decoration: BoxDecoration(
-                      color: isSelected ? _primaryColor.withOpacity(0.12) : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.12) : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? _primaryColor : Colors.transparent,
+                        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
                         width: 1.5,
                       ),
                     ),
@@ -212,7 +210,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
                 ),
                 Text(
                   '⚡ ' * _selectedEnergy,
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor),
+                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
                 ),
               ],
             ),
@@ -221,8 +219,8 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
               min: 1,
               max: 5,
               divisions: 4,
-              activeColor: _primaryColor,
-              inactiveColor: _primaryColor.withOpacity(0.2),
+              activeColor: theme.colorScheme.primary,
+              inactiveColor: theme.colorScheme.primary.withValues(alpha: 0.2),
               onChanged: (val) {
                 setState(() => _selectedEnergy = val.toInt());
               },
@@ -241,7 +239,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
               decoration: InputDecoration(
                 hintText: 'Share your experience (e.g. "Deep focus today", "Felt calm")',
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -254,7 +252,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
             ElevatedButton(
               onPressed: _isSaving ? null : _saveSession,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryColor,
+                backgroundColor: theme.colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 2.h),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -288,7 +286,7 @@ class _LiveSummaryScreenState extends State<LiveSummaryScreen> {
         SizedBox(height: 0.5.h),
         Text(
           value,
-          style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold, color: _primaryColor),
+          style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
         ),
       ],
     );

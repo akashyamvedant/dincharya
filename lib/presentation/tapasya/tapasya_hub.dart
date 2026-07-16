@@ -2,6 +2,7 @@
 //
 // Main screen for Tapasya (तपस्या) — 5th bottom nav tab
 // Shows active challenges, circles, community challenges, activity feed, and badges.
+// Uses app's Serene Earth Palette for cohesive design.
 
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -32,6 +33,7 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
   List<Map<String, dynamic>> _myBadges = [];
   List<Map<String, dynamic>> _myCircles = [];
   int _badgeCount = 0;
+  DateTime? _lastExpiredCheck;
 
   @override
   void initState() {
@@ -52,8 +54,12 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
         _loadCircles(),
       ]);
 
-      // Check expired challenges on each load
-      _tapasyaService.checkExpiredChallenges();
+      // Throttle: Check expired challenges at most once per 5 minutes
+      final now = DateTime.now();
+      if (_lastExpiredCheck == null || now.difference(_lastExpiredCheck!).inMinutes >= 5) {
+        _lastExpiredCheck = now;
+        _tapasyaService.checkExpiredChallenges();
+      }
     } catch (e) {
       debugPrint('❌ Error loading Tapasya data: $e');
     }
@@ -136,7 +142,7 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primaryColor = const Color(0xFFE65100); // Deep orange — fire/tapasya color
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -144,150 +150,39 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
         child: Column(
           children: [
             // ── Header ──
-            Container(
-              height: 20.h,
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: primaryColor.withOpacity(0.25),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-                child: Stack(
-                  children: [
-                    // Dynamic abstract fire/flow background image
-                    Positioned.fill(
-                      child: Image.network(
-                        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    // Gradient overlay
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              primaryColor.withOpacity(0.95),
-                              primaryColor.withOpacity(0.65),
-                              Colors.black.withOpacity(0.3),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Content
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(5.w, 3.h, 5.w, 2.h),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      '🔥',
-                                      style: TextStyle(fontSize: 26.sp),
-                                    ),
-                                    SizedBox(width: 2.w),
-                                    Text(
-                                      'तपस्या',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22.sp,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1,
-                                        shadows: const [
-                                          Shadow(
-                                            blurRadius: 8.0,
-                                            color: Colors.black45,
-                                            offset: Offset(1.0, 1.0),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 0.8.h),
-                                Text(
-                                  'Challenge yourself. Grow together.',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.85),
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Badges count button
-                          GestureDetector(
-                            onTap: () => Navigator.pushNamed(context, '/tapasya/badges'),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white24),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('🏅', style: TextStyle(fontSize: 15.sp)),
-                                  SizedBox(width: 1.5.w),
-                                  Text(
-                                    '$_badgeCount',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildHeader(theme, isDark),
 
             // ── Content ──
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadData,
-                color: primaryColor,
+                color: theme.colorScheme.primary,
                 child: _isLoading
                     ? const TapasyaSkeleton()
                     : ListView(
-                        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                        padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
                         children: [
+                          // ── Hero Banner ──
+                          _buildHeroBanner(theme, isDark),
+                          SizedBox(height: 2.5.h),
+
+                          // ── Stats Row ──
+                          _buildStatsRow(theme, isDark),
+                          SizedBox(height: 3.h),
+
                           // ── Active Challenges ──
                           _buildSectionHeader(
-                            '🏆 Active Challenges',
+                            theme,
+                            'Active Challenges',
                             actionLabel: '+ New',
                             onAction: () => Navigator.pushNamed(context, '/tapasya/create-challenge').then((_) => _loadData()),
                           ),
-                          SizedBox(height: 1.h),
+                          SizedBox(height: 1.5.h),
 
                           if (_activeChallenges.isEmpty)
                             _buildEmptyCard(
+                              theme: theme,
+                              isDark: isDark,
                               icon: Icons.emoji_events_outlined,
                               title: 'No active challenges',
                               subtitle: 'Create your first challenge and invite friends!',
@@ -320,7 +215,9 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
 
                           // ── My Circles ──
                           _buildSectionHeader(
-                            '👥 My Circles',
+                            theme,
+                            'My Circles',
+                            icon: Icons.groups_rounded,
                             actionLabel: '+ New',
                             onAction: () => Navigator.pushNamed(context, '/tapasya/create-circle').then((_) => _loadData()),
                           ),
@@ -328,6 +225,8 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
 
                           if (_myCircles.isEmpty)
                             _buildEmptyCard(
+                              theme: theme,
+                              isDark: isDark,
                               icon: Icons.groups_3_outlined,
                               title: 'No circles joined',
                               subtitle: 'Create a circle or join an existing one to practice together!',
@@ -343,7 +242,7 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
                                 separatorBuilder: (_, __) => SizedBox(width: 3.w),
                                 itemBuilder: (context, index) {
                                   final circle = _myCircles[index];
-                                  return _buildCircleCard(circle);
+                                  return _buildCircleCard(circle, theme, isDark);
                                 },
                               ),
                             ),
@@ -353,7 +252,9 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
                           // ── My Badges (horizontal scroll) ──
                           if (_myBadges.isNotEmpty) ...[
                             _buildSectionHeader(
-                              '🏅 My Badges',
+                              theme,
+                              'My Badges',
+                              icon: Icons.military_tech_rounded,
                               actionLabel: 'View All',
                               onAction: () => Navigator.pushNamed(context, '/tapasya/badges'),
                             ),
@@ -366,7 +267,7 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
                                 separatorBuilder: (_, __) => SizedBox(width: 2.w),
                                 itemBuilder: (context, index) {
                                   final badge = _myBadges[index]['badge'] ?? _myBadges[index];
-                                  return _buildBadgeChip(badge);
+                                  return _buildBadgeChip(badge, theme, isDark);
                                 },
                               ),
                             ),
@@ -375,7 +276,9 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
 
                           // ── Community Challenges ──
                           _buildSectionHeader(
-                            '🌍 Community Challenges',
+                            theme,
+                            'Community Challenges',
+                            icon: Icons.public_rounded,
                             actionLabel: 'Browse',
                             onAction: () => Navigator.pushNamed(context, '/tapasya/community'),
                           ),
@@ -383,6 +286,8 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
 
                           if (_communityChallenges.isEmpty)
                             _buildEmptyCard(
+                              theme: theme,
+                              isDark: isDark,
                               icon: Icons.groups_outlined,
                               title: 'No community challenges',
                               subtitle: 'Community challenges will appear here soon!',
@@ -391,18 +296,20 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
                             ...(_communityChallenges.take(3).map((challenge) {
                               return Padding(
                                 padding: EdgeInsets.only(bottom: 1.5.h),
-                                child: _buildCommunityChallenge(challenge),
+                                child: _buildCommunityChallenge(challenge, theme, isDark),
                               );
                             })),
 
                           SizedBox(height: 3.h),
 
                           // ── Recent Activity ──
-                          _buildSectionHeader('⚡ Recent Activity'),
+                          _buildSectionHeader(theme, 'Recent Activity', icon: Icons.bolt_rounded),
                           SizedBox(height: 1.h),
 
                           if (_activityFeed.isEmpty)
                             _buildEmptyCard(
+                              theme: theme,
+                              isDark: isDark,
                               icon: Icons.timeline_outlined,
                               title: 'No activity yet',
                               subtitle: 'Complete a session or join a challenge to see activity here',
@@ -430,10 +337,10 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
       // ── FAB: Create Challenge ──
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/tapasya/create-challenge').then((_) => _loadData()),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
         icon: const Icon(Icons.add),
-        label: const Text('Challenge', style: TextStyle(fontWeight: FontWeight.bold)),
+        label: Text('Challenge', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
 
       // ── Bottom Navigation ──
@@ -527,35 +434,327 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     );
   }
 
-  // ── Helper Widgets ──
+  // ═══════════════════════════════════════════════════════════════════
+  // ── HEADER ──
+  // ═══════════════════════════════════════════════════════════════════
 
-  Widget _buildSectionHeader(String title, {String? actionLabel, VoidCallback? onAction}) {
+  Widget _buildHeader(ThemeData theme, bool isDark) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 1.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'तपस्या',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              SizedBox(height: 0.3.h),
+              Text(
+                'Tapasya Hub',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          // Badges chip
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(context, '/tapasya/badges'),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 1.h),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.12 : 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.military_tech_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                  SizedBox(width: 1.5.w),
+                  Text(
+                    '$_badgeCount',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ── HERO BANNER ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildHeroBanner(ThemeData theme, bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(5.w),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: isDark
+              ? [
+                  theme.colorScheme.primary.withValues(alpha: 0.2),
+                  theme.colorScheme.secondary.withValues(alpha: 0.1),
+                  theme.colorScheme.surface,
+                ]
+              : [
+                  theme.colorScheme.primary.withValues(alpha: 0.12),
+                  theme.colorScheme.secondary.withValues(alpha: 0.06),
+                  theme.colorScheme.surface,
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top label
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.15 : 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '🔥 SANGHA SADHANA',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          SizedBox(height: 1.5.h),
+          Text(
+            'Practice together\nin real-time.',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+          SizedBox(height: 0.8.h),
+          Text(
+            'Sync timers, build discipline with your circle.',
+            style: theme.textTheme.bodySmall,
+          ),
+          SizedBox(height: 2.h),
+          // CTA button
+          GestureDetector(
+            onTap: () {
+              if (_myCircles.isNotEmpty) {
+                Navigator.pushNamed(
+                  context,
+                  '/tapasya/circle',
+                  arguments: _myCircles.first,
+                );
+              } else {
+                Navigator.pushNamed(context, '/tapasya/create-circle').then((_) => _loadData());
+              }
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.2.h),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.radio_button_checked, color: theme.colorScheme.onPrimary, size: 16),
+                  SizedBox(width: 2.w),
+                  Text(
+                    'Join Live Sadhana',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ── STATS ROW ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildStatsRow(ThemeData theme, bool isDark) {
+    return Row(
+      children: [
+        _buildStatCard(
+          theme: theme,
+          isDark: isDark,
+          value: '${_activeChallenges.length}',
+          label: 'ACTIVE',
+          isHighlighted: false,
+        ),
+        SizedBox(width: 3.w),
+        _buildStatCard(
+          theme: theme,
+          isDark: isDark,
+          value: '${_myCircles.length}',
+          label: 'CIRCLES',
+          isHighlighted: true,
+        ),
+        SizedBox(width: 3.w),
+        _buildStatCard(
+          theme: theme,
+          isDark: isDark,
+          value: '$_badgeCount',
+          label: 'BADGES',
+          isHighlighted: false,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required ThemeData theme,
+    required bool isDark,
+    required String value,
+    required String label,
+    required bool isHighlighted,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 1.8.h),
+        decoration: BoxDecoration(
+          color: isHighlighted
+              ? theme.colorScheme.primary
+              : theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: isHighlighted
+              ? null
+              : Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+          boxShadow: isHighlighted
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              value,
+              style: isHighlighted
+                  ? theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.w800,
+                    )
+                  : theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
+            ),
+            SizedBox(height: 0.3.h),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: isHighlighted
+                    ? theme.colorScheme.onPrimary.withValues(alpha: 0.85)
+                    : theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ── SECTION HEADER ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildSectionHeader(ThemeData theme, String title, {IconData? icon, String? actionLabel, VoidCallback? onAction}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 20,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(width: 2.5.w),
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              SizedBox(width: 1.5.w),
+            ],
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
         if (actionLabel != null)
           GestureDetector(
             onTap: onAction,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.6.h),
               decoration: BoxDecoration(
-                color: const Color(0xFFE65100).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 actionLabel,
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFFE65100),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -564,7 +763,13 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // ── EMPTY CARD ──
+  // ═══════════════════════════════════════════════════════════════════
+
   Widget _buildEmptyCard({
+    required ThemeData theme,
+    required bool isDark,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -574,44 +779,33 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     return Container(
       padding: EdgeInsets.all(5.w),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: theme.colorScheme.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 40, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(icon, size: 36, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
           SizedBox(height: 1.h),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 16.sp,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
           SizedBox(height: 0.5.h),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.sp,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: theme.textTheme.bodySmall,
           ),
           if (buttonText != null) ...[
             SizedBox(height: 2.h),
             ElevatedButton(
               onPressed: onTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE65100),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
-              ),
-              child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(buttonText),
             ),
           ],
         ],
@@ -619,8 +813,11 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildCommunityChallenge(Map<String, dynamic> challenge) {
-    final theme = Theme.of(context);
+  // ═══════════════════════════════════════════════════════════════════
+  // ── COMMUNITY CHALLENGE CARD ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildCommunityChallenge(Map<String, dynamic> challenge, ThemeData theme, bool isDark) {
     final isJoined = challenge['is_joined'] == true;
     final participantCount = challenge['participant_count'] ?? 0;
     final daysLeft = DateTime.tryParse(challenge['ends_at'] ?? '')
@@ -631,157 +828,110 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, '/tapasya/challenge', arguments: challenge).then((_) => _loadData()),
       child: Container(
+        padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE65100).withOpacity(0.3), width: 1.2),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: theme.colorScheme.shadow.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(
-            children: [
-              // Underlay Background Image
-              Positioned.fill(
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=400',
-                  fit: BoxFit.cover,
-                ),
+        child: Row(
+          children: [
+            // Category icon
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.12 : 0.08),
+                borderRadius: BorderRadius.circular(12),
               ),
-              // Gradient overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.55),
-                        const Color(0xFFE65100).withOpacity(0.1),
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
+              child: const Center(
+                child: Text('🏆', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+            SizedBox(width: 3.w),
+            // Title & meta
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    challenge['title'] ?? 'Challenge',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 0.3.h),
+                  Text(
+                    '$participantCount participants • ${daysLeft}d left',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 2.w),
+            // Join / Joined indicator
+            if (!isJoined)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 3.5.w, vertical: 0.8.h),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Join',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              )
+            else
+              Icon(
+                Icons.check_circle_rounded,
+                color: isDark ? const Color(0xFF81C784) : const Color(0xFF4A7C59),
+                size: 24,
               ),
-              // Content
-              Padding(
-                padding: EdgeInsets.all(4.w),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE65100).withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Text('🏆', style: TextStyle(fontSize: 20)),
-                      ),
-                    ),
-                    SizedBox(width: 3.w),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            challenge['title'] ?? 'Challenge',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(blurRadius: 4, color: Colors.black),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          SizedBox(height: 0.5.h),
-                          Text(
-                            '$participantCount participants • ${daysLeft}d left',
-                            style: TextStyle(
-                              fontSize: 11.5.sp,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: 2.w),
-                    if (!isJoined)
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE65100),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFE65100).withOpacity(0.4),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          'Join',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: EdgeInsets.all(1.w),
-                        decoration: const BoxDecoration(
-                          color: Colors.black45,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.check_circle, color: Colors.green, size: 24),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildBadgeChip(Map<String, dynamic> badge) {
+  // ═══════════════════════════════════════════════════════════════════
+  // ── BADGE CHIP ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildBadgeChip(Map<String, dynamic> badge, ThemeData theme, bool isDark) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.amber.withOpacity(0.15),
-            Colors.orange.withOpacity(0.08),
-          ],
+        color: theme.colorScheme.secondary.withValues(alpha: isDark ? 0.1 : 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: isDark ? 0.2 : 0.12),
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber.withOpacity(0.3)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(badge['icon'] ?? '🏅', style: TextStyle(fontSize: 20.sp)),
+          Text(badge['icon'] ?? '🏅', style: TextStyle(fontSize: 18.sp)),
           SizedBox(height: 0.3.h),
           Text(
             badge['title'] ?? '',
-            style: TextStyle(
-              fontSize: 11.sp,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ],
@@ -789,8 +939,11 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildCircleCard(Map<String, dynamic> circle) {
-    final theme = Theme.of(context);
+  // ═══════════════════════════════════════════════════════════════════
+  // ── CIRCLE CARD ──
+  // ═══════════════════════════════════════════════════════════════════
+
+  Widget _buildCircleCard(Map<String, dynamic> circle, ThemeData theme, bool isDark) {
     final name = circle['name'] ?? 'Circle';
     final memberCount = circle['member_count'] ?? 1;
     final description = circle['description'] ?? '';
@@ -802,112 +955,71 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
         arguments: circle,
       ).then((_) => _loadData()),
       child: Container(
-        width: 52.w,
+        width: 48.w,
+        padding: EdgeInsets.all(3.5.w),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: const Color(0xFFE65100).withOpacity(0.25),
-            width: 1.2,
+            color: theme.colorScheme.outline.withValues(alpha: 0.3),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: theme.colorScheme.shadow.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(
-            children: [
-              // Underlay Background Image
-              Positioned.fill(
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=400',
-                  fit: BoxFit.cover,
-                ),
-              ),
-              // Gradient Overlay
-              Positioned.fill(
-                child: Container(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.55),
-                        const Color(0xFFE65100).withOpacity(0.08),
-                      ],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
-                    ),
+                    color: theme.colorScheme.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.groups_rounded,
+                    size: 18,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-              ),
-              // Content
-              Padding(
-                padding: EdgeInsets.all(4.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE65100).withOpacity(0.25),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Center(
-                            child: Text('👥', style: TextStyle(fontSize: 14)),
-                          ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              fontSize: 13.5.sp,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(blurRadius: 4, color: Colors.black87),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                SizedBox(width: 2.w),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    SizedBox(height: 1.5.h),
-                    Text(
-                      '$memberCount members',
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (description.isNotEmpty) ...[
-                      SizedBox(height: 0.5.h),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 10.sp,
-                          color: Colors.white54,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+              ],
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              '$memberCount members',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            if (description.isNotEmpty) ...[
+              SizedBox(height: 0.3.h),
+              Text(
+                description,
+                style: theme.textTheme.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
-          ),
+          ],
         ),
       ),
     );

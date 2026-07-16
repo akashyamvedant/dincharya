@@ -23,9 +23,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
   int _maxMembers = 50;
   bool _isCreating = false;
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
@@ -68,6 +66,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
   }
 
   void _showSuccessDialog(Map<String, dynamic> circle) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -101,7 +100,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
             icon: const Icon(Icons.share, size: 18),
             label: const Text('Share Invite'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
+              backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -134,9 +133,9 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: _primaryColor.withOpacity(0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
-                  border: Border.all(color: _primaryColor.withOpacity(0.3), width: 2),
+                  border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.3), width: 2),
                 ),
                 child: const Center(
                   child: Text('👥', style: TextStyle(fontSize: 48)),
@@ -153,14 +152,14 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
               decoration: InputDecoration(
                 hintText: 'e.g., Family Yoga, Morning Sadhaks',
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                 ),
               ),
               maxLength: 50,
@@ -177,14 +176,14 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
               decoration: InputDecoration(
                 hintText: 'e.g., Let\'s support each other in maintaining daily yoga & meditation routines.',
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                 ),
               ),
               maxLength: 200,
@@ -197,10 +196,10 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
             SizedBox(height: 1.h),
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                activeTrackColor: _primaryColor,
-                thumbColor: _primaryColor,
-                overlayColor: _primaryColor.withOpacity(0.2),
-                inactiveTrackColor: _primaryColor.withOpacity(0.15),
+                activeTrackColor: theme.colorScheme.primary,
+                thumbColor: theme.colorScheme.primary,
+                overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                inactiveTrackColor: theme.colorScheme.primary.withValues(alpha: 0.15),
               ),
               child: Slider(
                 value: _maxMembers.toDouble(),
@@ -217,7 +216,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
             Container(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -249,7 +248,7 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
                   Switch.adaptive(
                     value: _isPublic,
                     onChanged: (val) => setState(() => _isPublic = val),
-                    activeColor: _primaryColor,
+                    activeColor: theme.colorScheme.primary,
                   ),
                 ],
               ),
@@ -264,11 +263,11 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
               child: ElevatedButton(
                 onPressed: _isCreating ? null : _createCircle,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 4,
-                  shadowColor: _primaryColor.withOpacity(0.4),
+                  shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 ),
                 child: _isCreating
                     ? const SizedBox(
@@ -289,12 +288,13 @@ class _CreateCircleScreenState extends State<CreateCircleScreen> {
   }
 
   Widget _buildLabel(String text) {
+    final theme = Theme.of(context);
     return Text(
       text,
       style: TextStyle(
         fontSize: 16.sp,
         fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: theme.colorScheme.onSurface,
       ),
     );
   }

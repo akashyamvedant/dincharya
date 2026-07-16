@@ -1,4 +1,7 @@
 // lib/presentation/tapasya/widgets/challenge_card_widget.dart
+//
+// Active challenge card — shown in horizontal scroll on Tapasya Hub.
+// Uses app theme (Serene Earth Palette) for consistent look.
 
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
@@ -16,6 +19,7 @@ class ChallengeCardWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final title = challenge['title'] ?? 'Challenge';
     final category = challenge['category'] ?? 'any';
     final goalType = challenge['goal_type'] ?? 'total_minutes';
@@ -28,10 +32,8 @@ class ChallengeCardWidget extends StatelessWidget {
 
     final progressPercent = goalValue > 0 ? (myProgress / goalValue).clamp(0.0, 1.0) : 0.0;
 
-    // Category styling
-    final categoryColor = _getCategoryColor(category);
     final categoryEmoji = _getCategoryEmoji(category);
-    final bgImageUrl = _getCategoryBgImage(category);
+    final accentColor = _getCategoryAccent(category, theme);
 
     String goalLabel;
     switch (goalType) {
@@ -51,196 +53,140 @@ class ChallengeCardWidget extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 76.w,
+        width: 72.w,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: categoryColor.withOpacity(0.35), width: 1.5),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: accentColor.withValues(alpha: isDark ? 0.25 : 0.15),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: categoryColor.withOpacity(0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: theme.colorScheme.shadow.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Stack(
-            children: [
-              // Background Image with opacity overlay
-              Positioned.fill(
-                child: Image.network(
-                  bgImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(color: Colors.black),
-                ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top accent strip with category ──
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: isDark ? 0.12 : 0.06),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
               ),
-              // Beautiful Gradient Overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.4),
-                        categoryColor.withOpacity(0.15),
-                      ],
-                      begin: Alignment.bottomLeft,
-                      end: Alignment.topRight,
+              child: Row(
+                children: [
+                  Text(categoryEmoji, style: TextStyle(fontSize: 13.sp)),
+                  SizedBox(width: 2.w),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                ),
+                ],
               ),
-              // Content
-              Padding(
-                padding: EdgeInsets.all(4.5.w),
+            ),
+
+            // ── Body content ──
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title row
-                    Row(
+                    // Stats chips
+                    Wrap(
+                      spacing: 2.w,
+                      runSpacing: 0.5.h,
                       children: [
-                        Container(
-                          padding: EdgeInsets.all(1.5.w),
-                          decoration: BoxDecoration(
-                            color: categoryColor.withOpacity(0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(categoryEmoji, style: TextStyle(fontSize: 14.sp)),
-                        ),
-                        SizedBox(width: 2.5.w),
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 14.5.sp,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              shadows: const [
-                                Shadow(
-                                  blurRadius: 6.0,
-                                  color: Colors.black87,
-                                  offset: Offset(1.0, 1.0),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 1.5.h),
-
-                    // Stats row with capsule design
-                    Row(
-                      children: [
-                        _buildStatCard('📅', '${daysLeft}d left', theme),
-                        SizedBox(width: 2.w),
-                        _buildStatCard('👥', '$participantCount active', theme),
-                        SizedBox(width: 2.w),
-                        _buildStatCard('🏅', 'Rank #$myRank', theme),
+                        _buildStatChip('📅 ${daysLeft}d left', theme),
+                        _buildStatChip('👥 $participantCount', theme),
+                        _buildStatChip('🏅 #$myRank', theme),
                       ],
                     ),
 
                     const Spacer(),
 
-                    // Progress info
+                    // Progress
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           goalLabel,
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           '${(progressPercent * 100).toInt()}%',
-                          style: TextStyle(
-                            fontSize: 11.sp,
-                            fontWeight: FontWeight.bold,
-                            color: categoryColor,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: accentColor,
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 0.8.h),
+                    // Progress bar
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          boxShadow: [
-                            BoxShadow(
-                              color: categoryColor.withOpacity(0.5),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: FractionallySizedBox(
-                          widthFactor: progressPercent,
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [categoryColor, categoryColor.withOpacity(0.7)],
-                              ),
-                            ),
-                          ),
-                        ),
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progressPercent,
+                        minHeight: 6,
+                        backgroundColor: accentColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildStatCard(String emoji, String value, ThemeData theme) {
+  Widget _buildStatChip(String text, ThemeData theme) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+      padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.4.h),
       decoration: BoxDecoration(
-        color: Colors.black54,
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white10),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(emoji, style: TextStyle(fontSize: 10.sp)),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 9.5.sp,
-              color: Colors.white70,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+      child: Text(
+        text,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w500,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
 
-  Color _getCategoryColor(String category) {
+  /// Muted category accent colors that blend with the earth palette
+  Color _getCategoryAccent(String category, ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
     switch (category) {
       case 'yoga':
-        return const Color(0xFF4CAF50); // Lively Emerald Green
+        return isDark ? const Color(0xFF81C784) : const Color(0xFF4A7C59);
       case 'pranayama':
-        return const Color(0xFF03A9F4); // Ocean Blue
+        return isDark ? const Color(0xFF80CBC4) : const Color(0xFF00796B);
       case 'meditation':
-        return const Color(0xFF9C27B0); // Royal Purple
+        return isDark ? const Color(0xFFCE93D8) : const Color(0xFF7B1FA2);
       default:
-        return const Color(0xFFFF5722); // Fire Orange
+        return theme.colorScheme.tertiary;
     }
   }
 
@@ -254,19 +200,6 @@ class ChallengeCardWidget extends StatelessWidget {
         return '🕉️';
       default:
         return '🏆';
-    }
-  }
-
-  String _getCategoryBgImage(String category) {
-    switch (category) {
-      case 'yoga':
-        return 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400';
-      case 'pranayama':
-        return 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?q=80&w=400';
-      case 'meditation':
-        return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=400';
-      default:
-        return 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?q=80&w=400';
     }
   }
 }

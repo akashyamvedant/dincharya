@@ -19,9 +19,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
   List<Map<String, dynamic>> _badges = [];
   bool _isLoading = true;
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
@@ -67,7 +65,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
         elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+          ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
           : RefreshIndicator(
               onRefresh: _loadBadges,
               child: ListView(
@@ -79,26 +77,26 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.amber.withOpacity(0.12),
-                          Colors.orange.withOpacity(0.05),
+                          Colors.amber.withValues(alpha: 0.12),
+                          Colors.orange.withValues(alpha: 0.05),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildBadgeStat('${earned.length}', 'Earned', Colors.amber),
-                        Container(width: 1, height: 30, color: Colors.amber.withOpacity(0.3)),
+                        Container(width: 1, height: 30, color: Colors.amber.withValues(alpha: 0.3)),
                         _buildBadgeStat('${_badges.length}', 'Total', theme.colorScheme.onSurfaceVariant),
-                        Container(width: 1, height: 30, color: Colors.amber.withOpacity(0.3)),
+                        Container(width: 1, height: 30, color: Colors.amber.withValues(alpha: 0.3)),
                         _buildBadgeStat(
                           _badges.isNotEmpty
                               ? '${(earned.length / _badges.length * 100).round()}%'
                               : '0%',
                           'Progress',
-                          _primaryColor,
+                          theme.colorScheme.primary,
                         ),
                       ],
                     ),
@@ -194,6 +192,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
   }
 
   Widget _buildBadgeStat(String value, String label, Color color) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         Text(
@@ -208,7 +207,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
           label,
           style: TextStyle(
             fontSize: 12.sp,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -230,17 +229,17 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
           gradient: isEarned
               ? LinearGradient(
                   colors: [
-                    Colors.amber.withOpacity(0.15),
-                    Colors.orange.withOpacity(0.08),
+                    Colors.amber.withValues(alpha: 0.15),
+                    Colors.orange.withValues(alpha: 0.08),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: isEarned ? null : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+          color: isEarned ? null : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isEarned ? Colors.amber.withOpacity(0.4) : theme.colorScheme.outline.withOpacity(0.1),
+            color: isEarned ? Colors.amber.withValues(alpha: 0.4) : theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
         child: Column(
@@ -288,6 +287,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
+        final theme = Theme.of(context);
         return Container(
           padding: EdgeInsets.all(6.w),
           child: Column(
@@ -306,7 +306,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
                 badge['title_en'] ?? '',
                 style: TextStyle(
                   fontSize: 16.sp,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               SizedBox(height: 1.5.h),
@@ -320,7 +320,7 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -336,14 +336,14 @@ class _BadgesGalleryScreenState extends State<BadgesGalleryScreen> with WidgetsB
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '🔒 Keep practicing to unlock!',
                     style: TextStyle(
                       fontSize: 14.sp,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),

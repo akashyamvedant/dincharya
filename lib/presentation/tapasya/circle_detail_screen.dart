@@ -24,9 +24,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
   late TabController _tabController;
   List<Map<String, dynamic>> _liveRooms = [];
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  @override
+    @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
@@ -136,13 +134,13 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             SliverAppBar(
               expandedHeight: 22.h,
               pinned: true,
-              backgroundColor: _primaryColor,
+              backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
               flexibleSpace: FlexibleSpaceBar(
                 background: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [_primaryColor, _primaryColor.withOpacity(0.7)],
+                      colors: [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.7)],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
@@ -167,7 +165,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                           Text(
                             desc,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 12.sp,
                             ),
                             maxLines: 1,
@@ -200,8 +198,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             SliverToBoxAdapter(
               child: TabBar(
                 controller: _tabController,
-                indicatorColor: _primaryColor,
-                labelColor: _primaryColor,
+                indicatorColor: theme.colorScheme.primary,
+                labelColor: theme.colorScheme.primary,
                 unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
                 isScrollable: true,
                 tabs: const [
@@ -214,7 +212,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           ];
         },
         body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
             : TabBarView(
                 controller: _tabController,
                 children: [
@@ -228,7 +226,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                           margin: EdgeInsets.only(bottom: 2.h),
                           padding: EdgeInsets.all(4.w),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
@@ -255,7 +253,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                               ),
                               const Spacer(),
                               IconButton(
-                                icon: const Icon(Icons.copy, color: _primaryColor),
+                                icon: Icon(Icons.copy, color: theme.colorScheme.primary),
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: code));
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -276,13 +274,13 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
 
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: isMe ? _primaryColor.withOpacity(0.2) : theme.colorScheme.surfaceContainerHighest,
+                          backgroundColor: isMe ? theme.colorScheme.primary.withValues(alpha: 0.2) : theme.colorScheme.surfaceContainerHighest,
                           backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
                           child: (avatarUrl == null || avatarUrl.isEmpty)
                               ? Text(
                                   mName.isNotEmpty ? mName[0].toUpperCase() : '?',
                                   style: TextStyle(
-                                    color: isMe ? _primaryColor : theme.colorScheme.onSurface,
+                                    color: isMe ? theme.colorScheme.primary : theme.colorScheme.onSurface,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 )
@@ -293,13 +291,13 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                             ? Container(
                                 padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                                 decoration: BoxDecoration(
-                                  color: _primaryColor.withOpacity(0.1),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'Admin',
                                   style: TextStyle(
-                                    color: _primaryColor,
+                                    color: theme.colorScheme.primary,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 10,
                                   ),
@@ -330,7 +328,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                               icon: const Icon(Icons.add),
                               label: const Text('Create Circle Challenge'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _primaryColor,
+                                backgroundColor: theme.colorScheme.primary,
                                 foregroundColor: Colors.white,
                                 padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -379,7 +377,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           // Banner/Notice card
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: _primaryColor.withOpacity(0.08),
+            color: theme.colorScheme.primary.withValues(alpha: 0.08),
             child: Padding(
               padding: EdgeInsets.all(4.w),
               child: Row(
@@ -392,7 +390,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                       children: [
                         Text(
                           'Sadhana Sangha Live',
-                          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: _primaryColor),
+                          style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
                         ),
                         SizedBox(height: 0.5.h),
                         Text(
@@ -414,7 +412,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.podcasts_outlined, size: 64, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4)),
+                  Icon(Icons.podcasts_outlined, size: 64, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
                   SizedBox(height: 2.h),
                   Text(
                     'No Active Live Rooms',
@@ -435,7 +433,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                     icon: const Icon(Icons.radio_button_checked, size: 18),
                     label: const Text('Start Live Sadhana'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _primaryColor,
+                      backgroundColor: theme.colorScheme.primary,
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -475,7 +473,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: _primaryColor.withOpacity(0.1),
+                              color: theme.colorScheme.primary.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Text(categoryEmoji, style: const TextStyle(fontSize: 24)),
@@ -500,7 +498,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade900.withOpacity(0.15),
+                              color: Colors.red.shade900.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -554,8 +552,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
             Center(
               child: TextButton.icon(
                 onPressed: _showStartLiveRoomSheet,
-                icon: const Icon(Icons.add, color: _primaryColor),
-                label: const Text('Start Another Room', style: TextStyle(color: _primaryColor)),
+                icon: Icon(Icons.add, color: theme.colorScheme.primary),
+                label: Text('Start Another Room', style: TextStyle(color: theme.colorScheme.primary)),
               ),
             ),
           ],
@@ -621,7 +619,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                     decoration: InputDecoration(
                       hintText: 'Enter room title...',
                       filled: true,
-                      fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -663,7 +661,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                       ),
                       Text(
                         '$selectedDurationMin Minutes',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.primary),
                       ),
                     ],
                   ),
@@ -672,8 +670,8 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                     min: 5,
                     max: 60,
                     divisions: 11,
-                    activeColor: _primaryColor,
-                    inactiveColor: _primaryColor.withOpacity(0.2),
+                    activeColor: theme.colorScheme.primary,
+                    inactiveColor: theme.colorScheme.primary.withValues(alpha: 0.2),
                     onChanged: (val) {
                       setSheetState(() => selectedDurationMin = val.toInt());
                     },
@@ -708,7 +706,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
+                        backgroundColor: theme.colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 2.h),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -736,10 +734,10 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
           margin: EdgeInsets.symmetric(horizontal: 1.w),
           padding: EdgeInsets.symmetric(vertical: 1.5.h),
           decoration: BoxDecoration(
-            color: isSelected ? _primaryColor.withOpacity(0.12) : theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+            color: isSelected ? theme.colorScheme.primary.withValues(alpha: 0.12) : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? _primaryColor : Colors.transparent,
+              color: isSelected ? theme.colorScheme.primary : Colors.transparent,
               width: 1.5,
             ),
           ),
@@ -749,7 +747,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
               style: TextStyle(
                 fontSize: 10.sp,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? _primaryColor : theme.colorScheme.onSurface,
+                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
               ),
             ),
           ),

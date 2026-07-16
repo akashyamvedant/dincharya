@@ -42,6 +42,13 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
     _loadSessions();
   }
 
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSessions() async {
     setState(() {
       _loadingSessions = true;
@@ -74,14 +81,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
         }
       }
     }
-    // Fallback category matching placeholder images
-    if (_category == 'yoga') {
-      return 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=200&auto=format&fit=crop';
-    } else if (_category == 'pranayama') {
-      return 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=200&auto=format&fit=crop';
-    } else {
-      return 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?q=80&w=200&auto=format&fit=crop';
-    }
+    // Fallback: return empty string — UI will show category icon instead
+    return '';
   }
 
   @override
@@ -94,9 +95,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
     }
   }
 
-  static const _primaryColor = Color(0xFFE65100);
-
-  final List<Map<String, dynamic>> _challengeTypes = [
+    final List<Map<String, dynamic>> _challengeTypes = [
     {'key': '1v1', 'label': '1v1', 'icon': '🤺', 'desc': 'Challenge a friend'},
     {'key': 'group', 'label': 'Group', 'icon': '👥', 'desc': '2-50 participants'},
     {'key': 'community', 'label': 'Community', 'icon': '🌍', 'desc': 'Open to everyone'},
@@ -117,12 +116,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
 
   final List<int> _durationOptions = [1, 3, 7, 14, 30];
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
+
 
   String get _autoTitle {
     final catLabel = _categories.firstWhere((c) => c['key'] == _category)['label'];
@@ -147,7 +141,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
       goalType: _goalType,
       goalValue: _goalValue,
       durationDays: _durationDays,
-      isPublic: _circleId == null && (_isPublic || _challengeType == 'community'),
+      isPublic: _challengeType == 'community' || (_challengeType == 'group' && _isPublic && _circleId == null),
       maxParticipants: _challengeType == '1v1' ? 2 : _maxParticipants,
       circleId: _circleId,
     );
@@ -168,6 +162,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
   }
 
   void _showSuccessDialog(Map<String, dynamic> challenge) {
+    final theme = Theme.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -201,7 +196,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
             icon: const Icon(Icons.share, size: 18),
             label: const Text('Share Now'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryColor,
+              backgroundColor: theme.colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -243,11 +238,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                         padding: EdgeInsets.symmetric(vertical: 1.5.h),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? _primaryColor.withOpacity(0.12)
-                              : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: isSelected ? _primaryColor : Colors.transparent,
+                            color: isSelected ? theme.colorScheme.primary : Colors.transparent,
                             width: 2,
                           ),
                         ),
@@ -260,7 +255,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                               style: TextStyle(
                                 fontSize: 13.sp,
                                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? _primaryColor : theme.colorScheme.onSurface,
+                                color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -281,14 +276,14 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
               decoration: InputDecoration(
                 hintText: _autoTitle,
                 filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: _primaryColor, width: 2),
+                  borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
                 ),
               ),
             ),
@@ -314,11 +309,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? _primaryColor.withOpacity(0.12)
-                          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                          ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: isSelected ? _primaryColor : Colors.transparent,
+                        color: isSelected ? theme.colorScheme.primary : Colors.transparent,
                         width: 2,
                       ),
                     ),
@@ -332,7 +327,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                            color: isSelected ? _primaryColor : theme.colorScheme.onSurface,
+                            color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -349,12 +344,12 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                 child: Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _selectedSessionIds.isNotEmpty
-                          ? _primaryColor.withOpacity(0.5)
-                          : theme.colorScheme.outlineVariant.withOpacity(0.3),
+                          ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                          : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
                       width: _selectedSessionIds.isNotEmpty ? 2 : 1,
                     ),
                   ),
@@ -362,7 +357,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                     children: [
                       Icon(
                         _selectedSessionIds.isNotEmpty ? Icons.playlist_add_check : Icons.playlist_add,
-                        color: _selectedSessionIds.isNotEmpty ? _primaryColor : theme.colorScheme.onSurfaceVariant,
+                        color: _selectedSessionIds.isNotEmpty ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                         size: 24,
                       ),
                       SizedBox(width: 3.w),
@@ -385,7 +380,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                                   : '${_selectedSessionIds.length} specific sessions selected',
                               style: TextStyle(
                                 fontSize: 11.sp,
-                                color: _selectedSessionIds.isNotEmpty ? _primaryColor : theme.colorScheme.onSurfaceVariant,
+                                color: _selectedSessionIds.isNotEmpty ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -403,9 +398,9 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                 SizedBox(height: 1.5.h),
                 Container(
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.outlineVariant.withOpacity(0.3)),
+                    border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3)),
                   ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: 30.h),
@@ -423,7 +418,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                           margin: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? _primaryColor.withOpacity(0.06)
+                                ? theme.colorScheme.primary.withValues(alpha: 0.06)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -439,8 +434,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                                 errorBuilder: (c, e, s) => Container(
                                   width: 15.w,
                                   height: 11.w,
-                                  color: _primaryColor.withOpacity(0.15),
-                                  child: const Icon(Icons.spa, color: _primaryColor, size: 18),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                  child: Icon(Icons.spa, color: theme.colorScheme.primary, size: 18),
                                 ),
                               ),
                             ),
@@ -457,12 +452,12 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                                     session['title_hindi']!,
                                     style: TextStyle(
                                       fontSize: 11.sp,
-                                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                                     ),
                                   )
                                 : null,
                             value: isSelected,
-                            activeColor: _primaryColor,
+                            activeColor: theme.colorScheme.primary,
                             onChanged: (val) {
                               setState(() {
                                 if (val == true) {
@@ -481,7 +476,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
               ],
             ] else if (_loadingSessions) ...[
               SizedBox(height: 3.h),
-              const Center(child: CircularProgressIndicator(color: _primaryColor)),
+              Center(child: CircularProgressIndicator(color: theme.colorScheme.primary)),
             ],
 
             SizedBox(height: 3.h),
@@ -504,11 +499,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? _primaryColor.withOpacity(0.12)
-                        : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                        : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected ? _primaryColor : Colors.transparent,
+                      color: isSelected ? theme.colorScheme.primary : Colors.transparent,
                       width: 2,
                     ),
                   ),
@@ -521,12 +516,12 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                         style: TextStyle(
                           fontSize: 15.sp,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                          color: isSelected ? _primaryColor : theme.colorScheme.onSurface,
+                          color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
                         ),
                       ),
                       const Spacer(),
                       if (isSelected)
-                        Icon(Icons.check_circle, color: _primaryColor, size: 22),
+                        Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 22),
                     ],
                   ),
                 ),
@@ -540,10 +535,10 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
             SizedBox(height: 1.h),
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                activeTrackColor: _primaryColor,
-                thumbColor: _primaryColor,
-                overlayColor: _primaryColor.withOpacity(0.2),
-                inactiveTrackColor: _primaryColor.withOpacity(0.15),
+                activeTrackColor: theme.colorScheme.primary,
+                thumbColor: theme.colorScheme.primary,
+                overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                inactiveTrackColor: theme.colorScheme.primary.withValues(alpha: 0.15),
               ),
               child: Slider(
                 value: _goalValue.toDouble(),
@@ -574,8 +569,8 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                       padding: EdgeInsets.symmetric(vertical: 1.5.h),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? _primaryColor
-                            : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
@@ -597,11 +592,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
             SizedBox(height: 3.h),
 
             // ── Visibility toggle ──
-            if (_challengeType != 'community')
+            if (_challengeType == 'group')
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
@@ -633,7 +628,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
                     Switch.adaptive(
                       value: _isPublic,
                       onChanged: (val) => setState(() => _isPublic = val),
-                      activeColor: _primaryColor,
+                      activeColor: theme.colorScheme.primary,
                     ),
                   ],
                 ),
@@ -648,11 +643,11 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
               child: ElevatedButton(
                 onPressed: _isCreating ? null : _createChallenge,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
+                  backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 4,
-                  shadowColor: _primaryColor.withOpacity(0.4),
+                  shadowColor: theme.colorScheme.primary.withValues(alpha: 0.4),
                 ),
                 child: _isCreating
                     ? const SizedBox(
@@ -675,12 +670,13 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
   }
 
   Widget _buildLabel(String text) {
+    final theme = Theme.of(context);
     return Text(
       text,
       style: TextStyle(
         fontSize: 16.sp,
         fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.onSurface,
+        color: theme.colorScheme.onSurface,
       ),
     );
   }

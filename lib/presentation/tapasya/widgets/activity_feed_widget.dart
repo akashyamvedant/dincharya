@@ -28,10 +28,10 @@ class ActivityFeedWidget extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 1.5.h),
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.1),
+          color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
       ),
       child: Column(
@@ -42,7 +42,7 @@ class ActivityFeedWidget extends StatelessWidget {
               // Avatar
               CircleAvatar(
                 radius: 16,
-                backgroundColor: actionInfo.color.withOpacity(0.2),
+                backgroundColor: actionInfo.color.withValues(alpha: 0.2),
                 child: Text(
                   actionInfo.emoji,
                   style: const TextStyle(fontSize: 16),
@@ -53,7 +53,6 @@ class ActivityFeedWidget extends StatelessWidget {
                 child: RichText(
                   text: TextSpan(
                     style: TextStyle(
-                      fontSize: 13.sp,
                       color: theme.colorScheme.onSurface,
                     ),
                     children: [
@@ -108,7 +107,7 @@ class ActivityFeedWidget extends StatelessWidget {
                       color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: theme.colorScheme.outline.withOpacity(0.2),
+                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Text('+', style: TextStyle(fontSize: 13.sp)),
@@ -158,13 +157,13 @@ class ActivityFeedWidget extends StatelessWidget {
         return _ActionInfo(
           emoji: '🧘',
           text: 'completed ${duration}min of $sessionTitle',
-          color: const Color(0xFF2E7D32),
+          color: const Color(0xFF4A7C59), // earthy green
         );
       case 'challenge_created':
         return _ActionInfo(
           emoji: '📣',
           text: 'created "${metadata['title'] ?? 'a challenge'}"',
-          color: const Color(0xFFE65100),
+          color: const Color(0xFF8B4513), // earth brown (primary)
         );
       case 'challenge_joined':
         return _ActionInfo(
@@ -172,23 +171,35 @@ class ActivityFeedWidget extends StatelessWidget {
           text: 'joined "${metadata['title'] ?? 'a challenge'}"',
           color: const Color(0xFF1565C0),
         );
+      case 'circle_joined':
+        return _ActionInfo(
+          emoji: '👥',
+          text: 'joined "${metadata['name'] ?? 'a circle'}"',
+          color: const Color(0xFF00796B),
+        );
       case 'challenge_won':
         return _ActionInfo(
           emoji: '🏆',
           text: 'won "${metadata['title'] ?? 'a challenge'}"!',
-          color: const Color(0xFFFF6F00),
+          color: const Color(0xFFFF6B35), // mindful orange (tertiary)
         );
       case 'badge_earned':
         return _ActionInfo(
           emoji: metadata['badge_icon'] ?? '🏅',
           text: 'earned "${metadata['badge_title'] ?? 'a badge'}" badge',
-          color: const Color(0xFFF9A825),
+          color: const Color(0xFFCD853F), // sandy brown (secondary)
         );
       case 'streak_milestone':
         return _ActionInfo(
           emoji: '🔥',
           text: 'reached a ${metadata['streak_days'] ?? ''}-day streak!',
-          color: const Color(0xFFE65100),
+          color: const Color(0xFFFF6B35), // mindful orange
+        );
+      case 'circle_created':
+        return _ActionInfo(
+          emoji: '🔵',
+          text: 'created circle "${metadata['name'] ?? ''}"',
+          color: const Color(0xFF00796B),
         );
       default:
         return _ActionInfo(

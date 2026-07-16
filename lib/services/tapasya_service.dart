@@ -268,6 +268,7 @@ class TapasyaService {
           .from('tapasya_challenges')
           .select('*')
           .eq('status', 'active')
+          .neq('challenge_type', '1v1')
           .or('is_public.eq.true,challenge_type.eq.community')
           .order('created_at', ascending: false)
           .limit(20);
@@ -443,13 +444,25 @@ class TapasyaService {
             continue;
         }
 
-        // Update daily progress (upsert)
+        // Update daily progress (upsert — accumulate within the day)
         final today = DateTime.now().toIso8601String().substring(0, 10);
+
+        // First, read existing daily value if any
+        final existingDaily = await client
+            .from('tapasya_challenge_progress')
+            .select('value')
+            .eq('participant_id', participation['id'])
+            .eq('date', today)
+            .maybeSingle();
+
+        final existingValue = (existingDaily != null) ? (existingDaily['value'] as int? ?? 0) : 0;
+        final newDailyValue = goalType == 'streak_days' ? 1 : existingValue + incrementValue;
+
         await client.from('tapasya_challenge_progress').upsert(
           {
             'participant_id': participation['id'],
             'date': today,
-            'value': incrementValue, // Will be overwritten, not accumulated
+            'value': newDailyValue,
           },
           onConflict: 'participant_id,date',
         );
@@ -600,13 +613,25 @@ class TapasyaService {
         switch (conditionType) {
           case 'challenge_wins':
             // Count completed challenges where user is rank 1
-            final wins = await client
+            // Join with challenges to filter only completed ones
+            final allParticipations = await client
                 .from('tapasya_challenge_participants')
-                .select('id')
+                .select('id, challenge_id, rank')
                 .eq('user_id', userId)
                 .eq('rank', 1);
-            // Filter only completed challenges
-            shouldAward = (wins as List).length >= conditionValue;
+
+            int winCount = 0;
+            for (final p in (allParticipations as List)) {
+              final ch = await client
+                  .from('tapasya_challenges')
+                  .select('status')
+                  .eq('id', p['challenge_id'])
+                  .maybeSingle();
+              if (ch != null && ch['status'] == 'completed') {
+                winCount++;
+              }
+            }
+            shouldAward = winCount >= conditionValue;
             break;
 
           case 'challenges_created':
@@ -916,7 +941,7 @@ class TapasyaService {
       // Log activity
       await _logActivity(
         userId: userId,
-        actionType: 'challenge_joined',
+        actionType: 'circle_joined',
         circleId: circle['id'],
         metadata: {
           'circle_id': circle['id'],

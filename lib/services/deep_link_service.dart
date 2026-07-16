@@ -116,6 +116,20 @@ class DeepLinkService {
       return;
     }
 
+    // Route: /challenge/{uuid}
+    if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'challenge') {
+      final challengeId = uri.pathSegments[1];
+      _openChallengeById(challengeId);
+      return;
+    }
+
+    // Route: /circle/{code}
+    if (uri.pathSegments.length >= 2 && uri.pathSegments[0] == 'circle') {
+      final inviteCode = uri.pathSegments[1];
+      _openCircleByInviteCode(inviteCode);
+      return;
+    }
+
     debugPrint('⚠️ Unrecognized deep link path: ${uri.path}');
   }
 
@@ -151,6 +165,50 @@ class DeepLinkService {
       } catch (e2) {
         debugPrint('❌ Deep link fallback also failed: $e2');
       }
+    }
+  }
+
+  /// Navigate to ChallengeDetailScreen with the challenge ID.
+  void _openChallengeById(String challengeId) {
+    final navigator = _navigatorKey?.currentState;
+    if (navigator == null) {
+      debugPrint('❌ Navigator not available for challenge deep link');
+      return;
+    }
+
+    debugPrint('🔗 Opening challenge via deep link: $challengeId');
+
+    try {
+      navigator.popUntil((route) => route.isFirst);
+      navigator.pushNamed(
+        '/tapasya/challenge',
+        arguments: {'id': challengeId},
+      );
+      debugPrint('✅ Deep link: Navigated to challenge $challengeId');
+    } catch (e) {
+      debugPrint('⚠️ Challenge deep link navigation error: $e');
+    }
+  }
+
+  /// Navigate to TapasyaHub with circle invite code to auto-join.
+  void _openCircleByInviteCode(String inviteCode) {
+    final navigator = _navigatorKey?.currentState;
+    if (navigator == null) {
+      debugPrint('❌ Navigator not available for circle deep link');
+      return;
+    }
+
+    debugPrint('🔗 Opening circle via deep link: $inviteCode');
+
+    try {
+      navigator.popUntil((route) => route.isFirst);
+      navigator.pushNamed(
+        '/tapasya',
+        arguments: {'joinCircleInviteCode': inviteCode},
+      );
+      debugPrint('✅ Deep link: Navigated to tapasya hub with circle invite $inviteCode');
+    } catch (e) {
+      debugPrint('⚠️ Circle deep link navigation error: $e');
     }
   }
 
