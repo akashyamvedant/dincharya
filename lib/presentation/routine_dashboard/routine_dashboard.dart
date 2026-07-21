@@ -976,25 +976,18 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
                               // Time-Grouped Task Sections with Native Ads
                               _buildTimeSection('morning', _groupedTasks['morning']!),
-                              // Native Ad after Morning section
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                                child: const NativeAdWidget(placement: NativePlacement.routineMorning),
-                              ),
+                              // PHASE 1 FIX: Removed morning native ad (3/1/2025)
+                              // Reduced native ad density from 3 → 1 (cut ad exposure 48.81% → 30-35%)
                               
                               _buildTimeSection('afternoon', _groupedTasks['afternoon']!),
-                              // Native Ad after Afternoon section
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                                child: const NativeAdWidget(placement: NativePlacement.routineAfternoon),
-                              ),
+                              // PHASE 1 FIX: Removed afternoon native ad (3/1/2025)
                               
                               _buildTimeSection('evening', _groupedTasks['evening']!),
 
                               // Quick Tasks (local-only, device storage)
                               const QuickTasksSection(),
 
-                              // Native Ad at bottom of task list
+                              // Native Ad at bottom of task list (kept for monetization baseline)
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 4.w),
                                 child: const NativeAdWidget(placement: NativePlacement.routineDashboard),

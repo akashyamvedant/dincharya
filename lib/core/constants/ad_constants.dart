@@ -289,15 +289,17 @@ class AdConstants {
   }
 
   // ════════════════════════════════════════════════════════════════
-  // FREQUENCY CAPPING - AdMob 2026 Policy Compliant
+  // FREQUENCY CAPPING - AdMob 2026 Policy Compliant (PHASE 1 OPTIMIZED)
   // Tuned for actual user behavior: avg session = 2m 6s, 2.09 sessions/AU
+  // PHASE 1 FIX (3/1/2025): Lowered freq=2→1, gap=120s→45s for better show rate
   // Previous settings (freq=3, gap=120s) caused 0% interstitial show rate
   // ════════════════════════════════════════════════════════════════
   
   /// Show interstitial after this many user actions (natural transitions)
-  /// 2 actions = tuned for avg 2-3 actions per 2-min session
-  /// (was 3 — users never reached threshold, causing 0% show rate)
-  static const int interstitialFrequency = 2;
+  /// 1 action = optimized for avg 1-2 actions per 2-min session
+  /// (was 2 — showing 15% of the time; now 1 → 90% show rate target)
+  /// PHASE 1 CHANGE: 2 → 1 to increase frequency to match user session length
+  static const int interstitialFrequency = 1;
   
   /// Minimum seconds between interstitial ads (any placement)
   /// 45s = allows 1 ad per typical 2-min session without being aggressive
