@@ -126,14 +126,26 @@ class AppRoutes {
       };
 
   static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
-    // ── Deep link route: /session/{uuid} ──
-    // When Android opens the app via a deep link, Flutter interprets
-    // the URL path as a route. Catch it here to prevent "Page not found".
+    // ── Deep link handling ──
+    // Android may pass the full URL or just the path as the route name.
+    // Extract the path portion to handle both cases.
     final routeName = settings.name ?? '';
-    if (routeName.startsWith('/session/')) {
-      final sessionId = routeName.substring('/session/'.length);
+    String pathToMatch = routeName;
+
+    // If the route is a full URL, extract just the path
+    if (routeName.startsWith('http://') || routeName.startsWith('https://')) {
+      try {
+        final uri = Uri.parse(routeName);
+        pathToMatch = uri.path;
+        debugPrint('🔗 onGenerateRoute: Extracted path "$pathToMatch" from URL "$routeName"');
+      } catch (_) {}
+    }
+
+    // ── Deep link route: /session/{uuid} ──
+    if (pathToMatch.startsWith('/session/')) {
+      final sessionId = pathToMatch.substring('/session/'.length);
       if (sessionId.isNotEmpty) {
-        debugPrint('🔗 onGenerateRoute: Intercepted deep link route → session/$sessionId');
+        debugPrint('🔗 onGenerateRoute: Intercepted session deep link → $sessionId');
         return MaterialPageRoute(
           settings: RouteSettings(
             name: guidedSessionsHub,
@@ -145,8 +157,8 @@ class AppRoutes {
     }
 
     // ── Deep link route: /challenge/{uuid} ──
-    if (routeName.startsWith('/challenge/')) {
-      final challengeId = routeName.substring('/challenge/'.length);
+    if (pathToMatch.startsWith('/challenge/')) {
+      final challengeId = pathToMatch.substring('/challenge/'.length);
       if (challengeId.isNotEmpty) {
         debugPrint('🔗 onGenerateRoute: Intercepted challenge deep link → $challengeId');
         return MaterialPageRoute(
@@ -160,8 +172,8 @@ class AppRoutes {
     }
 
     // ── Deep link route: /circle/{code} ──
-    if (routeName.startsWith('/circle/')) {
-      final inviteCode = routeName.substring('/circle/'.length);
+    if (pathToMatch.startsWith('/circle/')) {
+      final inviteCode = pathToMatch.substring('/circle/'.length);
       if (inviteCode.isNotEmpty) {
         debugPrint('🔗 onGenerateRoute: Intercepted circle deep link → $inviteCode');
         return MaterialPageRoute(

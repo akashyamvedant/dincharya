@@ -347,7 +347,8 @@ class _TapasyaHubState extends State<TapasyaHub> with SingleTickerProviderStateM
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const AdaptiveBannerAdWidget(placement: BannerPlacement.guidedHub),
+          // Banner ad — own placement, non-collapsible (analytics integrity fix)
+          const AdaptiveBannerAdWidget(placement: BannerPlacement.tapasyaHub),
           BottomNavigationBar(
             currentIndex: _currentBottomIndex,
             type: BottomNavigationBarType.fixed,

@@ -30,8 +30,20 @@ class BannerAdWidget extends StatefulWidget {
 class _BannerAdWidgetState extends State<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
+  bool _failedPermanently = false;
   AdSize? _adSize;
+  int _retryAttempt = 0;
+  static const int _maxRetries = 3;
   final SubscriptionManager _subManager = SubscriptionManager();
+
+  /// POLICY: Collapsible is allowed ONLY on screens where the banner is
+  /// truly anchored at the bottom screen edge AND limited to ONE screen
+  /// to protect account health (accidental-click CTR flags).
+  /// Journal was REMOVED (in-scroll placement = policy violation).
+  /// GuidedHub was REMOVED (reduce collapsible footprint; nav mis-taps).
+  static const Set<BannerPlacement> _collapsiblePlacements = {
+    BannerPlacement.routineDashboard,
+  };
 
   @override
   void initState() {
@@ -94,9 +106,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
       final adUnitId = AdConstants.getBannerAdId(widget.placement);
       debugPrint('🎯 Banner [${widget.placement.name}]: Loading size ${_adSize!.width}x${_adSize!.height}');
       
-      final isCollapsible = widget.placement == BannerPlacement.routineDashboard || 
-                            widget.placement == BannerPlacement.guidedHub || 
-                            widget.placement == BannerPlacement.journal;
+      final isCollapsible = _collapsiblePlacements.contains(widget.placement);
       
       _bannerAd = BannerAd(
         adUnitId: adUnitId,
@@ -114,11 +124,23 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
           onAdFailedToLoad: (ad, error) {
             debugPrint('❌ Banner [${widget.placement.name}]: Failed - code=${error.code}, domain=${error.domain}, message=${error.message}');
             ad.dispose();
-            if (mounted) {
-              setState(() {
-                _bannerAd = null;
-                _isLoaded = false;
+            if (!mounted) return;
+            setState(() {
+              _bannerAd = null;
+              _isLoaded = false;
+            });
+            // Retry with exponential backoff (2s, 4s, 8s) — recovers
+            // transient no-fill/network errors without hammering the SDK.
+            if (_retryAttempt < _maxRetries) {
+              _retryAttempt++;
+              final delay = Duration(seconds: 2 << (_retryAttempt - 1));
+              debugPrint('🔄 Banner [${widget.placement.name}]: Retry $_retryAttempt/$_maxRetries in ${delay.inSeconds}s');
+              Future.delayed(delay, () {
+                if (mounted && _bannerAd == null) _loadBannerAd();
               });
+            } else {
+              // Give up quietly — collapse the reserved space.
+              setState(() => _failedPermanently = true);
             }
           },
           onAdOpened: (ad) => debugPrint('🎯 Banner [${widget.placement.name}]: Opened'),
@@ -143,7 +165,20 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    // Premium users / permanent failure / ads disabled → take no space.
+    if (_failedPermanently || _subManager.isPremium) {
+      return const SizedBox.shrink();
+    }
+
+    // LAYOUT-SHIFT FIX: once we know the ad size, RESERVE the full height
+    // even while loading. Content never jumps under the user's finger —
+    // accidental clicks were flagging us for invalid traffic.
+    if (_adSize != null && (!_isLoaded || _bannerAd == null)) {
+      return SizedBox(height: _adSize!.height.toDouble());
+    }
+
     if (!_isLoaded || _bannerAd == null || _adSize == null) {
+      // Size not yet determined (first frame) — minimal placeholder.
       return const SizedBox(height: 4);
     }
 

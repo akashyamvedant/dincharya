@@ -131,7 +131,10 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: maxAdHeight,
-            minHeight: 120,
+            // LAYOUT-SHIFT FIX: reserve the FULL slot height while loading.
+            // The old minHeight:120 → ~330 jump moved list content under the
+            // user's finger (accidental-click / invalid-traffic vector).
+            minHeight: _isLoaded ? 120 : maxAdHeight,
             maxWidth: double.infinity,
           ),
           child: _isLoaded && _nativeAd != null

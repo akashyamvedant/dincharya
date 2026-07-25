@@ -361,8 +361,8 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                         // Literature (book-style)
                         _buildLiteratureSection(),
                         SizedBox(height: 2.h),
-                        // Native Ad between content sections
-                        const NativeAdWidget(placement: NativePlacement.sessionTheory),
+                        // Native Ad between content sections — REMOVED for premium feel
+                        // const NativeAdWidget(placement: NativePlacement.sessionTheory),
                         SizedBox(height: 2.h),
                         // Benefits from DB
                         _buildPoseBenefitsCard(),
@@ -375,8 +375,8 @@ class _MediaPlayerPlatformWidgetState extends State<MediaPlayerPlatformWidget>
                           _buildStepsOverviewCard(),
                           SizedBox(height: 2.h),
                         ],
-                        // Adaptive Banner at bottom of Theory tab
-                        const AdaptiveBannerAdWidget(placement: BannerPlacement.sessionDetail),
+                        // Adaptive Banner at bottom of Theory tab — REMOVED for premium feel
+                        // const AdaptiveBannerAdWidget(placement: BannerPlacement.sessionDetail),
                         SizedBox(height: 4.h),
                       ],
                     ),

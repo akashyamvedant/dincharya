@@ -61,4 +61,5 @@ dependencies {
     implementation 'androidx.window:window:1.2.0'
     implementation 'androidx.window:window-java:1.2.0'
     implementation 'com.facebook.android:audience-network-sdk:6.+'
+    implementation 'com.android.billingclient:billing:7.1.1'
 }

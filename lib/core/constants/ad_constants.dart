@@ -20,6 +20,7 @@ enum BannerPlacement {
   changeProfile,     // Profile Selection screen
   routineDashboard,  // Routine Dashboard anchored banner
   guidedHub,         // Guided Sessions Hub anchored banner
+  tapasyaHub,        // Tapasya Hub anchored banner (own ID, non-collapsible)
   sessionDetail,     // Media Player (Theory + Fallback) detail page
   programDetail,     // Program Detail screen
 }
@@ -74,6 +75,10 @@ class AdConstants {
   static const String _prodBannerChangeProfileAndroid = 'ca-app-pub-6276884053063994/2974243773';
   static const String _prodBannerRoutineDashboardAndroid = 'ca-app-pub-6276884053063994/3118760187';
   static const String _prodBannerGuidedHubAndroid = 'ca-app-pub-6276884053063994/6729655953';
+  // ⚠️ PRE-LAUNCH ACTION: Create a dedicated Tapasya Hub banner unit in AdMob.
+  // Replace the placeholder below with the new unit ID before releasing to Play Store.
+  // Until then, Tapasya banners will gracefully fail (no revenue loss — guidedHub unit is NOT shared).
+  static const String _prodBannerTapasyaHubAndroid = 'ca-app-pub-6276884053063994/2612647042';
   static const String _prodBannerSessionDetailAndroid = 'ca-app-pub-6276884053063994/5875739282';
   static const String _prodBannerProgramDetailAndroid = 'ca-app-pub-6276884053063994/2790410943';
 
@@ -172,6 +177,8 @@ class AdConstants {
         return _prodBannerRoutineDashboardAndroid;
       case BannerPlacement.guidedHub:
         return _prodBannerGuidedHubAndroid;
+      case BannerPlacement.tapasyaHub:
+        return _prodBannerTapasyaHubAndroid;
       case BannerPlacement.sessionDetail:
         return _prodBannerSessionDetailAndroid;
       case BannerPlacement.programDetail:

@@ -103,10 +103,18 @@ class TapasyaService {
   Future<bool> joinChallenge({String? challengeId, String? inviteCode}) async {
     try {
       final client = await _supabase.client;
-      if (client == null) return false;
+      if (client == null) {
+        debugPrint('⚠️ joinChallenge: No Supabase client');
+        return false;
+      }
 
       final userId = client.auth.currentUser?.id;
-      if (userId == null) return false;
+      if (userId == null) {
+        debugPrint('⚠️ joinChallenge: No authenticated user');
+        return false;
+      }
+
+      debugPrint('🔗 joinChallenge: challengeId=$challengeId, inviteCode=$inviteCode, userId=$userId');
 
       // Find challenge
       Map<String, dynamic>? challenge;
@@ -115,8 +123,8 @@ class TapasyaService {
             .from('tapasya_challenges')
             .select()
             .eq('id', challengeId)
-            .eq('status', 'active')
             .maybeSingle();
+        debugPrint('🔍 joinChallenge: query result = $resp');
         if (resp != null) challenge = Map<String, dynamic>.from(resp);
       } else if (inviteCode != null) {
         final resp = await client
@@ -129,7 +137,7 @@ class TapasyaService {
       }
 
       if (challenge == null) {
-        debugPrint('⚠️ Challenge not found');
+        debugPrint('⚠️ Challenge not found for id=$challengeId, inviteCode=$inviteCode');
         return false;
       }
 
@@ -338,7 +346,7 @@ class TapasyaService {
       // Get leaderboard (all participants with progress)
       final participants = await client
           .from('tapasya_challenge_participants')
-          .select('*, user:user_id(id, full_name, avatar_url)')
+          .select('*, user:user_profiles!fk_participants_user_profile(id, full_name, avatar_url)')
           .eq('challenge_id', challengeId)
           .eq('status', 'accepted')
           .order('current_progress', ascending: false);
@@ -708,7 +716,7 @@ class TapasyaService {
 
       final feed = await client
           .from('tapasya_activity_feed')
-          .select('*, user:user_id(id, full_name, avatar_url)')
+          .select('*, user:user_profiles!fk_feed_user_profile(id, full_name, avatar_url)')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
@@ -1051,7 +1059,7 @@ class TapasyaService {
       // Get members list
       final members = await client
           .from('tapasya_circle_members')
-          .select('*, user:user_id(id, full_name, avatar_url)')
+          .select('*, user:user_profiles!fk_circle_members_user_profile(id, full_name, avatar_url)')
           .eq('circle_id', circleId)
           .order('joined_at');
 
@@ -1257,7 +1265,7 @@ class TapasyaService {
 
       final response = await client
           .from('tapasya_live_participants')
-          .select('*, user:user_id(id, full_name, avatar_url)')
+          .select('*, user:user_profiles!fk_live_participants_user_profile(id, full_name, avatar_url)')
           .eq('room_id', roomId)
           .gte('last_ping', cutoff);
 
@@ -1388,7 +1396,7 @@ class TapasyaService {
       // Query from tapasya_activity_feed
       final response = await client
           .from('tapasya_activity_feed')
-          .select('*, user:user_id(id, full_name, avatar_url)')
+          .select('*, user:user_profiles!fk_feed_user_profile(id, full_name, avatar_url)')
           .eq('circle_id', circleId)
           .eq('action_type', 'live_room_message')
           .order('created_at', ascending: false)

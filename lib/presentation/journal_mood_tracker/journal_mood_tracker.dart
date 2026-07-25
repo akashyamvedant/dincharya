@@ -439,8 +439,8 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
       // Clear attachments after successful save
       _clearAttachments();
       
-      // Show interstitial ad with frequency capping (natural stopping point)
-      AdsService().showInterstitialAdWithCapping(InterstitialPlacement.journalSaved);
+      // Interstitial ad after journal save — REMOVED for premium feel
+      // AdsService().showInterstitialAdWithCapping(InterstitialPlacement.journalSaved);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1104,8 +1104,8 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
                             ),
                           ),
                       
-                        // Banner Ad - inside scroll area so it doesn't clip
-                        const BannerAdWidget(placement: BannerPlacement.journal),
+                        // Banner Ad — REMOVED for premium feel
+                        // const BannerAdWidget(placement: BannerPlacement.journal),
                         
                         SizedBox(height: 1.h),
                       ]))),

@@ -189,6 +189,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   // - Time-based cooldown (60 min) replaces session-based blocking
   // - Must NOT show on app exit or before content is visible
   static const int _minSecondsInBackground = 30; // 30 seconds - reasonable time away
+  static const String _prefFirstSessionDone = 'first_session_done'; // First-session no-ad guard
+  static const int _firstSessionGuardSeconds = 60; // App Open blocked for first 60s of first session
   
   // Layer 2: Midnight cross-over timer
   Timer? _midnightTimer;
@@ -219,11 +221,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       // Layer 1: Check day change on EVERY resume (regardless of active tab)
       _checkDayChangeOnResume();
-      // Existing: Show App Open Ad
+      // App Open Ad on resume — first-session guard prevents new-user churn
       _showAppOpenAdOnResume();
       // Layer 2: Re-schedule midnight timer (in case timer was lost in background)
       _scheduleMidnightCheck();
     }
+  }
+  
+  /// First-session guard: prevents App Open ads for the first 60 seconds
+  /// of the user's very first session. After this timer fires, the flag is
+  /// persisted to SharedPreferences and App Open ads unlock on subsequent resumes.
+  void _scheduleFirstSessionComplete() {
+    final prefs = SharedPreferences.getInstance();
+    Future.delayed(Duration(seconds: _firstSessionGuardSeconds), () async {
+      final p = await prefs;
+      final alreadySet = p.getBool(_prefFirstSessionDone) ?? false;
+      if (!alreadySet) {
+        await p.setBool(_prefFirstSessionDone, true);
+        debugPrint('✅ First session guard lifted — App Open ads now enabled');
+      }
+    });
   }
   
   /// Layer 1: App-level day change detection.
@@ -265,6 +282,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   
   // Show App Open Ad when app resumes from background (time-based cooldown)
   Future<void> _showAppOpenAdOnResume({bool isFromBackground = true}) async {
+    // SAFETY: Skip App Open during the user's first session (first 60s of app lifetime).
+    // First impressions matter for retention — no ads before user has engaged.
+    final prefs = await SharedPreferences.getInstance();
+    final firstSessionDone = prefs.getBool(_prefFirstSessionDone) ?? false;
+    if (!firstSessionDone) {
+      debugPrint('🚫 App Open blocked — first session protection active');
+      return;
+    }
+    
     // Skip if already showing
     if (_isShowingAd) {
       debugPrint('⏳ Already showing ad');
@@ -329,6 +355,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       SecurityConfig.logSecurityEvent('APP_READY',
           details: 'App initialization complete');
       
+      // First-session guard: mark session as "done" after 60s,
+      // unlocking App Open ads for subsequent resumes.
+      _scheduleFirstSessionComplete();
+      
       // Layer 1: Check day change on cold start
       _checkDayChangeOnResume();
       
@@ -346,8 +376,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           notifService.navigateToPendingAlarm();
         });
       } else {
-        // Show App Open Ad on app launch (not from background)
-        _showAppOpenAdOnResume(isFromBackground: false);
+        // App Open Ad on cold launch — REMOVED for premium feel
+        // _showAppOpenAdOnResume(isFromBackground: false);
       }
       
       // Initialize Deep Link Service for shareable session links

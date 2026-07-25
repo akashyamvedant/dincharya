@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../mind_games/mind_games_world.dart';
 
 /// XP Level definitions for the gamification system
 class UserLevel {
@@ -147,6 +148,51 @@ class RoutineHeaderWidget extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          
+          SizedBox(height: 1.2.h),
+          
+          // Mind Games Entry Button
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MindGamesWorld()),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.2.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    Theme.of(context).colorScheme.secondary.withValues(alpha: 0.08),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('🧠', style: TextStyle(fontSize: 16.sp)),
+                  SizedBox(width: 2.w),
+                  Text(
+                    'Mind Games',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(width: 2.w),
+                  Icon(Icons.play_arrow_rounded,
+                      color: Theme.of(context).colorScheme.primary, size: 18),
+                ],
+              ),
+            ),
           ),
           
           SizedBox(height: 1.h),

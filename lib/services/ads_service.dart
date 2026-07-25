@@ -7,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 
 import './supabase_service.dart';
 import './subscription_manager.dart';
+import './ad_gate.dart';
 import '../core/constants/ad_constants.dart';
 
 // lib/services/ads_service.dart
@@ -401,6 +402,13 @@ class AdsService {
   Future<bool> showInterstitialAdWithCapping([InterstitialPlacement? placement]) async {
     if (!shouldShowAds) return false;
     
+    // AdGate: shared full-screen cooldown + daily budget check
+    final adGate = AdGate();
+    if (!await adGate.canShowInterstitial()) {
+      debugPrint('🚦 Interstitial blocked by AdGate — cooldown or daily budget');
+      return false;
+    }
+    
     _interstitialActionCount++;
     await _persistInterstitialCount();
     
@@ -457,6 +465,7 @@ class AdsService {
 
     _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
+        AdGate().didShowInterstitial(); // Fire-and-forget: reset shared cooldown + increment daily count
         debugPrint('📺 Interstitial: Full screen content shown');
       },
       onAdImpression: (ad) {
@@ -795,16 +804,22 @@ class AdsService {
       return false;
     }
     
-    // If ad is null or expired, try to load first
+    // AdGate: shared full-screen cooldown (3 min across all formats)
+    final adGate = AdGate();
+    if (!await adGate.canShowFullScreen()) {
+      debugPrint('🚦 App Open blocked by AdGate — shared cooldown active');
+      return false;
+    }
+    
+    // POLICY: Never load-then-show synchronously — causes "unexpected ad"
+    // appearing AFTER user has already started interacting with the app.
+    // If no pre-cached valid ad, skip silently; a fresh ad will be loaded
+    // in the background for the next opportunity.
     if (_appOpenAd == null || !_isAppOpenAdValid()) {
-      debugPrint('⚠️ App Open ad not ready or expired — loading now...');
-      await loadAppOpenAd();
-      
-      // After loading, check again — if still no ad, give up
-      if (_appOpenAd == null || !_isAppOpenAdValid()) {
-        debugPrint('❌ App Open ad could not be loaded');
-        return false;
-      }
+      debugPrint('⚠️ App Open ad not cached or expired — skipping (will preload for next time)');
+      // Trigger background preload so the next resume has a ready ad
+      loadAppOpenAd(); // fire-and-forget, no await
+      return false;
     }
 
     // Use Completer to wait for ad dismissal (same pattern as rewarded ads)
@@ -814,6 +829,7 @@ class AdsService {
     _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
         shown = true;
+        adGate.didShowFullScreen(); // Fire-and-forget: reset shared cooldown
         debugPrint('📺 App Open: Full screen content shown');
       },
       onAdImpression: (ad) {

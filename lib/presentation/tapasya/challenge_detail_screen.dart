@@ -9,6 +9,8 @@ import 'package:sizer/sizer.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'dart:async';
+
 import '../../services/tapasya_service.dart';
 
 class ChallengeDetailScreen extends StatefulWidget {
@@ -24,9 +26,11 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
   Map<String, dynamic>? _challenge;
   bool _isLoading = true;
   bool _isJoining = false;
+  bool _dataChanged = false; // Track if data changed for Hub refresh
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -38,10 +42,17 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
     _pulseAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    // Auto-refresh every 10 seconds to catch opponent joins, progress updates
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted && _challenge != null) {
+        _loadDetail();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
@@ -98,6 +109,7 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
     if (mounted) {
       if (success) {
+        _dataChanged = true;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_is1v1
@@ -181,12 +193,26 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
     // Loading state
     if (_isLoading || _challenge == null) {
-      return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(title: const Text('Challenge')),
-        body: _isLoading
-            ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
-            : const Center(child: Text('Challenge not found')),
+      return PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop && _dataChanged) {
+            // Will be handled by Navigator result
+          }
+        },
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: const Text('Challenge'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(_dataChanged),
+            ),
+          ),
+          body: _isLoading
+              ? Center(child: CircularProgressIndicator(color: theme.colorScheme.primary))
+              : const Center(child: Text('Challenge not found')),
+        ),
       );
     }
 
@@ -217,7 +243,14 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
         goalLabel = '$goalValue';
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop && _dataChanged) {
+          // Result will be passed via Navigator.pop
+        }
+      },
+      child: Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
@@ -225,6 +258,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           SliverAppBar(
             expandedHeight: 20.h,
             pinned: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.of(context).pop(_dataChanged),
+            ),
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
@@ -549,7 +586,8 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
 
       // ── Bottom Action Bar (Context-Aware) ──
       bottomNavigationBar: _buildBottomBar(theme, isCompleted),
-    );
+    ),
+    );  // Close PopScope
   }
 
   // ══════════════════════════════════════════

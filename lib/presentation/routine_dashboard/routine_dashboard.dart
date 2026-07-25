@@ -52,6 +52,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
   int _celebrationXP = 25;
   String _celebrationTaskName = '';
   String _selectedCategory = 'all'; // For category filter
+  int _tasksAddedSession = 0; // Counter for session interstitial milestone
   
   // Category definitions for filter chips
   final List<Map<String, String>> _categories = [
@@ -976,25 +977,25 @@ class _RoutineDashboardState extends State<RoutineDashboard>
 
                               // Time-Grouped Task Sections with Native Ads
                               _buildTimeSection('morning', _groupedTasks['morning']!),
-                              // Native Ad after Morning section
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                                child: const NativeAdWidget(placement: NativePlacement.routineMorning),
-                              ),
+                              // Native Ad after Morning section — REMOVED for premium feel
+                              // Padding(
+                              //   padding: EdgeInsets.symmetric(horizontal: 4.w),
+                              //   child: const NativeAdWidget(placement: NativePlacement.routineMorning),
+                              // ),
                               
                               _buildTimeSection('afternoon', _groupedTasks['afternoon']!),
-                              // Native Ad after Afternoon section
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 4.w),
-                                child: const NativeAdWidget(placement: NativePlacement.routineAfternoon),
-                              ),
+                              // Native Ad after Afternoon section — REMOVED for premium feel
+                              // Padding(
+                              //   padding: EdgeInsets.symmetric(horizontal: 4.w),
+                              //   child: const NativeAdWidget(placement: NativePlacement.routineAfternoon),
+                              // ),
                               
                               _buildTimeSection('evening', _groupedTasks['evening']!),
 
                               // Quick Tasks (local-only, device storage)
                               const QuickTasksSection(),
 
-                              // Native Ad at bottom of task list
+                              // Native Ad at bottom of task list (1 per dashboard — retention diet)
                               Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 4.w),
                                 child: const NativeAdWidget(placement: NativePlacement.routineDashboard),
@@ -1014,7 +1015,7 @@ class _RoutineDashboardState extends State<RoutineDashboard>
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Anchored Adaptive Banner — always visible on highest-traffic screen
+          // Anchored Adaptive Banner — only collapsible placement (account-health safe)
           const AdaptiveBannerAdWidget(placement: BannerPlacement.routineDashboard),
           BottomNavigationBar(
         key: _bottomNavKey,
@@ -2001,8 +2002,11 @@ class _RoutineDashboardState extends State<RoutineDashboard>
         _scheduleWakeupAlarm(taskWithId);
       }
       
-      // Show interstitial ad with frequency capping (every 3 task adds)
-      AdsService().showInterstitialAdWithCapping(InterstitialPlacement.taskAdded);
+      // Interstitial ad at 3rd-task milestone (natural break, not interrupting flow)
+      _tasksAddedSession++;
+      if (_tasksAddedSession == 3) {
+        AdsService().showInterstitialAdWithCapping(InterstitialPlacement.taskAdded);
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -88,8 +88,8 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
               ),
             ),
 
-            // Banner Ad at bottom
-            const BannerAdWidget(placement: BannerPlacement.changeProfile),
+            // Banner Ad at bottom — REMOVED for premium feel
+            // const BannerAdWidget(placement: BannerPlacement.changeProfile),
 
             // Continue Button
             Padding(

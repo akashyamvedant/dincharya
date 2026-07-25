@@ -845,8 +845,8 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Anchored Adaptive Banner — always visible on second highest-traffic screen
-          const AdaptiveBannerAdWidget(placement: BannerPlacement.guidedHub),
+          // Anchored Adaptive Banner — REMOVED for premium feel
+          // const AdaptiveBannerAdWidget(placement: BannerPlacement.guidedHub),
           BottomNavigationBar(
         currentIndex: _currentBottomIndex,
         type: BottomNavigationBarType.fixed,
@@ -1193,10 +1193,10 @@ class _GuidedSessionsHubState extends State<GuidedSessionsHub>
           );
         }
 
-        // ── Session cards + ads ──
+        // ── Session cards + ads (every 5th card, max 2) ──
         final adjustedIndex = index - headerCount;
-        final adCount = adjustedIndex >= 0 ? (adjustedIndex) ~/ 4 : 0;
-        final isAdSlot = adjustedIndex >= 0 && (adjustedIndex + 1) % 4 == 0 && adjustedIndex > 0 && sessions.length >= 3;
+        final adCount = adjustedIndex >= 0 ? (adjustedIndex) ~/ 5 : 0;
+        final isAdSlot = adjustedIndex >= 0 && (adjustedIndex + 1) % 5 == 0 && adjustedIndex > 0 && sessions.length >= 3 && adCount < 2;
 
         if (isAdSlot) {
           return const NativeAdWidget(placement: NativePlacement.sessionFeed);
