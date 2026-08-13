@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
-import '../core/app_export.dart';
 import '../presentation/payment/payment_plans_screen.dart';
 import '../services/subscription_manager.dart';
 

@@ -38,12 +38,14 @@ class _SudokuGameState extends State<SudokuGame> {
   }
 
   bool _safe(List<List<int>> g, int r, int c, int v) {
-    for (int i = 0; i < _n; i++)
+    for (int i = 0; i < _n; i++) {
       if (g[r][i] == v || g[i][c] == v) return false;
+    }
     final br = (r ~/ _sub) * _sub, bc = (c ~/ _sub) * _sub;
     for (int i = br; i < br + _sub; i++)
-      for (int j = bc; j < bc + _sub; j++)
+      for (int j = bc; j < bc + _sub; j++) {
         if (g[i][j] == v) return false;
+      }
     return true;
   }
 
@@ -72,7 +74,9 @@ class _SudokuGameState extends State<SudokuGame> {
     _puzzle = _solution.map((row) => List<int>.from(row)).toList();
 
     final all = <int>[];
-    for (int i = 0; i < _n * _n; i++) all.add(i);
+    for (int i = 0; i < _n * _n; i++) {
+      all.add(i);
+    }
     all.shuffle(_rng);
     int removed = 0;
     for (final idx in all) {
@@ -84,8 +88,9 @@ class _SudokuGameState extends State<SudokuGame> {
 
     _player = _solution.map((row) => List<int>.from(row)).toList();
     for (int r = 0; r < _n; r++)
-      for (int c = 0; c < _n; c++)
+      for (int c = 0; c < _n; c++) {
         if (_puzzle[r][c] == 0) _player[r][c] = 0;
+      }
 
     _fixed = List.generate(_n, (r) =>
         List.generate(_n, (c) => _puzzle[r][c] != 0));
@@ -127,9 +132,11 @@ class _SudokuGameState extends State<SudokuGame> {
     if (!_started || _done) return;
     final empty = <(int, int)>[];
     for (int r = 0; r < _n; r++)
-      for (int c = 0; c < _n; c++)
-        if (!_fixed[r][c] && _player[r][c] != _solution[r][c])
+      for (int c = 0; c < _n; c++) {
+        if (!_fixed[r][c] && _player[r][c] != _solution[r][c]) {
           empty.add((r, c));
+      }
+        }
     if (empty.isEmpty) return;
     final (r, c) = empty[_rng.nextInt(empty.length)];
     setState(() {
@@ -141,8 +148,9 @@ class _SudokuGameState extends State<SudokuGame> {
 
   bool _checkComplete() {
     for (int r = 0; r < _n; r++)
-      for (int c = 0; c < _n; c++)
+      for (int c = 0; c < _n; c++) {
         if (_player[r][c] != _solution[r][c]) return false;
+      }
     return true;
   }
 

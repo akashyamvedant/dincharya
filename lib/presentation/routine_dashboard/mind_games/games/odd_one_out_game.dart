@@ -1,11 +1,14 @@
-// Sprint 2.3 — Odd One Out
-// Grid of similar items, find the different one. 10 rounds.
+// lib/presentation/routine_dashboard/mind_games/games/odd_one_out_game.dart
+// PREMIUM v3 — Grid of similar items, find the different one. 10 rounds.
+// Increasing grid size, combo system, sound effects, premium results.
 
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../game_theme.dart';
+import '../game_sfx_service.dart';
 import '../mind_games_service.dart';
+import '../widgets/game_shell.dart';
 
 class OddOneOutGame extends StatefulWidget {
   const OddOneOutGame({super.key});
@@ -13,14 +16,36 @@ class OddOneOutGame extends StatefulWidget {
   State<OddOneOutGame> createState() => _OddOneOutGameState();
 }
 
+enum _Phase { start, countdown, playing, results }
+
 class _OddOneOutGameState extends State<OddOneOutGame> {
   final _rng = Random(), _svc = MindGamesService();
-  static const _rounds = 10, _gridSizes = [9, 12, 16, 20, 25]; // items per round
-  int _r = 0, _ok = 0, _totalMs = 0, _gridSize = 9;
-  List<bool> _items = []; // true = odd one
-  DateTime? _roundStart;
+  final _sfx = GameSfxService();
+  static const _rounds = 10;
+  static const _gridSizes = [9, 12, 16, 20, 25];
 
-  void _start() { setState(() { _r = 0; _ok = 0; _totalMs = 0; _genRound(); }); }
+  int _r = 0, _ok = 0, _totalMs = 0, _gridSize = 9, _combo = 0, _maxCombo = 0;
+  List<bool> _items = [];
+  DateTime? _roundStart;
+  _Phase _phase = _Phase.start;
+  bool _isNewBest = false;
+  int _xpEarned = 0;
+  int _wrongTap = -1; // Index of wrong tap for flash
+
+  void _start() {
+    setState(() {
+      _r = 0;
+      _ok = 0;
+      _totalMs = 0;
+      _combo = 0;
+      _maxCombo = 0;
+      _isNewBest = false;
+      _xpEarned = 0;
+      _wrongTap = -1;
+      _phase = _Phase.countdown;
+      _genRound();
+    });
+  }
 
   void _genRound() {
     _gridSize = _gridSizes[min(_r, _gridSizes.length - 1)];
@@ -31,74 +56,251 @@ class _OddOneOutGameState extends State<OddOneOutGame> {
   }
 
   void _tap(int i) {
-    final ms = DateTime.now().difference(_roundStart!).inMilliseconds; _totalMs += ms;
-    if (_items[i]) _ok++;
-    _r++;
-    if (_r >= _rounds) { _finish(); } else { _genRound(); }
+    if (_phase != _Phase.playing) return;
+    final ms = DateTime.now().difference(_roundStart!).inMilliseconds;
+    _totalMs += ms;
+    if (_items[i]) {
+      _ok++;
+      _combo++;
+      if (_combo > _maxCombo) _maxCombo = _combo;
+      GameHaptics.correct();
+      _sfx.playCorrect();
+      _r++;
+      if (_r >= _rounds) {
+        _finish();
+        return;
+      }
+      _genRound();
+    } else {
+      _combo = 0;
+      GameHaptics.wrong();
+      _sfx.playWrong();
+      setState(() => _wrongTap = i);
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _wrongTap = -1);
+      });
+    }
   }
 
   Future<void> _finish() async {
-    setState(() {});
-    final acc = _ok / _rounds; final avg = _totalMs ~/ _rounds;
-    await _svc.saveScore(gameType: 'odd_one_out', score: (_ok * 10.0), accuracy: acc, reactionTimeMs: avg, roundsCompleted: _rounds);
+    setState(() => _phase = _Phase.results);
+    GameHaptics.win();
+    _sfx.playWin();
+
+    final acc = _ok / _rounds;
+    final avg = _totalMs ~/ _rounds;
+    final score = (_ok * 10.0) + (_maxCombo * 3.0);
+    _xpEarned = 10 +
+        (acc * 20).round() +
+        (avg < 1500 ? 5 : 0) +
+        (_maxCombo >= 7 ? 5 : 0);
+
+    await _svc.saveScore(
+      gameType: 'odd_one_out',
+      score: score,
+      accuracy: acc,
+      reactionTimeMs: avg,
+      roundsCompleted: _rounds,
+    );
+    _isNewBest = await _svc.submitLocalBest('odd_one_out', score);
+    await _svc.addXp(_xpEarned);
+    if (_isNewBest) _sfx.playNewBest();
+    if (mounted) setState(() {});
   }
 
-  int _cols() => _gridSize <= 9 ? 3 : _gridSize <= 16 ? 4 : 5;
+  int _cols() => _gridSize <= 9
+      ? 3
+      : _gridSize <= 16
+          ? 4
+          : 5;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: GameTheme.bg(context),
-      appBar: AppBar(backgroundColor: GameTheme.bg(context), elevation: 0, leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: GameTheme.textPrimary(context)), onPressed: () => Navigator.pop(context)), title: Text('Odd One Out', style: TextStyle(color: GameTheme.textPrimary(context), fontSize: 16.sp, fontWeight: FontWeight.bold)), centerTitle: true),
-      body: _r == 0 && _items.isEmpty ? _startScrn(context) : _r >= _rounds ? _result(context) : _game(context),
+      appBar: AppBar(
+        backgroundColor: GameTheme.bg(context),
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_rounded,
+              color: GameTheme.textPrimary(context)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('🔍', style: TextStyle(fontSize: 16.sp)),
+            SizedBox(width: 2.w),
+            Text('Odd One Out',
+                style: TextStyle(
+                    color: GameTheme.textPrimary(context),
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w700)),
+          ],
+        ),
+        centerTitle: true,
+      ),
+      body: Stack(children: [
+        if (_phase == _Phase.start) _startScreen(context),
+        if (_phase == _Phase.countdown)
+          GameCountdown(onDone: () => setState(() => _phase = _Phase.playing)),
+        if (_phase == _Phase.playing) _gameScreen(context),
+        if (_phase == _Phase.results) _resultScreen(context),
+      ]),
     );
   }
 
-  Widget _startScrn(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('🔍', style: TextStyle(fontSize: 56.sp)), SizedBox(height: 3.h),
-    Text('Odd One Out', style: GameTheme.heading(ctx, size: 26)), SizedBox(height: 2.h),
-    Text('Find the different item in the grid.\n$_rounds rounds, increasing difficulty.', textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 15.sp)),
-    SizedBox(height: 2.h),
-    Text('🔴🔴🔵🔴  ← spot the blue!', style: TextStyle(color: GameTheme.accent(ctx), fontSize: 18.sp)), SizedBox(height: 4.h),
-    SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _start, style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.8.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: Text('Start', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)))),
-  ])));
+  Widget _startScreen(BuildContext ctx) => GameStartScreen(
+        icon: '🔍',
+        title: 'Odd One Out',
+        description:
+            'Find the different item in the grid.\n$_rounds rounds · Grid grows each round!\n\nTests visual perception & scanning',
+        buttonLabel: 'Start Search',
+        preview: Container(
+          padding: EdgeInsets.all(4.w),
+          decoration: GameTheme.card(ctx),
+          child: Column(children: [
+            Text('🔴 🔴 🔵 🔴', style: TextStyle(fontSize: 22.sp)),
+            SizedBox(height: 1.h),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.touch_app_rounded,
+                  size: 14.sp, color: GameTheme.textMuted(ctx)),
+              SizedBox(width: 1.5.w),
+              Text('Tap the odd one!',
+                  style: TextStyle(
+                      fontSize: 12.sp,
+                      color: GameTheme.textSecondary(ctx),
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ]),
+        ),
+        onStart: _start,
+      );
 
-  Widget _game(BuildContext ctx) => Padding(
-    padding: EdgeInsets.all(3.w),
-    child: Column(children: [
-      Padding(padding: EdgeInsets.all(2.w), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text('${_r + 1}/$_rounds', style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 14.sp)),
-        Text('✓ $_ok', style: TextStyle(color: GameColors.successGreen, fontSize: 14.sp, fontWeight: FontWeight.w600)),
-      ])),
-      ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: _r / _rounds, backgroundColor: GameTheme.primary(ctx).withValues(alpha: 0.12), valueColor: AlwaysStoppedAnimation(GameTheme.primary(ctx)), minHeight: 4)),
-      SizedBox(height: 2.h),
-      Expanded(child: GridView.count(crossAxisCount: _cols(), mainAxisSpacing: 1.5.w, crossAxisSpacing: 1.5.w, children: List.generate(_gridSize, (i) {
-        return GestureDetector(
-          onTap: () => _tap(i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            decoration: BoxDecoration(
-              color: _items[i] ? GameTheme.accent(ctx).withValues(alpha: 0.18) : GameTheme.primary(ctx).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: GameTheme.primary(ctx).withValues(alpha: 0.15)),
-            ),
-            child: Center(child: Text(_items[i] ? '★' : '●', style: TextStyle(fontSize: 20.sp, color: _items[i] ? GameTheme.accent(ctx) : GameTheme.textPrimary(ctx).withValues(alpha: 0.5)))),
+  Widget _gameScreen(BuildContext ctx) => Padding(
+        padding: EdgeInsets.all(3.w),
+        child: Column(children: [
+          // Progress bar
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 1.h),
+            child: GameProgressBar(current: _r + 1, total: _rounds),
           ),
-        );
-      }))),
-    ]),
-  );
+          // Score + combo
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                decoration: BoxDecoration(
+                  color: GameColors.successGreen.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: GameColors.successGreen.withValues(alpha: 0.2),
+                      width: 0.5),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.check_circle_rounded,
+                      size: 14.sp, color: GameColors.successGreen),
+                  SizedBox(width: 1.5.w),
+                  Text('$_ok',
+                      style: TextStyle(
+                          color: GameColors.successGreen,
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w700)),
+                ]),
+              ),
+              SizedBox(width: 3.w),
+              GameComboIndicator(combo: _combo),
+              SizedBox(width: 3.w),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                decoration: BoxDecoration(
+                  color: GameTheme.primary(ctx).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: GameTheme.primary(ctx).withValues(alpha: 0.15),
+                      width: 0.5),
+                ),
+                child: Text('$_gridSize items',
+                    style: TextStyle(
+                        color: GameTheme.textSecondary(ctx),
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          SizedBox(height: 2.h),
+          // Grid
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: _cols(),
+              mainAxisSpacing: 2.w,
+              crossAxisSpacing: 2.w,
+              children: List.generate(_gridSize, (i) {
+                final isWrong = _wrongTap == i;
+                return GestureDetector(
+                  onTap: () => _tap(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      color: isWrong
+                          ? GameColors.errorRed.withValues(alpha: 0.2)
+                          : GameTheme.primary(ctx).withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isWrong
+                            ? GameColors.errorRed.withValues(alpha: 0.5)
+                            : GameTheme.primary(ctx).withValues(alpha: 0.12),
+                        width: isWrong ? 2 : 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        _items[i] ? '★' : '●',
+                        style: TextStyle(
+                          fontSize: _gridSize > 16 ? 16.sp : 20.sp,
+                          color: _items[i]
+                              ? GameTheme.accent(ctx)
+                              : GameTheme.textPrimary(ctx)
+                                  .withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ]),
+      );
 
-  Widget _result(BuildContext ctx) {
+  Widget _resultScreen(BuildContext ctx) {
     final acc = (_ok / _rounds * 100).round();
-    return Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text('🔍', style: TextStyle(fontSize: 48.sp)), SizedBox(height: 2.h),
-      Text('Complete!', style: GameTheme.heading(ctx, size: 24)), SizedBox(height: 3.h),
-      Row(children: [_s(ctx, '$_ok/$_rounds', '$acc%'), SizedBox(width: 3.w), _s(ctx, '${_totalMs ~/ _rounds}ms', 'Avg speed')]),
-      SizedBox(height: 4.h),
-      Row(children: [Expanded(child: OutlinedButton(onPressed: _start, style: OutlinedButton.styleFrom(foregroundColor: GameTheme.primary(ctx), side: BorderSide(color: GameTheme.primary(ctx).withValues(alpha: 0.5)), padding: EdgeInsets.symmetric(vertical: 1.5.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text('Retry', style: TextStyle(fontSize: 15.sp)))), SizedBox(width: 3.w), Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.5.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text('Done', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold))))]),
-    ])));
-  }
+    final avg = _totalMs ~/ _rounds;
+    final performance = (_ok / _rounds).clamp(0.0, 1.0);
 
-  Widget _s(BuildContext ctx, String v, String l) => Expanded(child: Container(padding: EdgeInsets.all(3.w), decoration: GameTheme.card(ctx), child: Column(children: [Text(v, style: TextStyle(color: GameTheme.accent(ctx), fontSize: 22.sp, fontWeight: FontWeight.bold)), Text(l, style: TextStyle(color: GameTheme.textPrimary(ctx).withValues(alpha: 0.5), fontSize: 11.sp))])));
+    return GameResultsScreen(
+      gameIcon: '🔍',
+      title: 'Odd One Out Complete!',
+      performance: performance,
+      score: (_ok * 10 + _maxCombo * 3),
+      scoreLabel: 'Score',
+      xpEarned: _xpEarned,
+      isNewBest: _isNewBest,
+      stats: [
+        GameResultStat('Accuracy', '$acc%'),
+        GameResultStat('Avg Speed', '${avg}ms'),
+        GameResultStat('Max Combo', 'x$_maxCombo'),
+      ],
+      onRetry: _start,
+      onDone: () => Navigator.pop(context),
+    );
+  }
 }

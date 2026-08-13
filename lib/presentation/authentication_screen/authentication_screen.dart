@@ -191,8 +191,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               .eq('id', userId)
               .limit(1);
           
-          final hasProfile = profileData != null && 
-              (profileData as List).isNotEmpty &&
+          final hasProfile = (profileData as List).isNotEmpty &&
               profileData[0]['lifestyle_profile'] != null &&
               profileData[0]['lifestyle_profile'].toString().isNotEmpty;
           

@@ -1,12 +1,14 @@
 // lib/presentation/routine_dashboard/mind_games/games/reaction_time_game.dart
-// Simple reaction time — Red → Green → TAP! 5 trials.
+// Simple reaction time — Red → Green → TAP! 5 trials. Premium UI v3.
 
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import '../game_theme.dart';
+import '../game_sfx_service.dart';
 import '../mind_games_service.dart';
+import '../widgets/game_shell.dart';
 
 enum RTP { wait, ready, go, soon, done }
 
@@ -18,6 +20,7 @@ class ReactionTimeGame extends StatefulWidget {
 
 class _ReactionTimeGameState extends State<ReactionTimeGame> {
   final _rng = Random(), _service = MindGamesService();
+  final _sfx = GameSfxService();
   static const _trials = 5;
 
   RTP _p = RTP.wait;
@@ -25,24 +28,101 @@ class _ReactionTimeGameState extends State<ReactionTimeGame> {
   final List<int> _all = [];
   Timer? _timer;
   DateTime? _go;
+  bool _isNewBest = false;
+  int _xpEarned = 0;
 
   @override
-  void dispose() { _timer?.cancel(); super.dispose(); }
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
-  void _start() { setState(() { _trial = 0; _best = 9999; _worst = 0; _total = 0; _all.clear(); }); _goTrial(); }
-  void _goTrial() { setState(() => _p = RTP.ready); _timer?.cancel(); _timer = Timer(Duration(milliseconds: 1500 + _rng.nextInt(2500)), () { if (mounted) { setState(() => _p = RTP.go); _go = DateTime.now(); } }); }
+  void _start() {
+    setState(() {
+      _trial = 0;
+      _best = 9999;
+      _worst = 0;
+      _total = 0;
+      _all.clear();
+      _isNewBest = false;
+    });
+    _goTrial();
+  }
+
+  void _goTrial() {
+    setState(() => _p = RTP.ready);
+    _timer?.cancel();
+    _timer = Timer(Duration(milliseconds: 1500 + _rng.nextInt(2500)), () {
+      if (mounted) {
+        setState(() => _p = RTP.go);
+        _go = DateTime.now();
+        GameHaptics.correct();
+      }
+    });
+  }
 
   void _tap() {
-    if (_p == RTP.ready) { _timer?.cancel(); setState(() => _p = RTP.soon); Timer(const Duration(seconds: 1), () { if (mounted) _goTrial(); }); return; }
+    if (_p == RTP.ready) {
+      _timer?.cancel();
+      GameHaptics.wrong();
+      _sfx.playWrong();
+      setState(() => _p = RTP.soon);
+      Timer(const Duration(seconds: 1), () {
+        if (mounted) _goTrial();
+      });
+      return;
+    }
     if (_p == RTP.go) {
-      final rt = DateTime.now().difference(_go!).inMilliseconds; _all.add(rt); _total += rt; if (rt < _best) _best = rt; if (rt > _worst) _worst = rt;
-      _trial++; if (_trial >= _trials) { _end(); } else { _goTrial(); }
+      final rt = DateTime.now().difference(_go!).inMilliseconds;
+      _all.add(rt);
+      _total += rt;
+      if (rt < _best) _best = rt;
+      if (rt > _worst) _worst = rt;
+      _trial++;
+      GameHaptics.tap();
+      if (_trial >= _trials) {
+        _end();
+      } else {
+        _goTrial();
+      }
     }
   }
 
-  Future<void> _end() async { setState(() => _p = RTP.done); final avg = _total / _trials; await _service.saveScore(gameType: 'reaction_time', score: (1000 - avg).clamp(0.0, 1000.0), reactionTimeMs: avg.round(), roundsCompleted: _trials); }
+  Future<void> _end() async {
+    setState(() => _p = RTP.done);
+    GameHaptics.win();
+    _sfx.playWin();
 
-  Color _bg(BuildContext ctx) => _p == RTP.ready ? Colors.red : _p == RTP.go ? GameColors.successGreen : _p == RTP.soon ? Colors.orange : GameTheme.bg(ctx);
+    final avg = _total / _trials;
+    final score = (1000 - avg).clamp(0.0, 1000.0);
+    _xpEarned = 10 +
+        (avg < 250
+            ? 20
+            : avg < 350
+                ? 15
+                : avg < 500
+                    ? 10
+                    : 5);
+
+    await _service.saveScore(
+      gameType: 'reaction_time',
+      score: score,
+      reactionTimeMs: avg.round(),
+      roundsCompleted: _trials,
+    );
+    _isNewBest = await _service.submitLocalBest('reaction_time', score);
+    await _service.addXp(_xpEarned);
+    if (_isNewBest) _sfx.playNewBest();
+    if (mounted) setState(() {});
+  }
+
+  Color _bg(BuildContext ctx) => _p == RTP.ready
+      ? const Color(0xFFC62828)
+      : _p == RTP.go
+          ? const Color(0xFF2E7D32)
+          : _p == RTP.soon
+              ? const Color(0xFFE65100)
+              : GameTheme.bg(ctx);
 
   @override
   Widget build(BuildContext context) {
@@ -51,42 +131,173 @@ class _ReactionTimeGameState extends State<ReactionTimeGame> {
       behavior: HitTestBehavior.opaque,
       child: Scaffold(
         backgroundColor: _bg(context),
-        appBar: _p == RTP.wait || _p == RTP.done ? AppBar(backgroundColor: GameTheme.bg(context), elevation: 0, leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: GameTheme.textPrimary(context)), onPressed: () => Navigator.pop(context)), title: Text('Reaction Time', style: TextStyle(color: GameTheme.textPrimary(context), fontSize: 16.sp, fontWeight: FontWeight.bold)), centerTitle: true) : null,
-        body: _p == RTP.wait ? _startScrn(context) : _p == RTP.done ? _result(context) : _play(context),
+        appBar: _p == RTP.wait || _p == RTP.done
+            ? AppBar(
+                backgroundColor: GameTheme.bg(context),
+                elevation: 0,
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_rounded,
+                      color: GameTheme.textPrimary(context)),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('⏱️', style: TextStyle(fontSize: 16.sp)),
+                    SizedBox(width: 2.w),
+                    Text('Reaction Time',
+                        style: TextStyle(
+                            color: GameTheme.textPrimary(context),
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                centerTitle: true,
+              )
+            : null,
+        body: _p == RTP.wait
+            ? _startScreen(context)
+            : _p == RTP.done
+                ? _resultScreen(context)
+                : _playScreen(context),
       ),
     );
   }
 
-  Widget _startScrn(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('⏱️', style: TextStyle(fontSize: 56.sp)), SizedBox(height: 3.h),
-    Text('Reaction Time', style: GameTheme.heading(ctx, size: 26)), SizedBox(height: 2.h),
-    Text('Red = Wait.\nGreen = TAP as fast as you can!\n$_trials trials.', textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 15.sp)), SizedBox(height: 4.h),
-    SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _start, style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.8.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: Text('Tap to Start', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)))),
-  ])));
+  Widget _startScreen(BuildContext ctx) => GameStartScreen(
+        icon: '⏱️',
+        title: 'Reaction Time',
+        description:
+            'Wait for the screen to turn GREEN,\nthen TAP as fast as you can!\n\n$_trials trials · Tests neural speed',
+        buttonLabel: 'Tap to Start',
+        preview: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _legendDot(ctx, const Color(0xFFC62828), 'Wait'),
+            SizedBox(width: 4.w),
+            _legendDot(ctx, const Color(0xFF2E7D32), 'TAP!'),
+            SizedBox(width: 4.w),
+            _legendDot(ctx, const Color(0xFFE65100), 'Too soon'),
+          ],
+        ),
+        onStart: _start,
+      );
 
-  Widget _play(BuildContext ctx) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text(_p == RTP.ready ? 'Wait...' : _p == RTP.go ? 'TAP NOW!' : 'Too soon!', style: TextStyle(fontSize: 40.sp, fontWeight: FontWeight.bold, color: Colors.white)),
-    SizedBox(height: 2.h), Text('Trial ${_trial + 1}/$_trials', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14.sp)),
-    if (_all.isNotEmpty) ...[SizedBox(height: 2.h), Text('Last: ${_all.last}ms', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16.sp))],
-  ]));
-
-  Widget _result(BuildContext ctx) {
-    final avg = _total ~/ _trials; String r = avg < 250 ? '⚡ Lightning fast!' : avg < 350 ? '👍 Quick!' : avg < 500 ? '🙂 Average' : '🐢 Room to improve';
-    return Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text('⏱️', style: TextStyle(fontSize: 48.sp)), SizedBox(height: 2.h),
-      Text('Results', style: GameTheme.heading(ctx, size: 24)), SizedBox(height: 2.h),
-      Text(r, style: TextStyle(color: GameTheme.textPrimary(ctx), fontSize: 18.sp)), SizedBox(height: 3.h),
-      Container(padding: EdgeInsets.all(4.w), decoration: GameTheme.card(ctx), child: Column(children: [
-        _row(ctx, 'Average', '${avg}ms'), SizedBox(height: 1.h), _row(ctx, 'Best', '${_best}ms'), SizedBox(height: 1.h), _row(ctx, 'Worst', '${_worst}ms'),
-      ])), SizedBox(height: 2.h),
-      Wrap(spacing: 2.w, runSpacing: 1.h, children: _all.map((rt) => Container(padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h), decoration: BoxDecoration(color: GameTheme.primary(ctx).withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8), border: Border.all(color: GameTheme.primary(ctx).withValues(alpha: 0.2))), child: Text('${rt}ms', style: TextStyle(color: GameTheme.textPrimary(ctx), fontSize: 13.sp)))).toList()),
-      SizedBox(height: 4.h),
-      Row(children: [Expanded(child: OutlinedButton(onPressed: _start, style: OutlinedButton.styleFrom(foregroundColor: GameTheme.primary(ctx), side: BorderSide(color: GameTheme.primary(ctx).withValues(alpha: 0.5)), padding: EdgeInsets.symmetric(vertical: 1.5.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text('Retry', style: TextStyle(fontSize: 15.sp)))), SizedBox(width: 3.w), Expanded(child: ElevatedButton(onPressed: () => Navigator.pop(context), style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.5.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: Text('Done', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.bold))))]),
-    ])));
+  Widget _legendDot(BuildContext ctx, Color color, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8.w,
+          height: 8.w,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        SizedBox(height: 0.5.h),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11.sp, color: GameTheme.textSecondary(ctx))),
+      ],
+    );
   }
 
-  Widget _row(BuildContext ctx, String l, String v) => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-    Text(l, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 16.sp)),
-    Text(v, style: TextStyle(color: GameTheme.accent(ctx), fontSize: 20.sp, fontWeight: FontWeight.bold)),
-  ]);
+  Widget _playScreen(BuildContext ctx) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated icon
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                _p == RTP.ready
+                    ? Icons.hourglass_empty_rounded
+                    : _p == RTP.go
+                        ? Icons.touch_app_rounded
+                        : Icons.warning_amber_rounded,
+                key: ValueKey(_p),
+                size: 80.sp,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+            SizedBox(height: 3.h),
+            Text(
+              _p == RTP.ready
+                  ? 'Wait for green...'
+                  : _p == RTP.go
+                      ? 'TAP NOW!'
+                      : 'Too soon! 😅',
+              style: TextStyle(
+                fontSize: 32.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                      color: Colors.black.withValues(alpha: 0.3), blurRadius: 8)
+                ],
+              ),
+            ),
+            SizedBox(height: 2.h),
+            // Trial indicator dots
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                  _trials,
+                  (i) => Container(
+                        margin: EdgeInsets.symmetric(horizontal: 1.w),
+                        width: 3.w,
+                        height: 3.w,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i < _trial
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.3),
+                        ),
+                      )),
+            ),
+            if (_all.isNotEmpty) ...[
+              SizedBox(height: 3.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text('Last: ${_all.last}ms',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ],
+        ),
+      );
+
+  Widget _resultScreen(BuildContext ctx) {
+    final avg = _total ~/ _trials;
+    final rating = avg < 250
+        ? '⚡ Lightning fast!'
+        : avg < 350
+            ? '👍 Quick!'
+            : avg < 500
+                ? '🙂 Average'
+                : '🐢 Room to improve';
+    final performance = ((1000 - avg) / 1000).clamp(0.0, 1.0);
+
+    return GameResultsScreen(
+      gameIcon: '⏱️',
+      title: rating,
+      performance: performance,
+      score: avg,
+      scoreLabel: 'Avg (ms) · lower is better',
+      xpEarned: _xpEarned,
+      isNewBest: _isNewBest,
+      stats: [
+        GameResultStat('Best', '${_best}ms'),
+        GameResultStat('Worst', '${_worst}ms'),
+        GameResultStat('Trials', '$_trials'),
+      ],
+      onRetry: _start,
+      onDone: () => Navigator.pop(context),
+    );
+  }
 }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../theme/app_theme.dart';
 import '../../services/community_service.dart';
 import '../../services/supabase_service.dart';
 import 'widgets/chat_bubble_widget.dart';

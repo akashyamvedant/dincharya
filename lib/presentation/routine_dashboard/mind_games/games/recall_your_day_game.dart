@@ -53,7 +53,7 @@ class _RecallYourDayGameState extends State<RecallYourDayGame> {
   }
 
   Widget _startScrn(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('📝', style: TextStyle(fontSize: 56.sp)), SizedBox(height: 3.h),
+    Text('📝', style: TextStyle(fontSize: 38.sp)), SizedBox(height: 3.h),
     Text('Recall Your Day', style: GameTheme.heading(ctx, size: 26)), SizedBox(height: 2.h),
     Text('Evening memory check-in.\n$_total questions. Be honest!', textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 15.sp)), SizedBox(height: 4.h),
     SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _begin, style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.8.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: Text('Begin Recall', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)))),
@@ -80,7 +80,7 @@ class _RecallYourDayGameState extends State<RecallYourDayGame> {
   Widget _result(BuildContext ctx) {
     String ins = _score >= 13 ? '🌟 Excellent memory! Your brain is sharp.' : _score >= 9 ? '👍 Good recall. Keep practicing daily.' : '🧠 Room to grow. Notice more details tomorrow.';
     return Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Text('📝', style: TextStyle(fontSize: 48.sp)), SizedBox(height: 2.h),
+      Text('📝', style: TextStyle(fontSize: 36.sp)), SizedBox(height: 2.h),
       Text('Recall Complete!', style: GameTheme.heading(ctx, size: 24)), SizedBox(height: 2.h),
       Container(padding: EdgeInsets.all(3.w), decoration: GameTheme.card(ctx), width: double.infinity, child: Column(children: [
         Text('$_score / ${_total * 3}', style: TextStyle(color: GameTheme.accent(ctx), fontSize: 26.sp, fontWeight: FontWeight.bold)),

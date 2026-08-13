@@ -448,7 +448,7 @@ class _BugReportDialogState extends State<_BugReportDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           DropdownButtonFormField<String>(
-            value: _severity,
+            initialValue: _severity,
             decoration: const InputDecoration(
               labelText: 'Severity',
               border: OutlineInputBorder(),

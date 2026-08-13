@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../services/supabase_service.dart';
 import '../../services/analytics_service.dart';

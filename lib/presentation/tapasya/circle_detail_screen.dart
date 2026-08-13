@@ -547,7 +547,7 @@ class _CircleDetailScreenState extends State<CircleDetailScreen> with SingleTick
                   ),
                 ),
               );
-            }).toList(),
+            }),
             SizedBox(height: 2.h),
             Center(
               child: TextButton.icon(

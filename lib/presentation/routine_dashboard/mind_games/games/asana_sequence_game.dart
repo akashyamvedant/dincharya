@@ -221,13 +221,13 @@ class _AsanaSequenceGameState extends State<AsanaSequenceGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🧘', style: TextStyle(fontSize: 54.sp)),
+            Text('🧘', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Asana Sequence',
                 style: GameTheme.heading(ctx, size: 26)),
@@ -314,7 +314,7 @@ class _AsanaSequenceGameState extends State<AsanaSequenceGame> {
                               _asanas[
                                   _sequence[_displayIdx]],
                               style:
-                                  TextStyle(fontSize: 64.sp),
+                                  TextStyle(fontSize: 42.sp),
                             ),
                           ),
                         )

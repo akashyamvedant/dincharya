@@ -1,15 +1,12 @@
 // Mobile implementation of Media Player (Android/iOS)
 // Now plays media INSIDE the app instead of external apps
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../services/ads_service.dart';
-import '../../widgets/ads/native_ad_widget.dart';
 import '../../widgets/ads/banner_ad_widget.dart';
 import '../../services/guided_session_service.dart';
 import '../../services/yoga_pose_service.dart';

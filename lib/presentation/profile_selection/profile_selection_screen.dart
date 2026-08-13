@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
-import '../../core/constants/ad_constants.dart';
 import '../../models/lifestyle_profile.dart';
 import '../../services/supabase_service.dart';
-import '../../widgets/ads/banner_ad_widget.dart';
 
 /// Profile Selection Screen for choosing lifestyle type
 class ProfileSelectionScreen extends StatefulWidget {

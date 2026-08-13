@@ -63,7 +63,11 @@ class _BlindFoldChallengeGameState extends State<BlindFoldChallengeGame> {
       // Tap challenge — did they hit the right zone?
       final zone = _zones[_instruction]!;
       final hit = zone.contains(pos);
-      if (hit) _score += 3; else _score += 1;
+      if (hit) {
+        _score += 3;
+      } else {
+        _score += 1;
+      }
       _tapPos = d.localPosition;
       setState(() {});
     }

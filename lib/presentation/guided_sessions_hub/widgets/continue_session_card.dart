@@ -91,7 +91,7 @@ class ContinueSessionCard extends StatelessWidget {
                           ),
                           SizedBox(height: 0.3.h),
                           Text(
-                            '$posMin:${posSec.toString().padLeft(2, '0')} / ${totalMin} min  •  ${_getCategoryEmoji(category)} ${_capitalize(category)}',
+                            '$posMin:${posSec.toString().padLeft(2, '0')} / $totalMin min  •  ${_getCategoryEmoji(category)} ${_capitalize(category)}',
                             style: TextStyle(
                               fontSize: 10.sp,
                               color: Theme.of(context).colorScheme.primary.withOpacity(0.7),

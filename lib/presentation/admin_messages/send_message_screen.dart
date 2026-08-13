@@ -741,7 +741,7 @@ class _ComposeTabState extends State<_ComposeTab> {
               title: Text('Show Once', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w500)),
               subtitle: Text('Message disappears after user sees it', style: TextStyle(fontSize: 13.sp)),
               value: _showOnce,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (v) => setState(() => _showOnce = v),
               contentPadding: EdgeInsets.zero,
             ),
@@ -758,7 +758,7 @@ class _ComposeTabState extends State<_ComposeTab> {
                 style: TextStyle(fontSize: 13.sp),
               ),
               value: _hasStartDate,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (v) async {
                 if (v) {
                   final date = await showDatePicker(
@@ -797,7 +797,7 @@ class _ComposeTabState extends State<_ComposeTab> {
                 style: TextStyle(fontSize: 13.sp),
               ),
               value: _hasExpiry,
-              activeColor: Theme.of(context).colorScheme.primary,
+              activeThumbColor: Theme.of(context).colorScheme.primary,
               onChanged: (v) async {
                 if (v) {
                   final date = await showDatePicker(

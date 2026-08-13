@@ -88,8 +88,9 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
       final nw = h, nh = w;
       final rotated = List.generate(nh, (r) => List.filled(nw, false));
       for (int r = 0; r < h; r++)
-        for (int c = 0; c < w; c++)
+        for (int c = 0; c < w; c++) {
           rotated[c][nw - 1 - r] = grid[r][c];
+        }
       return rotated;
     }
     return grid;
@@ -176,8 +177,9 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
   void _placePiece(List<List<bool>> piece, int row, int col, Color color) {
     final h = piece.length, w = piece[0].length;
     for (int r = 0; r < h; r++)
-      for (int c = 0; c < w; c++)
+      for (int c = 0; c < w; c++) {
         if (piece[r][c]) _board[row + r][col + c] = color;
+      }
     _score += piece.expand((r) => r).where((b) => b).length;
   }
 
@@ -186,8 +188,9 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
     for (int r = _rows - 1; r >= 0; r--) {
       if (_board[r].every((c) => c != null)) {
         _score += 10; _clears++;
-        for (int rr = r; rr > 0; rr--)
+        for (int rr = r; rr > 0; rr--) {
           _board[rr] = List<Color?>.from(_board[rr - 1]);
+        }
         _board[0] = List.filled(_cols, null);
       }
     }
@@ -196,10 +199,12 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
       if (List.generate(_rows, (r) => _board[r][c]).every((x) => x != null)) {
         _score += 10; _clears++;
         for (int cc = c; cc > 0; cc--)
-          for (int r = 0; r < _rows; r++)
+          for (int r = 0; r < _rows; r++) {
             _board[r][cc] = _board[r][cc - 1];
-        for (int r = 0; r < _rows; r++)
+          }
+        for (int r = 0; r < _rows; r++) {
           _board[r][0] = null;
+        }
       }
     }
   }
@@ -207,8 +212,9 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
   bool _hasMoves() {
     for (final piece in _pieces) {
       for (int r = 0; r < _rows; r++)
-        for (int c = 0; c < _cols; c++)
+        for (int c = 0; c < _cols; c++) {
           if (_canPlace(piece, r, c)) return true;
+        }
     }
     return false;
   }
@@ -268,8 +274,9 @@ class _BlockPuzzleGameState extends State<BlockPuzzleGame> {
                 if (local.dx < 0 || local.dy < 0) return;
                 final col = (local.dx / cellW).floor();
                 final row = (local.dy / cellH).floor();
-                if (row >= 0 && row < _rows && col >= 0 && col < _cols)
+                if (row >= 0 && row < _rows && col >= 0 && col < _cols) {
                   _onTapCell(row, col);
+                }
               },
               onTapUp: (_) => setState(() { _preview = null; }),
               child: Container(

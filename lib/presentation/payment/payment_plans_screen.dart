@@ -1,10 +1,8 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
-import '../../models/payment_models.dart';
 import '../admin_messages/admin_message_popup.dart';
 
 class PaymentPlansScreen extends StatefulWidget {

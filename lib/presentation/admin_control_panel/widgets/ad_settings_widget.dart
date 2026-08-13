@@ -141,7 +141,7 @@ class _AdSettingsWidgetState extends State<AdSettingsWidget> {
                     ),
                     SizedBox(height: 2.h),
                     DropdownButtonFormField<String>(
-                      value: _selectedAdNetwork,
+                      initialValue: _selectedAdNetwork,
                       decoration: const InputDecoration(
                         labelText: 'Select Ad Network',
                         prefixIcon: Icon(Icons.ads_click),

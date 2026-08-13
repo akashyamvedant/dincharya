@@ -138,13 +138,13 @@ class _NewThingDailyGameState extends State<NewThingDailyGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🌱', style: TextStyle(fontSize: 54.sp)),
+            Text('🌱', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('New Thing Daily',
                 style: GameTheme.heading(ctx, size: 26)),
@@ -242,7 +242,7 @@ class _NewThingDailyGameState extends State<NewThingDailyGame> {
           children: [
             Text(
               '🌱',
-              style: TextStyle(fontSize: 48.sp),
+              style: TextStyle(fontSize: 36.sp),
             ),
             SizedBox(height: 2.h),
             Text(

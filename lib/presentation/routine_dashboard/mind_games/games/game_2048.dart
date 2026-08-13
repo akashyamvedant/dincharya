@@ -83,7 +83,9 @@ class _Game2048State extends State<Game2048> {
           i--;
         }
       }
-      while (merged.length < 4) merged.insert(0, 0);
+      while (merged.length < 4) {
+        merged.insert(0, 0);
+      }
     } else {
       // Merge from left to right
       int i = 0;
@@ -100,7 +102,9 @@ class _Game2048State extends State<Game2048> {
           i++;
         }
       }
-      while (merged.length < 4) merged.add(0);
+      while (merged.length < 4) {
+        merged.add(0);
+      }
     }
     return merged;
   }

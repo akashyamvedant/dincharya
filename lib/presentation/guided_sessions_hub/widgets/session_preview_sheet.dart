@@ -395,7 +395,7 @@ class _SessionPreviewSheetState extends State<SessionPreviewSheet> {
   String _formatDuration(dynamic d) {
     if (d == null) return '—';
     final mins = d is int ? (d / 60).round() : 10;
-    return '${mins} min';
+    return '$mins min';
   }
 
   String? _extractYoutubeId(String url) {

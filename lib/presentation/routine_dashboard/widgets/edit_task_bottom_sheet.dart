@@ -940,7 +940,7 @@ class _EditTaskBottomSheetState extends State<EditTaskBottomSheet> {
                     _alarmEnabled = value;
                   });
                 },
-                activeColor: const Color(0xFFF57F17),
+                activeThumbColor: const Color(0xFFF57F17),
                 activeTrackColor: const Color(0xFFF57F17).withOpacity(0.3),
               ),
             ],

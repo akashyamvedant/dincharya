@@ -167,8 +167,9 @@ class _FlowFreeGameState extends State<FlowFreeGame> {
     }
     // Check all cells filled
     for (int r = 0; r < _size; r++)
-      for (int c = 0; c < _size; c++)
+      for (int c = 0; c < _size; c++) {
         if (_grid[r][c] == -1) return false;
+      }
     return true;
   }
 
@@ -218,7 +219,7 @@ class _FlowFreeGameState extends State<FlowFreeGame> {
   Widget _startScreen(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Text('🔗', style: TextStyle(fontSize: 54.sp)), SizedBox(height: 3.h),
     Text('Flow Free', style: GameTheme.heading(ctx, size: 26)), SizedBox(height: 2.h),
-    Text('Connect matching colors without\ncrossing paths. Fill the entire board!\n${_size}x${_size} grid · $_pairs pairs',
+    Text('Connect matching colors without\ncrossing paths. Fill the entire board!\n${_size}x$_size grid · $_pairs pairs',
         textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 14.sp, height: 1.6)),
     if (_levelIdx > 0) ...[
       SizedBox(height: 2.h),

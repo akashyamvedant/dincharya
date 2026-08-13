@@ -1,5 +1,4 @@
 ﻿// Web implementation of Media Player - Premium Design
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 // ignore: avoid_web_libraries_in_flutter

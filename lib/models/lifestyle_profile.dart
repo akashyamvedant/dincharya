@@ -2,6 +2,7 @@
 /// 
 /// Represents different lifestyle types with their default routines
 /// and preferences for time blocks, activities, and seasonal adaptations.
+library;
 
 class LifestyleProfile {
   final String id;

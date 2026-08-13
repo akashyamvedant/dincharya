@@ -18,7 +18,7 @@ class _DownloadsSectionState extends State<DownloadsSection> {
   int _fileCount = 0;
   String _cacheSize = '0 B';
 
-  static Color _primaryBrown = Color(0xFF5D4037);
+  static final Color _primaryBrown = Color(0xFF5D4037);
 
 
   @override

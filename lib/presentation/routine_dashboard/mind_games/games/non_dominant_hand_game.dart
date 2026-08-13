@@ -160,13 +160,13 @@ class _NonDominantHandGameState extends State<NonDominantHandGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('✋', style: TextStyle(fontSize: 54.sp)),
+            Text('✋', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Non-Dominant Hand',
                 style: GameTheme.heading(ctx, size: 26)),
@@ -232,7 +232,7 @@ class _NonDominantHandGameState extends State<NonDominantHandGame> {
         children: [
           Text(
             '✋',
-            style: TextStyle(fontSize: 64.sp),
+            style: TextStyle(fontSize: 42.sp),
           ),
           SizedBox(height: 3.h),
           Container(

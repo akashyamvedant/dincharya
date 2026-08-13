@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../core/app_export.dart';
 import '../../core/constants/ad_constants.dart';
 import '../../services/auth_service.dart';
 import '../../services/supabase_service.dart';

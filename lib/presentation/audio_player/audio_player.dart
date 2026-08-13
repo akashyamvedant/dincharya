@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../core/app_export.dart';
 import './widgets/breathing_animation_widget.dart';
 import './widgets/playback_controls_widget.dart';
 import './widgets/session_header_widget.dart';

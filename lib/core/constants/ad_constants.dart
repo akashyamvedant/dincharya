@@ -30,6 +30,7 @@ enum InterstitialPlacement {
   taskAdded,       // After adding a task in Routine Dashboard
   journalSaved,    // After saving a journal entry
   sessionEnded,    // After finishing a guided session
+  gameCompleted,   // After every 3rd mind game completed
 }
 
 /// Native Ad placement types for different screens
@@ -59,6 +60,10 @@ enum RewardedPlacement {
   yogaSession1,        // First yoga session unlock
   yogaSession2,        // Second yoga session unlock
   yogaSession3,        // Third yoga session unlock
+
+  // Mind Games
+  mindGameDoubleXp,    // 2x XP reward on game result screen
+  mindGameRetry,       // Extra retry for low-score games
 }
 
 class AdConstants {
@@ -88,6 +93,8 @@ class AdConstants {
   static const String _prodInterstitialTaskAddedAndroid = 'ca-app-pub-6276884053063994/5649554758';
   static const String _prodInterstitialJournalSavedAndroid = 'ca-app-pub-6276884053063994/2887660047';
   static const String _prodInterstitialSessionEndedAndroid = 'ca-app-pub-6276884053063994/7948415030';
+  // ⚠️ PRE-LAUNCH: Create Mind Games interstitial unit in AdMob and replace placeholder
+  static const String _prodInterstitialGameCompletedAndroid = 'ca-app-pub-6276884053063994/7948415030'; // TODO: Replace with unique ID
 
   // ════════════════════════════════════════════════════════════════
   // PRODUCTION NATIVE AD UNIT IDs v2 - Anti-hijack rotation
@@ -118,6 +125,11 @@ class AdConstants {
   static const String _prodRewardedYoga1Android = 'ca-app-pub-6276884053063994/4784119086';
   static const String _prodRewardedYoga2Android = 'ca-app-pub-6276884053063994/5937405346';
   static const String _prodRewardedYoga3Android = 'ca-app-pub-6276884053063994/3311242000';
+  
+  // Mind Games - 2 placements (v2 ✅)
+  // ⚠️ PRE-LAUNCH: Create unique units in AdMob and replace these placeholders
+  static const String _prodRewardedMindGameDoubleXpAndroid = 'ca-app-pub-6276884053063994/3471037413'; // TODO: Replace
+  static const String _prodRewardedMindGameRetryAndroid = 'ca-app-pub-6276884053063994/3471037413'; // TODO: Replace
   
   // Legacy single rewarded (v2 ✅)
   static const String _prodRewardedAndroid = 'ca-app-pub-6276884053063994/3471037413';
@@ -203,6 +215,8 @@ class AdConstants {
         return _prodInterstitialJournalSavedAndroid;
       case InterstitialPlacement.sessionEnded:
         return _prodInterstitialSessionEndedAndroid;
+      case InterstitialPlacement.gameCompleted:
+        return _prodInterstitialGameCompletedAndroid;
     }
   }
   
@@ -276,6 +290,12 @@ class AdConstants {
         return _prodRewardedYoga2Android;
       case RewardedPlacement.yogaSession3:
         return _prodRewardedYoga3Android;
+      
+      // Mind Games
+      case RewardedPlacement.mindGameDoubleXp:
+        return _prodRewardedMindGameDoubleXpAndroid;
+      case RewardedPlacement.mindGameRetry:
+        return _prodRewardedMindGameRetryAndroid;
     }
   }
 

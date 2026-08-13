@@ -273,13 +273,13 @@ class _MantraRecallGameState extends State<MantraRecallGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🕉️', style: TextStyle(fontSize: 54.sp)),
+            Text('🕉️', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Mantra Recall',
                 style: GameTheme.heading(ctx, size: 26)),

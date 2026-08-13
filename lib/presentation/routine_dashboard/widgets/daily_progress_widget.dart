@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
-import '../../../core/app_export.dart';
 import '../../../services/routine_tracking_service.dart';
 
 class DailyProgressWidget extends StatefulWidget {

@@ -138,13 +138,13 @@ class _StopTechGameState extends State<StopTechGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: SingleChildScrollView(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('📵', style: TextStyle(fontSize: 54.sp)),
+            Text('📵', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Stop Tech Challenge',
                 style: GameTheme.heading(ctx, size: 26)),
@@ -242,7 +242,7 @@ class _StopTechGameState extends State<StopTechGame> {
         children: [
           Text(
             '📵',
-            style: TextStyle(fontSize: 64.sp),
+            style: TextStyle(fontSize: 42.sp),
           ),
           SizedBox(height: 2.h),
           if (!_timerRunning)
@@ -303,7 +303,7 @@ class _StopTechGameState extends State<StopTechGame> {
                 Text(
                   _timeDisplay(),
                   style: TextStyle(
-                    fontSize: 44.sp,
+                    fontSize: 34.sp,
                     fontWeight: FontWeight.bold,
                     color: GameTheme.accent(ctx),
                   ),

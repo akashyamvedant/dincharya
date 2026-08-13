@@ -158,7 +158,7 @@ class _WordleGameState extends State<WordleGame> {
   }
 
   Widget _startScreen(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('🟩', style: TextStyle(fontSize: 54.sp)), SizedBox(height: 3.h),
+    Text('🟩', style: TextStyle(fontSize: 40.sp)), SizedBox(height: 3.h),
     Text('Wordle', style: GameTheme.heading(ctx, size: 26)), SizedBox(height: 2.h),
     Text('Guess the 5-letter word in $_maxGuesses tries.\nGreen = correct position\nOrange = wrong position\nGrey = not in word',
         textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 14.sp, height: 1.6)),

@@ -41,8 +41,8 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
       ]);
       if (mounted) {
         setState(() {
-          _daysCompleted = results[0] as int;
-          _participants = results[1] as int;
+          _daysCompleted = results[0];
+          _participants = results[1];
           _isLoading = false;
         });
         _animController.forward();
@@ -60,8 +60,8 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
 
   @override
   Widget build(BuildContext context) {
-    final _primaryBrown = Theme.of(context).colorScheme.primary;
-    final _darkBrown = Theme.of(context).colorScheme.onSurface;
+    final primaryBrown = Theme.of(context).colorScheme.primary;
+    final darkBrown = Theme.of(context).colorScheme.onSurface;
     final progress = (_daysCompleted / _targetDays).clamp(0.0, 1.0);
     final isComplete = _daysCompleted >= _targetDays;
 
@@ -76,11 +76,11 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isComplete ? _gold.withOpacity(0.4) : _primaryBrown.withOpacity(0.15),
+          color: isComplete ? _gold.withOpacity(0.4) : primaryBrown.withOpacity(0.15),
         ),
         boxShadow: [
           BoxShadow(
-            color: (isComplete ? _gold : _primaryBrown).withOpacity(0.08),
+            color: (isComplete ? _gold : primaryBrown).withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -108,7 +108,7 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                         style: TextStyle(
                           fontSize: 15.sp,
                           fontWeight: FontWeight.bold,
-                          color: isComplete ? _gold : _primaryBrown,
+                          color: isComplete ? _gold : primaryBrown,
                         ),
                       ),
                       Text(
@@ -117,7 +117,7 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                             : 'Practice every day this week',
                         style: TextStyle(
                           fontSize: 10.sp,
-                          color: _darkBrown.withOpacity(0.6),
+                          color: darkBrown.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -159,15 +159,15 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: isDone
-                                    ? _primaryBrown
+                                    ? primaryBrown
                                     : isToday
-                                        ? _primaryBrown.withOpacity(0.15)
+                                        ? primaryBrown.withOpacity(0.15)
                                         : Theme.of(context).colorScheme.outline,
                                 border: isToday
-                                    ? Border.all(color: _primaryBrown, width: 2)
+                                    ? Border.all(color: primaryBrown, width: 2)
                                     : null,
                                 boxShadow: isDone
-                                    ? [BoxShadow(color: _primaryBrown.withOpacity(0.3), blurRadius: 4)]
+                                    ? [BoxShadow(color: primaryBrown.withOpacity(0.3), blurRadius: 4)]
                                     : null,
                               ),
                               child: Center(
@@ -178,7 +178,7 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                                         style: TextStyle(
                                           fontSize: 11.sp,
                                           fontWeight: FontWeight.w600,
-                                          color: isToday ? _primaryBrown : Colors.grey,
+                                          color: isToday ? primaryBrown : Colors.grey,
                                         ),
                                       ),
                               ),
@@ -199,8 +199,8 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
               child: LinearProgressIndicator(
                 value: _isLoading ? null : progress,
                 minHeight: 6,
-                backgroundColor: _primaryBrown.withOpacity(0.1),
-                valueColor: AlwaysStoppedAnimation(isComplete ? _gold : _primaryBrown),
+                backgroundColor: primaryBrown.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation(isComplete ? _gold : primaryBrown),
               ),
             ),
 
@@ -215,19 +215,19 @@ class _WeeklyChallengeWidgetState extends State<WeeklyChallengeWidget>
                   style: TextStyle(
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,
-                    color: _primaryBrown,
+                    color: primaryBrown,
                   ),
                 ),
                 if (_participants > 0)
                   Row(
                     children: [
-                      Icon(Icons.group_outlined, size: 14, color: _darkBrown.withOpacity(0.5)),
+                      Icon(Icons.group_outlined, size: 14, color: darkBrown.withOpacity(0.5)),
                       SizedBox(width: 1.w),
                       Text(
                         '$_participants joined this week',
                         style: TextStyle(
                           fontSize: 10.sp,
-                          color: _darkBrown.withOpacity(0.5),
+                          color: darkBrown.withOpacity(0.5),
                         ),
                       ),
                     ],

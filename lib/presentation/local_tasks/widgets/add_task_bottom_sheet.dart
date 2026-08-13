@@ -218,7 +218,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               // Category
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: InputDecoration(
                     labelText: 'Category',
                     border: OutlineInputBorder(
@@ -245,7 +245,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
               // Priority
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _selectedPriority,
+                  initialValue: _selectedPriority,
                   decoration: InputDecoration(
                     labelText: 'Priority',
                     border: OutlineInputBorder(

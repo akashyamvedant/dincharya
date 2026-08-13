@@ -122,15 +122,21 @@ class _DualNBackGameState extends State<DualNBackGame> {
 
     // Check position
     if (_isPosMatch) {
-      if (_posMatchResponse) _posHits++;
-      else _posMisses++;
+      if (_posMatchResponse) {
+        _posHits++;
+      } else {
+        _posMisses++;
+      }
     } else {
       if (_posMatchResponse) _posFalseAlarms++;
     }
     // Check letter
     if (_isLetterMatch) {
-      if (_letterMatchResponse) _letterHits++;
-      else _letterMisses++;
+      if (_letterMatchResponse) {
+        _letterHits++;
+      } else {
+        _letterMisses++;
+      }
     } else {
       if (_letterMatchResponse) _letterFalseAlarms++;
     }
@@ -200,7 +206,7 @@ class _DualNBackGameState extends State<DualNBackGame> {
       appBar: AppBar(
         backgroundColor: GameTheme.bg(context), elevation: 0,
         leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: GameTheme.textPrimary(context)), onPressed: () => Navigator.pop(context)),
-        title: Text('${_n}-Back', style: TextStyle(color: GameTheme.textPrimary(context), fontSize: 16.sp, fontWeight: FontWeight.bold)), centerTitle: true,
+        title: Text('$_n-Back', style: TextStyle(color: GameTheme.textPrimary(context), fontSize: 16.sp, fontWeight: FontWeight.bold)), centerTitle: true,
       ),
       body: Stack(children: [
         if (!_started && !_done && !_showingCountdown) _startScreen(context),
@@ -239,7 +245,7 @@ class _DualNBackGameState extends State<DualNBackGame> {
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('$_n-Back', style: TextStyle(color: GameTheme.accent(ctx), fontSize: 16.sp, fontWeight: FontWeight.bold)),
             Text('Round ${_round - _n + 1}/$_totalRounds', style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 14.sp)),
-            Text('Position: ${_posHits}✓ ${_posMisses}✗', style: TextStyle(color: GameTheme.textSecondary(ctx).withValues(alpha: 0.7), fontSize: 11.sp)),
+            Text('Position: $_posHits✓ $_posMisses✗', style: TextStyle(color: GameTheme.textSecondary(ctx).withValues(alpha: 0.7), fontSize: 11.sp)),
           ])),
         // Grid (position stimulus)
         Expanded(

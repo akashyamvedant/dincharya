@@ -3,7 +3,6 @@
 // Automatically caches audio for offline playback
 
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:audioplayers/audioplayers.dart';

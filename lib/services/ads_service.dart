@@ -32,7 +32,7 @@ class AdsService {
   bool _isAppIntegrityVerified = false;
   
   // Completer so widgets can await initialization
-  Completer<void> _initCompleter = Completer<void>();
+  final Completer<void> _initCompleter = Completer<void>();
   
   /// Await this to ensure AdsService is ready before checking shouldShowAds
   Future<void> get waitForInitialization => _initCompleter.future;
@@ -414,7 +414,7 @@ class AdsService {
     
     // Check frequency cap
     if (_interstitialActionCount < AdConstants.interstitialFrequency) {
-      debugPrint('📊 Interstitial [${placement?.name ?? "default"}]: ${_interstitialActionCount}/${AdConstants.interstitialFrequency} actions');
+      debugPrint('📊 Interstitial [${placement?.name ?? "default"}]: $_interstitialActionCount/${AdConstants.interstitialFrequency} actions');
       
       // [FIX]: Just-In-Time (JIT) Preloading
       // Only load the ad if the user is exactly 1 action away from seeing it.

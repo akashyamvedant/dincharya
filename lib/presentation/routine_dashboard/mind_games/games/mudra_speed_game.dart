@@ -215,13 +215,13 @@ class _MudraSpeedGameState extends State<MudraSpeedGame> {
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🤏', style: TextStyle(fontSize: 54.sp)),
+            Text('🤏', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Mudra Speed',
                 style: GameTheme.heading(ctx, size: 26)),

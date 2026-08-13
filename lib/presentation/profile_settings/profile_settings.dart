@@ -1595,7 +1595,7 @@ class _ProfileSettingsState extends State<ProfileSettings> {
           Switch(
         value: value,
         onChanged: onChanged,
-            activeColor: iconColor,
+            activeThumbColor: iconColor,
           ),
         ],
       ),

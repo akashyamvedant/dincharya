@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
@@ -6,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/app_export.dart';
 import '../../payment/payment_plans_screen.dart';
-import '../../../models/payment_models.dart';
 import '../../../services/subscription_manager.dart';
 
 class SubscriptionCardWidget extends StatefulWidget {

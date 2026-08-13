@@ -40,8 +40,8 @@ class _JournalMoodTrackerState extends State<JournalMoodTracker>
   final ImagePicker _imagePicker = ImagePicker();
 
   // Attachment state - for new attachments being added
-  List<Uint8List> _selectedImages = [];
-  List<String> _selectedImageNames = [];
+  final List<Uint8List> _selectedImages = [];
+  final List<String> _selectedImageNames = [];
   Uint8List? _selectedAudio;
   String? _selectedAudioName;
   bool _isUploading = false;

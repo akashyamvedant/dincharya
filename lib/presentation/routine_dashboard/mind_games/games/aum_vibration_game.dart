@@ -299,13 +299,13 @@ class _AumVibrationGameState extends State<AumVibrationGame>
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🕉️', style: TextStyle(fontSize: 54.sp)),
+            Text('🕉️', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 3.h),
             Text('Aum Vibration',
                 style: GameTheme.heading(ctx, size: 26)),
@@ -381,7 +381,7 @@ class _AumVibrationGameState extends State<AumVibrationGame>
               SizedBox(height: 2.h),
               Text(
                 _phaseEmoji(),
-                style: TextStyle(fontSize: 48.sp),
+                style: TextStyle(fontSize: 36.sp),
               ),
               SizedBox(height: 2.h),
               // Pulse ring during chant

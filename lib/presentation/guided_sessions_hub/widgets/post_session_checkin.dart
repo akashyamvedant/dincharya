@@ -214,7 +214,7 @@ class _PostSessionCheckInState extends State<PostSessionCheckIn>
         ),
         SizedBox(height: 0.5.h),
         Text(
-          '${widget.sessionTitle} • ${durationMin} min',
+          '${widget.sessionTitle} • $durationMin min',
           style: TextStyle(
             fontSize: 13,
             color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),

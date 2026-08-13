@@ -238,7 +238,7 @@ class AuthService {
                       .eq('id', response.user!.id)
                       .limit(1);
                   
-                  if (existingProfile != null && (existingProfile as List).isNotEmpty) {
+                  if ((existingProfile as List).isNotEmpty) {
                     debugPrint('✅ User profile verified/created by trigger');
                   } else {
                     // Fallback: Create profile if trigger didn't work

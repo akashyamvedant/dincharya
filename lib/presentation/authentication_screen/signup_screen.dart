@@ -168,8 +168,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     .select('lifestyle_profile')
                     .eq('id', userId)
                     .limit(1);
-                hasProfile = profileData != null && 
-                    (profileData as List).isNotEmpty &&
+                hasProfile = (profileData as List).isNotEmpty &&
                     profileData[0]['lifestyle_profile'] != null &&
                     profileData[0]['lifestyle_profile'].toString().isNotEmpty;
               }

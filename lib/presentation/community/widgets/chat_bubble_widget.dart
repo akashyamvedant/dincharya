@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
-import '../../../theme/app_theme.dart';
 
 /// World-class chat bubble with slide-in animation, auto-sizing media,
 /// premium WhatsApp-style design with proper video playback.

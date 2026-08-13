@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../services/tapasya_service.dart';
-import './widgets/challenge_card_widget.dart';
 
 class CommunityChallengesScreen extends StatefulWidget {
   const CommunityChallengesScreen({super.key});

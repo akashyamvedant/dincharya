@@ -51,7 +51,7 @@ class _BreathCountingGameState extends State<BreathCountingGame>
   }
 
   Widget _startScrn(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('🧘', style: TextStyle(fontSize: 56.sp)), SizedBox(height: 3.h),
+    Text('🧘', style: TextStyle(fontSize: 38.sp)), SizedBox(height: 3.h),
     Text('Breath Counting Focus', style: GameTheme.heading(ctx, size: 24)), SizedBox(height: 2.h),
     Text('Count your breaths 1→10.\nIf your mind wanders, tap "Wandered".', textAlign: TextAlign.center, style: TextStyle(color: GameTheme.textSecondary(ctx), fontSize: 15.sp)), SizedBox(height: 4.h),
     SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _start, style: ElevatedButton.styleFrom(backgroundColor: GameTheme.primary(ctx), foregroundColor: Colors.white, padding: EdgeInsets.symmetric(vertical: 1.8.h), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))), child: Text('Begin', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold)))),
@@ -75,7 +75,7 @@ class _BreathCountingGameState extends State<BreathCountingGame>
   ]);
 
   Widget _result(BuildContext ctx) => Center(child: Padding(padding: EdgeInsets.all(6.w), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-    Text('🧘', style: TextStyle(fontSize: 48.sp)), SizedBox(height: 2.h),
+    Text('🧘', style: TextStyle(fontSize: 36.sp)), SizedBox(height: 2.h),
     Text('Session Complete', style: GameTheme.heading(ctx, size: 24)), SizedBox(height: 3.h),
     Row(children: [_stat(ctx, '$_rounds', 'Rounds'), SizedBox(width: 3.w), _stat(ctx, '$_maxStreak', 'Max Streak')]), SizedBox(height: 2.h),
     _stat(ctx, '$_wanders', 'Mind Wanders'), SizedBox(height: 4.h),

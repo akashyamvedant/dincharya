@@ -157,8 +157,9 @@ class AnalyticsService {
     // 2. Streak Bonus (25 points max)
     final currentStreak = await _getCurrentStreak();
     int streakBonus = 0;
-    if (currentStreak >= 30) streakBonus = 25;
-    else if (currentStreak >= 21) streakBonus = 20;
+    if (currentStreak >= 30) {
+      streakBonus = 25;
+    } else if (currentStreak >= 21) streakBonus = 20;
     else if (currentStreak >= 14) streakBonus = 15;
     else if (currentStreak >= 7) streakBonus = 10;
     else if (currentStreak >= 3) streakBonus = 5;

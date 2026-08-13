@@ -155,7 +155,7 @@ class TaskDetailsFormWidget extends StatelessWidget {
             ),
             SizedBox(height: 1.h),
             DropdownButtonFormField<String>(
-              value: selectedMeditationType,
+              initialValue: selectedMeditationType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
               ),
@@ -180,7 +180,7 @@ class TaskDetailsFormWidget extends StatelessWidget {
             ),
             SizedBox(height: 1.h),
             DropdownButtonFormField<String>(
-              value: selectedYogaSequence,
+              initialValue: selectedYogaSequence,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
               ),
@@ -205,7 +205,7 @@ class TaskDetailsFormWidget extends StatelessWidget {
             ),
             SizedBox(height: 1.h),
             DropdownButtonFormField<String>(
-              value: selectedStudyMode,
+              initialValue: selectedStudyMode,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
               ),

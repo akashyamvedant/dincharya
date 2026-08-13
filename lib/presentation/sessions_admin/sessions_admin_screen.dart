@@ -877,9 +877,9 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = fileName.split('.').last.toLowerCase();
-      final uploadFileName = '${type}_${timestamp}.$extension';
+      final uploadFileName = '${type}_$timestamp.$extension';
 
-      debugPrint('📤 Starting upload: $uploadFileName (${_totalBytes} bytes)');
+      debugPrint('📤 Starting upload: $uploadFileName ($_totalBytes bytes)');
 
       setState(() => _uploadProgress = 0.1);
 
@@ -987,8 +987,9 @@ class _AddEditSessionDialogState extends State<_AddEditSessionDialog> {
 
       // Determine active media_url based on media_type
       String activeMediaUrl = '';
-      if (_mediaType == 'youtube') activeMediaUrl = youtubeUrl;
-      else if (_mediaType == 'video') activeMediaUrl = videoUrl;
+      if (_mediaType == 'youtube') {
+        activeMediaUrl = youtubeUrl;
+      } else if (_mediaType == 'video') activeMediaUrl = videoUrl;
       else if (_mediaType == 'audio') activeMediaUrl = audioUrl;
 
       final data = {
@@ -2071,7 +2072,7 @@ class _StepEditDialogState extends State<_StepEditDialog> {
       // Generate unique path
       final ext = file.extension ?? 'mp3';
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storagePath = 'audio/steps/${widget.poseId}_${timestamp}.$ext';
+      final storagePath = 'audio/steps/${widget.poseId}_$timestamp.$ext';
 
       // Upload via SupabaseService
       final publicUrl = await _supabaseService.uploadFile(

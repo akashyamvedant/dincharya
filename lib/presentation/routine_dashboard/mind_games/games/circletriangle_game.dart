@@ -34,8 +34,8 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
     super.initState();
     _pulseCtrl = AnimationController(
         duration: const Duration(milliseconds: 800), vsync: this);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.3).animate(
-        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    _pulseAnim = Tween<double>(begin: 1.0, end: 1.3)
+        .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
     _pulseCtrl.repeat(reverse: true);
   }
 
@@ -67,8 +67,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
 
   void _startSwitchTimer() {
     _switchTimer?.cancel();
-    _switchTimer =
-        Timer(const Duration(seconds: 5), () {
+    _switchTimer = Timer(const Duration(seconds: 5), () {
       if (!mounted || _isDone) {
         return;
       }
@@ -99,8 +98,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
       roundsCompleted: _rounds,
       metadata: {'switches': _switchCount},
     );
-    _isNewBest =
-        await _service.submitLocalBest('circle_triangle', finalScore);
+    _isNewBest = await _service.submitLocalBest('circle_triangle', finalScore);
     await _service.addXp(10);
     if (mounted) {
       setState(() {});
@@ -152,27 +150,28 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
   }
 
   Widget _startScreen(BuildContext ctx) {
-    return Center(
+    return SingleChildScrollView(
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('🔺⭕', style: TextStyle(fontSize: 54.sp)),
-            SizedBox(height: 3.h),
-            Text('Circle-Triangle Switch',
-                style: GameTheme.heading(ctx, size: 26)),
+            SizedBox(height: 4.h),
+            Text('🔺⭕', style: TextStyle(fontSize: 40.sp)),
             SizedBox(height: 2.h),
+            Text('Circle-Triangle Switch',
+                style: GameTheme.heading(ctx, size: 22)),
+            SizedBox(height: 1.5.h),
             Text(
               'Draw shapes in the air!\nRight hand = shown shape\nLeft hand = other shape\nSwitch every 5 seconds.\n$_rounds switches.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: GameTheme.textSecondary(ctx),
-                fontSize: 14.sp,
+                fontSize: 12.sp,
                 height: 1.5,
               ),
             ),
-            SizedBox(height: 4.h),
+            SizedBox(height: 3.h),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -180,7 +179,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: GameTheme.primary(ctx),
                   foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 1.6.h),
+                  padding: EdgeInsets.symmetric(vertical: 1.4.h),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -188,12 +187,13 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                 child: Text(
                   'Start',
                   style: TextStyle(
-                    fontSize: 17.sp,
+                    fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
+            SizedBox(height: 2.h),
           ],
         ),
       ),
@@ -222,12 +222,10 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                   AnimatedBuilder(
                     animation: _pulseAnim,
                     builder: (_, __) => Transform.scale(
-                      scale: _rightIsCircle
-                          ? _pulseAnim.value
-                          : 1.0,
+                      scale: _rightIsCircle ? _pulseAnim.value : 1.0,
                       child: Text(
                         '✋',
-                        style: TextStyle(fontSize: 48.sp),
+                        style: TextStyle(fontSize: 36.sp),
                       ),
                     ),
                   ),
@@ -235,7 +233,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                   Text(
                     _rightIsCircle ? '⭕ Circle' : '🔺 Triangle',
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: 13.sp,
                       fontWeight: FontWeight.bold,
                       color: GameTheme.accent(ctx),
                     ),
@@ -250,19 +248,17 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                   ),
                 ],
               ),
-              SizedBox(width: 15.w),
+              SizedBox(width: 12.w),
               // Left hand
               Column(
                 children: [
                   AnimatedBuilder(
                     animation: _pulseAnim,
                     builder: (_, __) => Transform.scale(
-                      scale: !_rightIsCircle
-                          ? _pulseAnim.value
-                          : 1.0,
+                      scale: !_rightIsCircle ? _pulseAnim.value : 1.0,
                       child: Text(
                         '🤚',
-                        style: TextStyle(fontSize: 48.sp),
+                        style: TextStyle(fontSize: 36.sp),
                       ),
                     ),
                   ),
@@ -270,7 +266,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
                   Text(
                     !_rightIsCircle ? '⭕ Circle' : '🔺 Triangle',
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: 13.sp,
                       fontWeight: FontWeight.bold,
                       color: GameTheme.primary(ctx),
                     ),
@@ -291,7 +287,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
           Text(
             'Draw the shapes in the air!',
             style: TextStyle(
-              fontSize: 14.sp,
+              fontSize: 12.sp,
               color: GameTheme.textSecondary(ctx),
             ),
           ),
@@ -299,7 +295,7 @@ class _CircleTriangleGameState extends State<CircleTriangleGame>
           Text(
             'SWITCH soon...',
             style: TextStyle(
-              fontSize: 12.sp,
+              fontSize: 10.sp,
               color: GameColors.gold,
               fontWeight: FontWeight.w600,
             ),

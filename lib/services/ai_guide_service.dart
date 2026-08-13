@@ -377,15 +377,13 @@ Rules:
     // ── 4. Today's Routine Progress ──
     try {
       final todayProgress = await _routineTracking.getTodayProgress();
-      if (todayProgress is Map) {
-        final completed = todayProgress['completed'] ?? 0;
-        final total = todayProgress['total'] ?? 0;
-        if (total > 0) {
-          final pct = ((completed / total) * 100).round();
-          contextParts.add('Today\'s Routine: $completed/$total tasks done ($pct%)');
-        }
+      final completed = todayProgress['completed'] ?? 0;
+      final total = todayProgress['total'] ?? 0;
+      if (total > 0) {
+        final pct = ((completed / total) * 100).round();
+        contextParts.add('Today\'s Routine: $completed/$total tasks done ($pct%)');
       }
-    } catch (_) {}
+        } catch (_) {}
 
     // ── 5. Weekly Practice Stats ──
     try {
@@ -1161,8 +1159,9 @@ $userContext
       // Time-of-day fallback for category
       if (category == null) {
         final hour = DateTime.now().hour;
-        if (hour >= 4 && hour < 7) category = 'meditation';
-        else if (hour >= 7 && hour < 10) category = 'yoga';
+        if (hour >= 4 && hour < 7) {
+          category = 'meditation';
+        } else if (hour >= 7 && hour < 10) category = 'yoga';
         else if (hour >= 10 && hour < 14) category = 'pranayama';
         else if (hour >= 14 && hour < 17) category = 'yoga';
         else if (hour >= 17 && hour < 20) category = 'pranayama';

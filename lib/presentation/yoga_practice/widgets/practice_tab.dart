@@ -1320,7 +1320,7 @@ class _PracticeTabState extends State<PracticeTab>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: widget.steps.length > 0
+                  value: widget.steps.isNotEmpty
                       ? (_currentStep + 1) / widget.steps.length
                       : 0,
                   minHeight: 4,
@@ -2561,7 +2561,7 @@ class _PracticeTabState extends State<PracticeTab>
                         ),
                       ),
                       Text(
-                        '${_breathPracticePhaseRemaining}',
+                        '$_breathPracticePhaseRemaining',
                         style: TextStyle(
                           fontSize: 22.sp,
                           fontWeight: FontWeight.w900,

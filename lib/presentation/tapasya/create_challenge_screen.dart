@@ -27,7 +27,7 @@ class _CreateChallengeScreenState extends State<CreateChallengeScreen> {
   int _goalValue = 60;
   int _durationDays = 7;
   bool _isPublic = false;
-  int _maxParticipants = 20;
+  final int _maxParticipants = 20;
   bool _isCreating = false;
   String? _circleId;
 

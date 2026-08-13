@@ -39,7 +39,7 @@ class PracticeStatsRow extends StatelessWidget {
             context: context,
             icon: Icons.timer_outlined,
             iconColor: Theme.of(context).colorScheme.primary,
-            value: '${totalMinutes}',
+            value: '$totalMinutes',
             label: 'min this week',
           ),
           _divider(context),

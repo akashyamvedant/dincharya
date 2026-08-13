@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'supabase_service.dart';
-import 'notification_deep_link_service.dart';
 
 /// Routine Tracking Service - 100% SUPABASE (NO LOCAL STORAGE!)
 class RoutineTrackingService {

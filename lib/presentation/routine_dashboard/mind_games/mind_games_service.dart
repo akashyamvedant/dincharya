@@ -75,8 +75,8 @@ class MindGamesService {
     final prefs = await SharedPreferences.getInstance();
     final key = '$_prefBestPrefix$gameType';
     final prev = prefs.getDouble(key);
-    final isBest = prev == null ||
-        (lowerIsBetter ? score < prev : score > prev);
+    final isBest =
+        prev == null || (lowerIsBetter ? score < prev : score > prev);
     if (isBest) await prefs.setDouble(key, score);
     return isBest;
   }
@@ -170,12 +170,31 @@ class MindGamesService {
       });
 
       await markGamePlayed();
+      await _markGamePlayedToday(gameType);
       debugPrint('🧠 Score saved: $gameType = $score');
       return true;
     } catch (e) {
       debugPrint('⚠️ Failed to save score: $e');
       return false;
     }
+  }
+
+  // ── Played today tracking ──
+
+  Future<void> _markGamePlayedToday(String gameType) async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final key = 'mind_games_played_$today';
+    final played = prefs.getStringList(key)?.toSet() ?? {};
+    played.add(gameType);
+    await prefs.setStringList(key, played.toList());
+  }
+
+  Future<Set<String>> getPlayedToday() async {
+    final prefs = await SharedPreferences.getInstance();
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final key = 'mind_games_played_$today';
+    return prefs.getStringList(key)?.toSet() ?? {};
   }
 
   // ── Brain Age calculation ──
@@ -193,7 +212,7 @@ class MindGamesService {
           .select('game_type, score, accuracy, reaction_time_ms')
           .eq('user_id', userId);
 
-      if (data == null || data.isEmpty) return 30;
+      if (data.isEmpty) return 30;
 
       double compositeScore = 0;
       int count = 0;
@@ -317,17 +336,48 @@ class MindGamesService {
       if (userId == null) return {};
 
       final gameTypes = [
-        'stroop', 'number_search', 'breath_counting', 'recall_day',
-        'speed_match', 'reaction_time', 'memory_match', 'simon_says',
-        'odd_one_out', 'quick_math', 'hand_gesture', 'blind_fold',
-        'game_2048', 'sudoku', 'wordle', 'block_puzzle', 'flow_free', 'dual_nback',
-        'memory_matrix', 'visual_search', 'number_sequence', 'word_scramble',
-        'digit_span', 'tile_match', 'daily_trivia',
-        'mantra_recall', 'asana_sequence', 'mudra_speed', 'thought_watch',
-        'mantra_japa', 'trataka', 'guna_balance', 'mandala_mirror',
-        'shloka', 'aum_vibration',
-        'non_dominant_hand', 'five_senses', 'fist_clench', 'circle_triangle',
-        'new_thing_daily', 'stop_tech', 'self_control',
+        'stroop',
+        'number_search',
+        'breath_counting',
+        'recall_day',
+        'speed_match',
+        'reaction_time',
+        'memory_match',
+        'simon_says',
+        'odd_one_out',
+        'quick_math',
+        'hand_gesture',
+        'blind_fold',
+        'game_2048',
+        'sudoku',
+        'wordle',
+        'block_puzzle',
+        'flow_free',
+        'dual_nback',
+        'memory_matrix',
+        'visual_search',
+        'number_sequence',
+        'word_scramble',
+        'digit_span',
+        'tile_match',
+        'daily_trivia',
+        'mantra_recall',
+        'asana_sequence',
+        'mudra_speed',
+        'thought_watch',
+        'mantra_japa',
+        'trataka',
+        'guna_balance',
+        'mandala_mirror',
+        'shloka',
+        'aum_vibration',
+        'non_dominant_hand',
+        'five_senses',
+        'fist_clench',
+        'circle_triangle',
+        'new_thing_daily',
+        'stop_tech',
+        'self_control',
       ];
 
       final result = <String, Map<String, dynamic>>{};
@@ -337,10 +387,11 @@ class MindGamesService {
             .select('score, accuracy, reaction_time_ms')
             .eq('user_id', userId)
             .eq('game_type', gt)
-            .order('score', ascending: gt == 'reaction_time' || gt == 'number_search')
+            .order('score',
+                ascending: gt == 'reaction_time' || gt == 'number_search')
             .limit(1);
 
-        if (data != null && data.isNotEmpty) {
+        if (data.isNotEmpty) {
           result[gt] = Map<String, dynamic>.from(data[0]);
         }
       }
@@ -373,4 +424,68 @@ CREATE INDEX IF NOT EXISTS idx_mind_game_scores_user
 CREATE INDEX IF NOT EXISTS idx_mind_game_scores_date
   ON mind_game_scores(created_at DESC);
 ''';
+
+  // ── Badges / Achievements ──
+
+  static const List<GameBadge> allBadges = [
+    GameBadge('first_game', '🌱', 'First Step', 'Play your first mind game'),
+    GameBadge('streak_3', '🔥', 'On Fire', 'Reach a 3-day streak'),
+    GameBadge('streak_7', '⚡', 'Unstoppable', 'Reach a 7-day streak'),
+    GameBadge('streak_30', '🏆', 'Mind Master', 'Reach a 30-day streak'),
+    GameBadge('xp_100', '✨', 'Rising Star', 'Earn 100 XP'),
+    GameBadge('xp_500', '🌟', 'Shining Mind', 'Earn 500 XP'),
+    GameBadge('xp_1000', '💫', 'Brain Power', 'Earn 1000 XP'),
+    GameBadge('speed_demon', '🚀', 'Speed Demon', 'Reaction time under 250ms'),
+    GameBadge(
+        'perfect_stroop', '🎯', 'Perfect Focus', '100% accuracy in Stroop'),
+    GameBadge(
+        'memory_king', '🧠', 'Memory King', 'Score 900+ in any memory game'),
+    GameBadge('all_categories', '🌈', 'Well-Rounded',
+        'Play all 4 categories in one day'),
+    GameBadge('brain_25', '👑', 'Young Brain', 'Achieve brain age 25'),
+  ];
+
+  Future<List<GameBadge>> getEarnedBadges() async {
+    final prefs = await SharedPreferences.getInstance();
+    final xp = prefs.getInt(_prefXp) ?? 0;
+    final streak = prefs.getInt(_prefGameStreak) ?? 0;
+    final longest = prefs.getInt(_prefLongestStreak) ?? 0;
+    final earned = <GameBadge>[];
+
+    // Check each badge condition
+    final hasPlayed = xp > 0;
+    if (hasPlayed) earned.add(allBadges[0]); // first_game
+    if (longest >= 3) earned.add(allBadges[1]); // streak_3
+    if (longest >= 7) earned.add(allBadges[2]); // streak_7
+    if (longest >= 30) earned.add(allBadges[3]); // streak_30
+    if (xp >= 100) earned.add(allBadges[4]); // xp_100
+    if (xp >= 500) earned.add(allBadges[5]); // xp_500
+    if (xp >= 1000) earned.add(allBadges[6]); // xp_1000
+
+    // Check game-specific badges from local bests
+    final reactionBest = prefs.getDouble('${_prefBestPrefix}reaction_time');
+    if (reactionBest != null && reactionBest >= 750) {
+      earned.add(allBadges[7]); // speed_demon (score = 1000 - ms)
+    }
+
+    final stroopBest = prefs.getDouble('${_prefBestPrefix}stroop');
+    if (stroopBest != null && stroopBest >= 100) {
+      earned.add(allBadges[8]); // perfect_stroop
+    }
+
+    // Brain age badge
+    final brainAge = await calculateBrainAge();
+    if (brainAge <= 25) earned.add(allBadges[11]); // brain_25
+
+    return earned;
+  }
+}
+
+/// Badge data class
+class GameBadge {
+  final String id;
+  final String emoji;
+  final String name;
+  final String description;
+  const GameBadge(this.id, this.emoji, this.name, this.description);
 }
